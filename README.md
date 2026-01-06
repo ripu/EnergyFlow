@@ -108,16 +108,16 @@ pip install pymodbus
    ```json
    {
      "location": {
-       "latitude": 0.0,    // Le tue coordinate GPS
+       "latitude": 0.0,        // Le tue coordinate GPS
        "longitude": 0.0,
        "timezone": "Europe/Rome"
      },
      "inverter": {
-       "ip": "192.168.x.x",    // IP del tuo inverter
+       "ip": "192.168.x.x",  // IP del tuo inverter
        "port": 502
      },
      "battery": {
-       "capacity_kwh": 5.12      // Capacità della tua batteria in kWh
+       "capacity_kwh": 5.0     // Capacità della tua batteria in kWh
      },
      "server": {
        "port": 8003
