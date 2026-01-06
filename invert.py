@@ -217,7 +217,9 @@ def make_handler(count: int):
             
             # Basic allow-list for current dir files (css, js, maps)
             # Security: simple sanitization to prevent directory traversal
-            clean_path = self.path.lstrip('/')
+            # Remove query string if present
+            clean_path = self.path.split('?')[0].lstrip('/')
+            
             if ".." not in clean_path and os.path.exists(clean_path) and os.path.isfile(clean_path):
                  return self._serve_file(clean_path)
 
