@@ -192,12 +192,6 @@ Contributi, issue e richieste di funzionalità sono benvenuti!
 
 MIT License - Vedi [LICENSE](LICENSE) per dettagli
 
-## 👤 Autore
-
-**Ripu**
-- 📍 <CITTA>, Italia
-- ⚡ Impianto: Fotovoltaico + Batteria di accumulo
-
 ---
 
 ⭐ Se questo progetto ti è utile, lascia una stella su GitHub!
