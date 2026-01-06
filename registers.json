@@ -1,0 +1,44 @@
+{
+    "registers": {
+        "grid_voltage": {
+            "reg": 0,
+            "scale": 0.1,
+            "unit": "V"
+        },
+        "inverter_power": {
+            "reg": 2,
+            "scale": 1,
+            "unit": "W",
+            "signed": true
+        },
+        "grid_flow": {
+            "reg": 3,
+            "scale": 1,
+            "unit": "W",
+            "signed": true,
+            "note": "Positive=Import, Negative=Export"
+        },
+        "battery_percent": {
+            "reg": 28,
+            "scale": 1,
+            "unit": "%"
+        },
+        "battery_voltage": {
+            "reg": 29,
+            "scale": 0.1,
+            "unit": "V"
+        },
+        "daily_energy": {
+            "reg": 82,
+            "scale": 0.1,
+            "unit": "kWh"
+        }
+    },
+    "pv_calculation": {
+        "pv1_voltage_reg": 70,
+        "pv1_current_reg": 71,
+        "pv2_voltage_reg": 74,
+        "pv2_current_reg": 75,
+        "scale": 0.1
+    }
+}
