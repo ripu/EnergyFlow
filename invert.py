@@ -1,6 +1,7 @@
 import argparse
 import json
 import time
+import os
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Dict, List, Tuple
 
@@ -98,14 +99,27 @@ def print_table(regs: List[int], source: str):
 
 def make_handler(count: int):
     class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            if self.path == "/log":
+                length = int(self.headers.get('content-length', 0))
+                data = self.rfile.read(length).decode('utf-8')
+                with open("frontend.log", "a") as f:
+                    f.write(f"[{time.ctime()}] {data}\n")
+                self.send_response(200)
+                self.end_headers()
+                return
+            self.send_response(404)
+            self.end_headers()
+
         def _send_json(self, payload, code=200):
             body = json.dumps(payload).encode("utf-8")
             self.send_response(code)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(body)))
+            # CORS: Allow all
             self.send_header("Access-Control-Allow-Origin", "*")
             self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
-            self.send_header("Access-Control-Allow-Headers", "Content-Type")
+            self.send_header("Access-Control-Allow-Headers", "*")
             self.end_headers()
             self.wfile.write(body)
 
@@ -127,8 +141,43 @@ def make_handler(count: int):
                 except Exception as exc:
                     return self._send_json({"error": str(exc)}, code=500)
 
+            # Static File Serving
+            if self.path == "/" or self.path == "/index.html":
+                return self._serve_file("index.html")
+            
+            # Basic allow-list for current dir files (css, js, maps)
+            # Security: simple sanitization to prevent directory traversal
+            clean_path = self.path.lstrip('/')
+            if ".." not in clean_path and os.path.exists(clean_path) and os.path.isfile(clean_path):
+                 return self._serve_file(clean_path)
+
             self.send_response(404)
             self.end_headers()
+
+        def _serve_file(self, filename):
+            try:
+                with open(filename, 'rb') as f:
+                    content = f.read()
+                
+                # MIME Types
+                if filename.endswith(".html"): mime = "text/html"
+                elif filename.endswith(".css"): mime = "text/css"
+                elif filename.endswith(".js"): mime = "application/javascript"
+                elif filename.endswith(".json"): mime = "application/json"
+                elif filename.endswith(".png"): mime = "image/png"
+                elif filename.endswith(".jpg"): mime = "image/jpeg"
+                elif filename.endswith(".svg"): mime = "image/svg+xml"
+                else: mime = "application/octet-stream"
+
+                self.send_response(200)
+                self.send_header("Content-Type", mime)
+                self.send_header("Content-Length", str(len(content)))
+                self.end_headers()
+                self.wfile.write(content)
+            except Exception as e:
+                print(f"Error serving {filename}: {e}")
+                self.send_response(500)
+                self.end_headers()
 
         def log_message(self, format, *args):
             # Silenzia il logging HTTP standard.
@@ -138,8 +187,38 @@ def make_handler(count: int):
 
 
 def serve(host: str, port: int, count: int):
-    server = HTTPServer((host, port), make_handler(count))
-    print(f"🌐 Server Modbus → HTTP su http://{host}:{port}/data (lettura {count} registri)")
+    # Try to bind to port, if busy increment and retry
+    max_retries = 10
+    server = None
+    current_port = port
+    
+    for i in range(max_retries):
+        try:
+            server = HTTPServer((host, current_port), make_handler(count))
+            break # Success
+        except OSError as e:
+            if e.errno == 48: # Address already in use
+                print(f"⚠️  Porta {current_port} occupata, provo {current_port + 1}...")
+                current_port += 1
+            else:
+                raise e
+    
+    if server is None:
+        print(f"❌ Impossibile trovare una porta libera dopo {max_retries} tentativi.")
+        return
+
+    url = f"http://{host}:{current_port}/" if host != "0.0.0.0" else f"http://localhost:{current_port}/"
+    
+    print(f"🌐 Server attivo su {url}")
+    print(f"   Modbus Target: {INVERTER_IP}:{MODBUS_PORT}")
+    
+    # Auto-open browser
+    try:
+        import webbrowser
+        webbrowser.open(url)
+    except:
+        pass
+
     try:
         server.serve_forever()
     except KeyboardInterrupt:
