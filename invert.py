@@ -8,10 +8,10 @@ from typing import Dict, List, Tuple
 from pymodbus.client import ModbusTcpClient
 
 # --- CONFIGURAZIONE ---
-INVERTER_IP = "192.168.1.124"  # IP inverter (porta 502 aperta)
+INVERTER_IP = "192.168.1.124"  # IP inverter
 MODBUS_PORT = 502
 SLAVE_ID = 1
-DEFAULT_COUNT = 50
+DEFAULT_COUNT = 90  # Extended to read PV registers (70+) and Energy (82)
 # ----------------------
 
 
@@ -30,39 +30,87 @@ def read_registers(count: int = DEFAULT_COUNT) -> Tuple[List[int], str]:
         raise ConnectionError(f"Impossibile connettersi a {INVERTER_IP}:{MODBUS_PORT}")
 
     try:
-        rr = client.read_input_registers(address=0, count=count, slave=SLAVE_ID)
+        # Try Input Registers FIRST (User confirmed this works for valid data)
+        rr = client.read_input_registers(0, count=count, slave=SLAVE_ID)
         source = "input_registers"
 
-        if (rr is None) or rr.isError():
-            rr = client.read_holding_registers(address=0, count=count, slave=SLAVE_ID)
+        if rr.isError():
+            print("⚠️ Input Registers failed, trying Holding Registers...")
+            rr = client.read_holding_registers(0, count=count, slave=SLAVE_ID)
             source = "holding_registers"
-
-        if (rr is None) or rr.isError():
-            raise RuntimeError("Errore nella lettura dei registri.")
-
+            
+        if rr.isError():
+            raise IOError(f"Modbus Error: {rr}")
+            
         return rr.registers, source
+
     finally:
         client.close()
 
 
+def load_mapping():
+    try:
+        with open("registers.json", "r") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"Error loading registers.json, using defaults: {e}")
+        return None
+
 def decode_values(regs: List[int]) -> Dict[str, float]:
     """Deriva i valori principali dai registri grezzi."""
-
+    mapping = load_mapping()
+    
     def get(idx: int):
         return regs[idx] if idx < len(regs) else None
 
-    battery_percent = get(28)
-    inverter_power = signed16(get(2) or 0) if get(2) is not None else None
-    grid_voltage = (get(0) / 10) if get(0) is not None else None
-    grid_flow = signed16(get(21) or 0) if get(21) is not None else None
-    battery_voltage = (get(33) / 10) if get(33) is not None else None
+    # Defaults (hardcoded fallback)
+    reg_map = {
+        "grid_voltage": 0,
+        "inverter_power": 2,
+        "grid_flow": 3,
+        "battery_percent": 28,
+        "battery_voltage": 29,
+        "daily_energy": 82
+    }
+    
+    # Override defaults if mapping file exists
+    if mapping and "registers" in mapping:
+        for key, conf in mapping["registers"].items():
+            if "reg" in conf:
+                reg_map[key] = conf["reg"]
+
+    # Decode using map
+    grid_voltage = (get(reg_map["grid_voltage"]) / 10.0) if get(reg_map["grid_voltage"]) is not None else 0
+    inverter_power = signed16(get(reg_map["inverter_power"]) or 0)
+    grid_flow = signed16(get(reg_map["grid_flow"]) or 0)
+    battery_percent = get(reg_map["battery_percent"]) or 0
+    
+    # PV Calculation (Reg 70-75) - Voltage x10, Current x10
+    # Currently hardcoded logic because it involves math, but register IDs can be mapped if needed.
+    pv1_v = (get(70) or 0) / 10.0
+    pv1_a = (get(71) or 0) / 10.0
+    pv2_v = (get(74) or 0) / 10.0
+    pv2_a = (get(75) or 0) / 10.0
+    
+    pv_power_w = int((pv1_v * pv1_a) + (pv2_v * pv2_a))
+    
+    # Daily Energy
+    daily_energy = (get(reg_map["daily_energy"]) or 0) / 10.0
+
+    # Logic for 3D Dashboard:
+    # Home Load = Inverter AC + Grid Flow
+    home_load_w = inverter_power + grid_flow
+    if home_load_w < 0: home_load_w = 0 # Safety clamp
 
     return {
         "battery_percent": battery_percent,
         "inverter_power_w": inverter_power,
         "grid_voltage_v": grid_voltage,
         "grid_flow_w": grid_flow,
-        "battery_voltage_v": battery_voltage,
+        "home_load_w": home_load_w,
+        "solar_power_w": pv_power_w,
+        "daily_energy_kwh": daily_energy,
+        "battery_voltage_v": (get(reg_map["battery_voltage"]) or 0) / 10.0,
     }
 
 
@@ -137,6 +185,16 @@ def make_handler(count: int):
             if self.path.startswith("/data"):
                 try:
                     regs, source = read_registers(count=count)
+                    
+                    # DEBUG: Print all non-zero registers to help mapping
+                    print("\n--- DEBUG READ ---")
+                    for i, val in enumerate(regs):
+                        if val > 0 and val < 65000: # Filter likely valid positive values
+                            print(f"Reg {i}: {val}")
+                        elif val > 65000: # Python signed check
+                            print(f"Reg {i}: {val} ({val-65536})")
+                    print("------------------\n")
+
                     return self._send_json(build_payload(regs, source))
                 except Exception as exc:
                     return self._send_json({"error": str(exc)}, code=500)

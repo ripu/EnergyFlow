@@ -40,16 +40,47 @@
     .shell {
       width: min(1200px, 100%);
       margin: 0 auto;
-      padding: 28px 20px 40px;
+      padding: 12px 20px;
       display: grid;
-      gap: 22px;
+      gap: 12px;
+    }
+
+    .controls-card {
+      background: var(--panel);
+      border-radius: 18px;
+      padding: 8px 12px;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 6px;
+      height: 90px;
+      min-width: 140px;
+    }
+
+    .controls-row {
+      display: flex;
+      gap: 6px;
+    }
+
+    .controls-row button {
+      padding: 6px 10px;
+      font-size: 11px;
+      height: 28px;
+    }
+
+    .last-update {
+      font-size: 10px;
+      color: var(--muted);
+      text-align: center;
+      white-space: nowrap;
     }
 
     .topbar {
       display: flex;
       justify-content: space-between;
-      align-items: flex-start;
-      gap: 24px;
+      align-items: center;
+      gap: 8px;
       flex-wrap: wrap;
     }
 
@@ -66,7 +97,7 @@
     }
 
     h1 {
-      font-size: 30px;
+      font-size: 24px;
       margin: 0;
       letter-spacing: -0.02em;
     }
@@ -86,11 +117,13 @@
     .weather-card {
       background: var(--panel);
       border-radius: 18px;
-      padding: 12px 16px;
+      padding: 8px 12px;
       box-shadow: var(--shadow);
       display: grid;
-      gap: 8px;
-      min-width: 220px;
+      gap: 4px;
+      min-width: 200px;
+      height: 90px;
+      align-content: center;
     }
 
     .weather-main {
@@ -100,8 +133,8 @@
     }
 
     .weather-icon {
-      width: 34px;
-      height: 34px;
+      width: 28px;
+      height: 28px;
       display: grid;
       place-items: center;
       background: #fff3d4;
@@ -171,20 +204,22 @@
     .forecast-item {
       background: var(--panel);
       border-radius: 14px;
-      padding: 10px 12px;
+      padding: 6px 10px;
       display: grid;
-      gap: 6px;
+      gap: 4px;
       justify-items: center;
       min-width: 60px;
       box-shadow: var(--shadow);
-      font-size: 12px;
+      font-size: 11px;
       color: var(--muted);
+      height: 90px;
+      align-content: center;
     }
 
     .flow-card {
       background: var(--panel);
       border-radius: 26px;
-      padding: 20px;
+      padding: 16px;
       box-shadow: var(--shadow);
       display: grid;
       gap: 16px;
@@ -196,12 +231,18 @@
       background: var(--panel-soft);
       overflow: hidden;
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      /* 3 columns: Left (Sources), Center (Inverter), Right (Storage/Load) */
+      /* 3 columns: Equal width */
+      grid-template-columns: repeat(3, 1fr);
+      /* 2 rows */
       grid-template-areas:
         "solar inverter battery"
-        "grid meter home";
-      gap: 18px;
-      padding: 24px;
+        "grid inverter home";
+      /* Inverter spans or is centered */
+      gap: 32px 24px;
+      padding: 32px;
+      align-items: center;
+      justify-items: center;
     }
 
     .flow-board::before {
@@ -225,43 +266,67 @@
       z-index: 1;
     }
 
-    .connector {
-      display: none;
-    }
-
-    .connector::after {
-      content: "";
+    .svg-lines {
       position: absolute;
-      inset: 0;
-      background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.85) 50%, transparent 100%);
-      background-size: 200% 100%;
-      animation: flow 3.2s linear infinite;
-      border-radius: 999px;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 2;
     }
 
-    .connector.idle {
-      opacity: 0.25;
+    .connection-line {
+      fill: none;
+      stroke: #cbd5e1;
+      stroke-width: 6;
+      stroke-linecap: round;
+      stroke-dasharray: 12 12;
+      transition: stroke 0.3s;
     }
 
-    .connector.flow-out::after {
-      animation-direction: reverse;
+    .connection-line.idle {
+      stroke: #e2e8f0;
+      animation: none;
     }
 
-    @keyframes flow {
-      0% {
-        background-position: 0% 0%;
+    .connection-line.flow-in {
+      stroke: #2bb3b1;
+      /* Teal */
+      stroke-dasharray: 12 6;
+      animation: dashFlow 1s linear infinite;
+      /* Flows towards target */
+    }
+
+    .connection-line.flow-out {
+      stroke: #f7c76b;
+      /* Orange/Gold for export or special flow */
+      stroke-dasharray: 12 6;
+      animation: dashFlowReverse 1s linear infinite;
+    }
+
+    @keyframes dashFlow {
+      to {
+        stroke-dashoffset: -18;
       }
+    }
 
-      100% {
-        background-position: -200% 0%;
+    @keyframes dashFlowReverse {
+      to {
+        stroke-dashoffset: 18;
       }
     }
 
     .node {
       position: relative;
-      width: auto;
-      display: grid;
-      align-content: start;
+      width: 100%;
+      max-width: 220px;
+      margin: 0 auto;
+      height: 290px;
+      /* Fixed height for uniformity */
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
       gap: 10px;
       text-align: left;
       padding: 16px;
@@ -348,6 +413,16 @@
     .node.inverter {
       grid-area: inverter;
       --node-accent: #6aa6ff;
+      /* Center visually in grid track */
+      align-self: center;
+      justify-self: center;
+      /* Use same flex layout as .node */
+      display: flex;
+      width: 100%;
+      max-width: 220px;
+      align-items: center;
+      justify-content: center;
+      /* Center internal content for inverter */
     }
 
     .node.battery {
@@ -572,6 +647,99 @@
         order: 6;
       }
     }
+
+    .sun-card {
+      background: linear-gradient(135deg, #38bdf8 0%, #0369a1 100%);
+      border-radius: 18px;
+      padding: 8px 12px;
+      color: white;
+      min-width: 130px;
+      position: relative;
+      box-shadow: 0 10px 20px -5px rgba(14, 165, 233, 0.4);
+      height: 90px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .sun-card .sun-header {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sun-card .label {
+      font-size: 9px;
+      opacity: 0.8;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .sun-card .value {
+      font-size: 16px;
+      font-weight: 700;
+      line-height: 1.1;
+    }
+
+    .sun-graph {
+      width: 100%;
+      height: 32px;
+      margin-top: 0;
+      margin-bottom: -4px;
+      overflow: visible;
+    }
+
+    .sun-path-bg {
+      fill: url(#sunGradient);
+      stroke: rgba(255, 255, 255, 0.4);
+      stroke-width: 1.5;
+    }
+
+    .sun-path-active {
+      fill: none;
+      stroke: white;
+      stroke-width: 2;
+      stroke-dasharray: 100;
+      /* Will be adjusted by JS */
+      stroke-dashoffset: 100;
+      transition: stroke-dashoffset 1s ease;
+    }
+
+    .sun-dot {
+      fill: white;
+      filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.8));
+      transition: cx 1s ease, cy 1s ease;
+    }
+
+    .horizon {
+      stroke: rgba(255, 255, 255, 0.2);
+      stroke-width: 1;
+    }
+
+    .sun-footer {
+      font-size: 10px;
+      opacity: 0.9;
+      margin-top: 0;
+    }
+
+    @media (max-width: 980px) {
+      .sun-card {
+        display: none;
+        /* Hide on small screens if cluttered */
+      }
+    }
+
+    .weather-icon-small {
+      width: 24px;
+      height: 24px;
+      margin-bottom: 4px;
+      color: #7dd3fc;
+    }
+
+    .weather-icon-small svg {
+      width: 100%;
+      height: 100%;
+    }
   </style>
 </head>
 
@@ -579,34 +747,70 @@
   <div class="shell">
     <header class="topbar">
       <div class="title-block">
-        <div class="eyebrow">Live inverter</div>
-        <h1>Energy flow</h1>
+        <h1
+          style="font-weight: 800; letter-spacing: -0.04em; background: linear-gradient(135deg, #1e293b 0%, #334155 100%); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+          Energy Flow</h1>
         <div class="subtitle">Dashboard in tempo reale</div>
       </div>
       <div class="topbar-right">
+        <!-- Controls Card -->
+        <div class="controls-card">
+          <div class="controls-row">
+            <button id="viewToggleBtn"
+              style="background: linear-gradient(120deg, #8b5cf6, #a78bfa); color: white;">3D</button>
+            <button id="pullBtn">Aggiorna</button>
+            <button id="autoBtn" class="ghost">Auto</button>
+          </div>
+          <div class="last-update">Ultimo: <span id="lastUpdate">--</span></div>
+
+          <!-- Hidden Status -->
+          <div style="display: none;">
+            <div class="status-chip" id="statusChip">Attesa dati</div>
+            <div class="api-status" id="apiStatus"></div>
+          </div>
+        </div>
         <div class="weather-card">
           <div class="weather-main">
-            <div class="weather-icon sunny" id="weatherIcon">
-              <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+            <div class="weather-icon sunny" id="weatherIcon"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
                 <circle cx="16" cy="16" r="6" fill="currentColor"></circle>
                 <path d="M16 4v4M16 24v4M4 16h4M24 16h4M7.2 7.2l2.8 2.8M22 22l2.8 2.8M7.2 24.8l2.8-2.8M22 10l2.8-2.8"
                   stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
-              </svg>
-            </div>
+              </svg></div>
             <div>
               <div class="sun-line" id="sunLine">Alba --:-- · Tramonto --:--</div>
-              <div class="temp-range" id="tempRange">--&deg;C - --&deg;C</div>
+              <div class="temp-range" id="tempRange">--&deg;
+                C - --&deg;
+                C</div>
               <div class="date-line" id="dateLine">--</div>
               <div class="weather-desc" id="weatherDesc">--</div>
             </div>
           </div>
         </div>
+        <div class="sun-card">
+          <div class="sun-header"><span class="label">NEXT EVENT</span><span class="value" id="sunBig">--:--</span>
+          </div><svg class="sun-graph" viewBox="0 0 100 50" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="sunGradient" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stop-color="rgba(255, 255, 255, 0.35)" />
+                <stop offset="100%" stop-color="rgba(255, 255, 255, 0)" />
+              </linearGradient>
+            </defs>
+            <!-- Closed path for fill: Move to Start, Curve to End, Line to Bottom Right, Line to Bottom Left, Close -->
+            <path id="sunPath" class="sun-path-bg" d="M10,45 Q50,-15 90,45 L90,50 L10,50 Z" />
+            <circle id="sunDot" class="sun-dot" cx="10" cy="45" r="4" fill="white" stroke="rgba(0,0,0,0.1)"
+              stroke-width="1" />
+            <line class="horizon" x1="0" y1="45" x2="100" y2="45" stroke="rgba(255,255,255,0.3)" />
+          </svg>
+          <div class="sun-footer" id="sunFooter">Sunrise: --:--</div>
+        </div>
         <div class="forecast">
           <div class="forecast-item">
+            <div class="weather-icon-small" id="forecastIcon1"></div>
             <div id="forecastDate1">--/--</div>
             <div id="forecastTemp1">--&deg;C</div>
           </div>
           <div class="forecast-item">
+            <div class="weather-icon-small" id="forecastIcon2"></div>
             <div id="forecastDate2">--/--</div>
             <div id="forecastTemp2">--&deg;C</div>
           </div>
@@ -614,111 +818,87 @@
       </div>
     </header>
 
+
     <section class="flow-card">
       <div class="flow-board">
-        <div class="connector line-solar idle" id="lineSolar"></div>
-        <div class="connector line-battery idle" id="lineBattery"></div>
-        <div class="connector line-home idle" id="lineHome"></div>
-        <div class="connector line-grid idle" id="lineGrid"></div>
-        <div class="connector line-meter idle" id="lineMeter"></div>
-
+        <!-- Connecting Lines SVG --><svg class="svg-lines" viewBox="0 0 800 400" preserveAspectRatio="none">
+          <!-- Solar -> Inverter (Curved: Solar-Left to Inverter-Center) -->
+          <path id="lineSolar" d="M220 100 C 260 100, 340 160, 360 160" class="connection-line idle" />
+          <!-- Battery <-> Inverter (Curved: Battery-Right to Inverter-Center) -->
+          <path id="lineBattery" d="M580 100 C 540 100, 460 160, 440 160" class="connection-line idle" />
+          <!-- Grid <-> Inverter (Curved: Grid-Bottom-Left to Inverter-Center) -->
+          <path id="lineGrid" d="M220 300 C 260 300, 360 260, 400 200" class="connection-line idle" />
+          <!-- Inverter ->Home (Angled: Inverter-Bottom-Right to Home-Left) -->
+          <path id="lineHome" d="M440 160 C 460 300, 540 300, 580 300" class="connection-line idle" />
+        </svg>
         <div class="node solar">
           <div class="tile">
-            <div class="icon">
-              <svg viewBox="0 0 80 60" fill="none" aria-hidden="true">
+            <div class="icon"><svg viewBox="0 0 80 60" fill="none" aria-hidden="true">
                 <circle cx="62" cy="12" r="7" fill="currentColor" opacity="0.85"></circle>
                 <rect x="10" y="28" width="22" height="12" rx="2" fill="currentColor" opacity="0.25"></rect>
                 <rect x="36" y="28" width="22" height="12" rx="2" fill="currentColor" opacity="0.25"></rect>
                 <path d="M10 28l6-10h20l6 10" stroke="currentColor" stroke-width="2" stroke-linejoin="round"></path>
                 <path d="M36 28l6-10h20l6 10" stroke="currentColor" stroke-width="2" stroke-linejoin="round"></path>
-              </svg>
-            </div>
+              </svg></div>
           </div>
           <div class="node-label">Solar</div>
           <div class="node-value" id="solarPower">--</div>
         </div>
-
         <div class="node inverter">
           <div class="tile">
-            <div class="icon">
-              <svg viewBox="0 0 60 70" fill="none" aria-hidden="true">
+            <div class="icon"><svg viewBox="0 0 60 70" fill="none" aria-hidden="true">
                 <rect x="14" y="8" width="32" height="48" rx="6" fill="currentColor" opacity="0.2"></rect>
                 <rect x="14" y="8" width="32" height="48" rx="6" stroke="currentColor" stroke-width="2"></rect>
                 <rect x="22" y="18" width="16" height="10" rx="2" fill="currentColor" opacity="0.6"></rect>
                 <circle cx="30" cy="44" r="3" fill="currentColor"></circle>
                 <rect x="24" y="56" width="12" height="6" rx="3" fill="currentColor" opacity="0.4"></rect>
-              </svg>
-            </div>
+              </svg></div>
           </div>
           <div class="node-label">Inverter</div>
           <div class="node-value" id="inverterPower">--</div>
         </div>
-
         <div class="node battery">
           <div class="tile">
-            <div class="icon">
-              <svg viewBox="0 0 70 60" fill="none" aria-hidden="true">
+            <div class="icon"><svg viewBox="0 0 70 60" fill="none" aria-hidden="true">
                 <rect x="8" y="16" width="48" height="28" rx="6" fill="currentColor" opacity="0.2"></rect>
                 <rect x="8" y="16" width="48" height="28" rx="6" stroke="currentColor" stroke-width="2"></rect>
                 <rect x="56" y="24" width="6" height="12" rx="2" fill="currentColor"></rect>
                 <rect x="14" y="22" width="34" height="16" rx="4" fill="currentColor" opacity="0.6"></rect>
-              </svg>
-            </div>
+              </svg></div>
           </div>
           <div class="node-label">Battery</div>
           <div class="node-value" id="batteryPower">--</div>
           <div class="node-runtime" id="batteryRuntime">Autonomia: --</div>
           <div class="node-sub" id="batterySunWindow">FV: --</div>
         </div>
-
         <div class="node home">
           <div class="tile">
-            <div class="icon">
-              <svg viewBox="0 0 70 60" fill="none" aria-hidden="true">
+            <div class="icon"><svg viewBox="0 0 70 60" fill="none" aria-hidden="true">
                 <path d="M12 30L35 12L58 30" stroke="currentColor" stroke-width="2" stroke-linejoin="round"></path>
                 <rect x="18" y="30" width="34" height="20" rx="4" fill="currentColor" opacity="0.2"></rect>
                 <rect x="18" y="30" width="34" height="20" rx="4" stroke="currentColor" stroke-width="2"></rect>
                 <rect x="30" y="36" width="10" height="14" rx="2" fill="currentColor" opacity="0.6"></rect>
-              </svg>
-            </div>
+              </svg></div>
           </div>
           <div class="node-label">Home</div>
           <div class="node-value" id="homePower">--</div>
         </div>
-
         <div class="node grid">
           <div class="tile">
-            <div class="icon">
-              <svg viewBox="0 0 70 70" fill="none" aria-hidden="true">
+            <div class="icon"><svg viewBox="0 0 70 70" fill="none" aria-hidden="true">
                 <path d="M35 8L22 56H48L35 8Z" fill="currentColor" opacity="0.18"></path>
                 <path d="M35 8L22 56H48L35 8Z" stroke="currentColor" stroke-width="2"></path>
                 <path d="M20 30H50M18 40H52" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
-                <path d="M28 56L22 64M42 56L48 64" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
-              </svg>
-            </div>
+                <path d="M28 56L22 64M42 56L48 64" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                </path>
+              </svg></div>
           </div>
           <div class="node-label">Grid</div>
           <div class="node-value" id="gridPower">--</div>
           <div class="node-sub" id="gridDirection">Standby</div>
         </div>
-
-        <div class="node meter">
-          <div class="tile">
-            <div class="icon">
-              <svg viewBox="0 0 60 50" fill="none" aria-hidden="true">
-                <rect x="12" y="8" width="36" height="28" rx="6" fill="currentColor" opacity="0.25"></rect>
-                <rect x="12" y="8" width="36" height="28" rx="6" stroke="currentColor" stroke-width="2"></rect>
-                <path d="M30 14l-6 10h8l-4 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                  stroke-linejoin="round"></path>
-              </svg>
-            </div>
-          </div>
-        </div>
       </div>
-
-
     </section>
-
     <!-- 3D View Container -->
     <div id="container3d"
       style="display: none; width: 100%; height: 600px; border-radius: 26px; box-shadow: var(--shadow); background: #fcfcfc; position: relative; overflow: hidden;">
@@ -727,40 +907,36 @@
       </div>
     </div>
 
-    <!-- Control Bar (Moved here for visibility) -->
-    <div class="control-bar" style="margin-top: 24px;">
-      <div class="status-group">
-        <div class="status-chip" id="statusChip">Attesa dati</div>
-        <div class="api-status" id="apiStatus">API HTTP: avvia <strong>python3 invert.py --serve</strong> (default
-          http://localhost:8000/data)</div>
-      </div>
-      <div class="control-actions">
-        <button id="viewToggleBtn" style="background: linear-gradient(120deg, #8b5cf6, #a78bfa); color: white;">Vista
-          3D</button>
-        <button id="pullBtn">Aggiorna</button>
-        <button id="autoBtn" class="ghost">Auto OFF</button>
-        <div class="last-update">Ultimo aggiornamento: <span id="lastUpdate">--</span></div>
-      </div>
-    </div>
-
     <!-- 3D Scripts -->
     <script type="importmap">
-    {
-      "imports": {
-        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
       }
-    }
     </script>
 
-    <script type="module">
-      import * as THREE from 'three';
-      import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-      import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+    <script type="module"> import * as THREE from 'three';
+
+      import {
+        OrbitControls
+      }
+
+        from 'three/addons/controls/OrbitControls.js';
+
+      import {
+        CSS2DRenderer, CSS2DObject
+      }
+
+        from 'three/addons/renderers/CSS2DRenderer.js';
 
       let scene, camera, renderer, labelRenderer, controls;
       let animationId;
-      const nodes = {};
+
+      const nodes = {}
+
+        ;
       const flows = [];
       let is3DInited = false;
 
@@ -780,16 +956,16 @@
         // Camera
         const aspect = width / height;
         const frustumSize = 40;
-        camera = new THREE.OrthographicCamera(
-          frustumSize * aspect / -2, frustumSize * aspect / 2,
+        camera = new THREE.OrthographicCamera(frustumSize * aspect / -2, frustumSize * aspect / 2,
           frustumSize / 2, frustumSize / -2,
-          1, 1000
-        );
+          1, 1000);
         camera.position.set(20, 20, 20);
         camera.lookAt(0, 0, 0);
 
         // Renderers
-        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer = new THREE.WebGLRenderer({
+          antialias: true, alpha: true
+        });
         renderer.setSize(width, height);
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.shadowMap.enabled = true;
@@ -824,8 +1000,13 @@
         animate();
       }
 
-      const baseMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7, metalness: 0.1 });
-      const platformMaterial = new THREE.MeshStandardMaterial({ color: 0xf3f4f6, roughness: 0.8 });
+      const baseMaterial = new THREE.MeshStandardMaterial({
+        color: 0xffffff, roughness: 0.7, metalness: 0.1
+      });
+
+      const platformMaterial = new THREE.MeshStandardMaterial({
+        color: 0xf3f4f6, roughness: 0.8
+      });
 
       function createPlatform(w, d) {
         const h = 0.5;
@@ -842,27 +1023,54 @@
         group.add(createPlatform(6, 6));
 
         let mainMesh;
+
         if (id === 'solar') {
           const panelGeom = new THREE.BoxGeometry(4, 0.2, 3);
-          mainMesh = new THREE.Mesh(panelGeom, new THREE.MeshStandardMaterial({ color: 0x2563eb, roughness: 0.2 }));
+
+          mainMesh = new THREE.Mesh(panelGeom, new THREE.MeshStandardMaterial({
+            color: 0x2563eb, roughness: 0.2
+          }));
           mainMesh.rotation.x = -Math.PI / 6;
           mainMesh.position.y = 1.5;
           // Legs
           const l1 = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.5), baseMaterial); l1.position.set(-1.5, 0.75, -1); group.add(l1);
           const l2 = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.5), baseMaterial); l2.position.set(1.5, 0.75, -1); group.add(l2);
-        } else if (id === 'battery') {
-          mainMesh = new THREE.Mesh(new THREE.BoxGeometry(2, 4, 1.5), new THREE.MeshStandardMaterial({ color: 0x10b981 }));
+        }
+
+        else if (id === 'battery') {
+          mainMesh = new THREE.Mesh(new THREE.BoxGeometry(2, 4, 1.5), new THREE.MeshStandardMaterial({
+            color: 0x10b981
+          }));
           mainMesh.position.y = 2;
-        } else if (id === 'home') {
+        }
+
+        else if (id === 'home') {
           mainMesh = new THREE.Mesh(new THREE.BoxGeometry(3, 2.5, 3), baseMaterial); mainMesh.position.y = 1.25;
-          const roof = new THREE.Mesh(new THREE.ConeGeometry(2.5, 1.5, 4), new THREE.MeshStandardMaterial({ color: 0x475569 }));
+
+          const roof = new THREE.Mesh(new THREE.ConeGeometry(2.5, 1.5, 4), new THREE.MeshStandardMaterial({
+            color: 0x475569
+          }));
           roof.position.y = 3.25; roof.rotation.y = Math.PI / 4; group.add(roof);
-        } else if (id === 'grid') {
-          mainMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.5, 5), new THREE.MeshStandardMaterial({ color: 0x64748b })); mainMesh.position.y = 2.5;
-          const bar = new THREE.Mesh(new THREE.BoxGeometry(3, 0.2, 0.2), new THREE.MeshStandardMaterial({ color: 0x64748b })); bar.position.y = 4; group.add(bar);
-        } else if (id === 'inverter') {
-          mainMesh = new THREE.Mesh(new THREE.BoxGeometry(2, 3, 1), new THREE.MeshStandardMaterial({ color: 0xf1f5f9 })); mainMesh.position.y = 1.5;
-          const screen = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.5), new THREE.MeshStandardMaterial({ color: 0x000000 })); screen.position.set(0, 2, 0.51); group.add(screen);
+        }
+
+        else if (id === 'grid') {
+          mainMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.5, 5), new THREE.MeshStandardMaterial({
+            color: 0x64748b
+          })); mainMesh.position.y = 2.5;
+
+          const bar = new THREE.Mesh(new THREE.BoxGeometry(3, 0.2, 0.2), new THREE.MeshStandardMaterial({
+            color: 0x64748b
+          })); bar.position.y = 4; group.add(bar);
+        }
+
+        else if (id === 'inverter') {
+          mainMesh = new THREE.Mesh(new THREE.BoxGeometry(2, 3, 1), new THREE.MeshStandardMaterial({
+            color: 0xf1f5f9
+          })); mainMesh.position.y = 1.5;
+
+          const screen = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.5), new THREE.MeshStandardMaterial({
+            color: 0x000000
+          })); screen.position.set(0, 2, 0.51); group.add(screen);
         }
 
         mainMesh.castShadow = true; mainMesh.receiveShadow = true;
@@ -873,31 +1081,42 @@
         labelDiv.style.padding = "8px 12px";
         labelDiv.style.borderRadius = "12px";
         labelDiv.style.boxShadow = "0 4px 20px rgba(0,0,0,0.08)";
-        labelDiv.innerHTML = `
-                <div style="font-size: 18px; font-weight: 700; color: #0f172a;" id="3d-val-${id}">--</div>
-                <div style="font-size: 12px; font-weight: 600; color: #64748b;" id="3d-unit-${id}">KW</div>
-                <div style="font-size: 11px; text-transform: uppercase; color: #94a3b8;">${label}</div>
-            `;
+
+        labelDiv.innerHTML = `<div style="font-size: 18px; font-weight: 700; color: #0f172a;" id="3d-val-${id}">--</div>
+        <div style="font-size: 12px; font-weight: 600; color: #64748b;" id="3d-unit-${id}">KW</div>
+        <div style="font-size: 11px; text-transform: uppercase; color: #94a3b8;">${label}</div>`;
         const labelObj = new CSS2DObject(labelDiv);
         labelObj.position.set(0, 5, 0);
         group.add(labelObj);
 
         scene.add(group);
-        nodes[id] = { group };
+
+        nodes[id] = {
+          group
+        }
+
+          ;
       }
 
       function createConnection(fromId, toId) {
         const p1 = nodes[fromId].group.position.clone(); p1.y = 0.5;
         const p2 = nodes[toId].group.position.clone(); p2.y = 0.5;
         const path = new THREE.LineCurve3(p1, p2);
-        const tube = new THREE.Mesh(new THREE.TubeGeometry(path, 20, 0.1, 8, false), new THREE.MeshBasicMaterial({ color: 0xe2e8f0, transparent: true, opacity: 0.5 }));
+
+        const tube = new THREE.Mesh(new THREE.TubeGeometry(path, 20, 0.1, 8, false), new THREE.MeshBasicMaterial({
+          color: 0xe2e8f0, transparent: true, opacity: 0.5
+        }));
         scene.add(tube);
 
-        const packet = new THREE.Mesh(new THREE.SphereGeometry(0.25), new THREE.MeshBasicMaterial({ color: 0x3b82f6 }));
+        const packet = new THREE.Mesh(new THREE.SphereGeometry(0.25), new THREE.MeshBasicMaterial({
+          color: 0x3b82f6
+        }));
         packet.visible = false;
         scene.add(packet);
 
-        flows.push({ from: fromId, to: toId, mesh: packet, path: path, progress: 0, active: false, speed: 0.01 });
+        flows.push({
+          from: fromId, to: toId, mesh: packet, path: path, progress: 0, active: false, speed: 0.01
+        });
       }
 
       function createWorld() {
@@ -909,6 +1128,7 @@
 
         createConnection('solar', 'inverter');
         createConnection('inverter', 'battery');
+        createConnection('battery', 'inverter'); // Add reverse flow path explicitly if needed, or reuse bidirectional logic
         createConnection('inverter', 'home');
         createConnection('inverter', 'grid');
       }
@@ -948,42 +1168,125 @@
         labelRenderer.render(scene, camera);
       }
 
+      // Export 3D control functions
+      window.init3DView = init3D;
+
+      window.stop3DAnimation = function () {
+        if (animationId) {
+          cancelAnimationFrame(animationId);
+          animationId = null;
+        }
+      }
+
+        ;
+
       // Export update function to window so main script can call it
       window.update3D = function (data) {
         if (!is3DInited) init3D();
 
-        // Map data to 3D labels
-        const invW = data.derived.inverter_power_w || 0;
-        const gridW = data.derived.grid_flow_w || 0;
-        const battP = data.derived.battery_percent || 0;
+        if (!data || !data.derived) {
+          console.warn("Dati incompleti per 3D:", data);
+          return;
+        }
 
-        let solarVal = 0;
-        if (invW > 0) solarVal = invW;
-        if (gridW < 0) solarVal += Math.abs(gridW);
-        const load = Math.abs(solarVal + gridW);
+        let invW = data.derived.inverter_power_w || 0;
+        let gridW = data.derived.grid_flow_w || 0;
+        let battP = data.derived.battery_percent || 0;
+        let solarVal = data.derived.solar_power_w || 0;
 
+        // FILTER: Clean Grid Noise (< 50W -> 0)
+        if (Math.abs(gridW) < 50) gridW = 0;
+
+        // Logic for Load
+        // Load = Inverter + Grid Import (or - Export)
+        let load = invW + gridW;
+        if (load < 0) load = 0;
+
+        // Format Helper
+        const fmt = (val) => {
+          if (val >= 1000) return (val / 1000).toFixed(2);
+          return val.toFixed(0);
+        }
+
+          ;
+        const unit = (val) => val >= 1000 ? 'kW' : 'W';
+
+        // Update Labels
         document.getElementById('3d-val-battery').textContent = battP + '%';
-        document.getElementById('3d-val-inverter').textContent = invW;
-        document.getElementById('3d-val-home').textContent = load.toFixed(0);
 
-        document.getElementById('3d-val-grid').textContent = Math.abs(gridW);
-        document.getElementById('3d-unit-grid').textContent = gridW > 0 ? 'W (IMPORT)' : 'W (EXPORT)';
+        document.getElementById('3d-val-inverter').textContent = fmt(invW);
+        document.getElementById('3d-unit-inverter').textContent = unit(invW);
 
-        document.getElementById('3d-val-solar').textContent = solarVal;
+        document.getElementById('3d-val-home').textContent = fmt(load);
+        document.getElementById('3d-unit-home').textContent = unit(load);
 
-        // Flows
+        document.getElementById('3d-val-grid').textContent = fmt(Math.abs(gridW));
+        document.getElementById('3d-unit-grid').textContent = (gridW > 0 ? 'IMPORT' : (gridW < 0 ? 'EXPORT' : 'STANDBY')) + ' ' + unit(Math.abs(gridW));
+
+        document.getElementById('3d-val-solar').textContent = fmt(solarVal);
+        document.getElementById('3d-unit-solar').textContent = unit(solarVal);
+
+        // Flows Logic
+        // 1. Solar -> Inverter (only if producing)
         activateFlow('solar', 'inverter', solarVal > 20);
-        activateFlow('inverter', 'home', true);
-        if (gridW > 0) activateFlow('grid', 'inverter', true); else activateFlow('inverter', 'grid', true);
-      };
+
+        // 2. Battery -> Inverter (Discharging) vs Inverter -> Battery (Charging)
+        // We don't have direct battery power reg, but we can infer:
+        // If Solar is 0 and Inverter is outputting power, it comes from Battery.
+        // If Solar > Inverter output, likely charging.
+        // For now, simple logic based on Night/Day:
+        if (solarVal < 20 && invW > 50) {
+          // Night Discharge
+          activateFlow('battery', 'inverter', true);
+          activateFlow('inverter', 'battery', false);
+        }
+
+        else if (solarVal > invW + 100) {
+          // Likely Charging
+          activateFlow('battery', 'inverter', false);
+          activateFlow('inverter', 'battery', true);
+        }
+
+        else {
+          // Idle or unsure
+          activateFlow('battery', 'inverter', false);
+          activateFlow('inverter', 'battery', false);
+        }
+
+        // 3. Inverter -> Home (Always active if there is load)
+        activateFlow('inverter', 'home', load > 20);
+
+        // 4. Grid
+        if (gridW > 20) {
+          // Import: Grid -> Inverter (to House)
+          activateFlow('grid', 'inverter', true);
+          activateFlow('inverter', 'grid', false);
+        }
+
+        else if (gridW < -20) {
+          // Export: Inverter -> Grid
+          activateFlow('grid', 'inverter', false);
+          activateFlow('inverter', 'grid', true);
+        }
+
+        else {
+          activateFlow('grid', 'inverter', false);
+          activateFlow('inverter', 'grid', false);
+        }
+      }
+
+        ;
 
       // Manual Init (for when no data is flowing yet)
       window.init3DView = function () {
         if (!is3DInited) init3D();
-      };
+      }
+
+        ;
 
       function activateFlow(from, to, active) {
         const f = flows.find(x => (x.from === from && x.to === to) || (x.from === to && x.to === from));
+
         if (f) {
           f.active = active;
           f.mesh.visible = active;
@@ -996,21 +1299,52 @@
           cancelAnimationFrame(animationId);
           animationId = null;
         }
-      };
-    </script>
+      }
 
+        ;
+
+      function computeSolarWindow(hourly) {
+        const times = hourly?.time || [];
+        const radiation = hourly?.shortwave_radiation || [];
+        const thresholdOverride = Number(window.SOLAR_START_WM2);
+        const threshold = Number.isFinite(thresholdOverride) ? thresholdOverride : 50;
+        const now = Date.now();
+        let activeNow = false;
+        let nextStart = null;
+
+        for (let i = 0; i < times.length; i += 1) {
+          const time = new Date(times[i]);
+          const rad = Number(radiation[i]);
+          if (!Number.isFinite(rad) || Number.isNaN(time.getTime())) continue;
+          const ts = time.getTime();
+          if (ts <= now && rad >= threshold) activeNow = true;
+
+          if (ts > now && rad >= threshold) {
+            nextStart = ts;
+            break;
+          }
+        }
+
+        const etaMinutes = nextStart != null ? (nextStart - now) / 60000 : null;
+
+        return {
+          activeNow, etaMinutes, threshold
+        }
+
+          ;
+      }
+
+    </script>
     <details>
       <summary>Dettagli tecnici e registri</summary>
       <div class="details-grid">
         <div class="input-panel">
           <div class="subtitle">Incolla l'output dello script o usa i pulsanti per applicare i dati.</div>
           <textarea id="rawInput" spellcheck="false"></textarea>
-          <div class="actions">
-            <button id="applyBtn" class="ghost">Applica testo</button>
-            <button id="resetBtn" class="ghost">Ripristina esempio</button>
-          </div>
-          <div class="hint">Suggerimento: mappa il FV con <code>window.SOLAR_REG = 7</code>, la capacita batteria con
-            <code>window.BATTERY_KWH = 5.12</code> e la soglia FV con <code>window.SOLAR_START_WM2 = 50</code>.
+          <div class="actions"> <button id="applyBtn" class="ghost">Applica testo</button> <button id="resetBtn"
+              class="ghost">Ripristina esempio</button> </div>
+          <div class="hint">Suggerimento: mappa il FV con <code>window.SOLAR_REG=7</code>, la capacita batteria
+            con <code>window.BATTERY_KWH=5.12</code> e la soglia FV con <code>window.SOLAR_START_WM2=50</code>.
           </div>
         </div>
         <div class="table-wrapper">
@@ -1028,46 +1362,22 @@
       </div>
     </details>
   </div>
-
-  <script>
-    const API_URL = "/data";
+  <script> const API_URL = "/data";
     const AUTO_MS = 5000;
     const WEATHER_REFRESH_MS = 15 * 60 * 1000;
     const DEFAULT_BATTERY_KWH = 5.12;
 
-    const sampleRaw = `Reg 0      | 2258
-Reg 1      | 41
-Reg 2      | 915
-Reg 3      | 705
-Reg 4      | 700
-Reg 7      | 4997
-Reg 8      | 29
-Reg 9      | 2
-Reg 10     | 2
-Reg 11     | 1
-Reg 19     | 1
-Reg 20     | 4145
-Reg 21     | 65515
-Reg 22     | 64624
-Reg 23     | 1
-Reg 24     | 16
-Reg 27     | 2
-Reg 28     | 89
-Reg 29     | 561
-Reg 32     | 40
-Reg 33     | 722
-Reg 35     | 64
-Reg 36     | 171
-Reg 37     | 300
-Reg 38     | 12288`;
+    const sampleRaw = `Reg 0 | 2258 Reg 1 | 41 Reg 2 | 915 Reg 3 | 705 Reg 4 | 700 Reg 7 | 4997 Reg 8 | 29 Reg 9 | 2 Reg 10 | 2 Reg 11 | 1 Reg 19 | 1 Reg 20 | 4145 Reg 21 | 65515 Reg 22 | 64624 Reg 23 | 1 Reg 24 | 16 Reg 27 | 2 Reg 28 | 89 Reg 29 | 561 Reg 32 | 40 Reg 33 | 722 Reg 35 | 64 Reg 36 | 171 Reg 37 | 300 Reg 38 | 12288`;
 
     const registerHints = {
       0: { name: "Tensione rete (V)", derive: v => `${(v / 10).toFixed(1)} V` },
       2: { name: "Potenza inverter (W)", derive: v => `${signed16(v)} W` },
       21: { name: "Scambio con rete (W)", derive: v => `${signed16(v)} W (import + / export -)` },
-      28: { name: "Batteria (%)", derive: v => `${v}%` },
+      28: { name: "Batteria (%)", derive: v => `${v} %` },
       33: { name: "Tensione batteria (V)", derive: v => `${(v / 10).toFixed(1)} V` }
     };
+
+    ;
 
     const rawInput = document.getElementById("rawInput");
     const tableBody = document.getElementById("tableBody");
@@ -1089,19 +1399,22 @@ Reg 38     | 12288`;
 
     viewToggleBtn.addEventListener("click", () => {
       is3d = !is3d;
+
       if (is3d) {
         flowCard.style.display = 'none';
         detailsEl.style.display = 'none';
         container3d.style.display = 'block';
-        viewToggleBtn.textContent = "Vista 2D";
+        viewToggleBtn.textContent = "2D";
         // Trigger resize to fix canvas size if it was hidden
         if (window.init3DView) window.init3DView();
         window.dispatchEvent(new Event('resize'));
-      } else {
+      }
+
+      else {
         flowCard.style.display = 'grid';
         detailsEl.style.display = 'block';
         container3d.style.display = 'none';
-        viewToggleBtn.textContent = "Vista 3D";
+        viewToggleBtn.textContent = "3D";
       }
     });
 
@@ -1128,16 +1441,17 @@ Reg 38     | 12288`;
     const lineBattery = document.getElementById("lineBattery");
     const lineHome = document.getElementById("lineHome");
     const lineGrid = document.getElementById("lineGrid");
-    const lineMeter = document.getElementById("lineMeter");
 
     const state = {
-      auto: false,
+      auto: true, // Default ON
       timer: null,
       lastBatteryPercent: null,
       lastLoadW: null,
       solarEtaMinutes: null,
       solarActive: false
-    };
+    }
+
+      ;
 
     applyBtn.addEventListener("click", () => {
       updateDashboardFromText(rawInput.value.trim());
@@ -1147,6 +1461,7 @@ Reg 38     | 12288`;
       rawInput.value = sampleRaw;
       updateDashboardFromText(sampleRaw);
       setApiStatus(`Mostrati dati di esempio. Avvia l'API su ${API_URL} per i valori live.`);
+
     });
 
     pullBtn.addEventListener("click", () => {
@@ -1196,7 +1511,9 @@ Reg 38     | 12288`;
       const total = Math.round(minutes);
       const h = Math.floor(total / 60);
       const m = total % 60;
+
       if (h <= 0) return `${m} min`;
+
       return `${h}h ${String(m).padStart(2, "0")}m`;
     }
 
@@ -1219,6 +1536,7 @@ Reg 38     | 12288`;
 
     function updateBatterySunLine() {
       const runtimeMinutes = estimateRuntimeMinutes(state.lastBatteryPercent, state.lastLoadW);
+
       if (runtimeMinutes == null) {
         batterySunEl.textContent = "FV: --";
         return;
@@ -1229,18 +1547,41 @@ Reg 38     | 12288`;
         return;
       }
 
-      if (!Number.isFinite(state.solarEtaMinutes) || state.solarEtaMinutes == null) {
-        batterySunEl.textContent = "FV: dati non disponibili";
+      if (!state.nextSunrise) {
+        batterySunEl.textContent = "Attesa meteo...";
         return;
       }
 
-      const etaText = formatRuntimeMinutes(state.solarEtaMinutes);
-      const ok = runtimeMinutes === Infinity || runtimeMinutes >= state.solarEtaMinutes;
-      batterySunEl.textContent = `FV tra ${etaText} · Autonomia ${ok ? "OK" : "NO"}`;
+      const now = new Date();
+      const msToSunrise = state.nextSunrise - now;
+      const minutesToSunrise = msToSunrise / 60000;
+
+      if (minutesToSunrise <= 0) {
+        batterySunEl.textContent = "Sole sorto";
+        return;
+      }
+
+      // If battery is charging or full, logic might differ, but assuming discharging context:
+      const runtimeMins = (runtimeMinutes === Infinity) ? 9999 : runtimeMinutes;
+
+      const diff = minutesToSunrise - runtimeMins;
+
+      if (diff <= 0) {
+        batterySunEl.textContent = "Copre fino all'alba";
+        batterySunEl.style.color = "var(--accent)";
+      } else {
+        const h = Math.floor(diff / 60);
+        const m = Math.round(diff % 60);
+        batterySunEl.innerHTML = `Mancano <span style='color: var(--danger)'>${h}h ${m}m</span> all'alba`;
+        batterySunEl.style.color = "var(--muted)";
+      }
     }
 
     function parseRegisters(rawText) {
-      const regs = {};
+      const regs = {}
+
+        ;
+
       rawText.split(/\r?\n/).forEach(line => {
         const match = line.match(/Reg\s+(\d+)\s*\|\s*(-?\d+)/i);
         if (match) regs[Number(match[1])] = Number(match[2]);
@@ -1249,7 +1590,10 @@ Reg 38     | 12288`;
     }
 
     function normalizeRegs(raw) {
-      const regs = {};
+      const regs = {}
+
+        ;
+
       Object.entries(raw || {}).forEach(([k, v]) => {
         const key = Number(k);
         if (!Number.isNaN(key)) regs[key] = Number(v);
@@ -1258,23 +1602,228 @@ Reg 38     | 12288`;
     }
 
     function formatRegsForTextarea(regs) {
-      return Object.keys(regs)
-        .map(Number)
-        .sort((a, b) => a - b)
-        .map(k => `Reg ${k} | ${regs[k]}`)
-        .join("\n");
+      return Object.keys(regs).map(Number).sort((a, b) => a - b).map(k => `Reg ${k} | ${regs[k]}`).join("\n");
+    }
+
+    function getWeatherIcon(code) {
+      // 0: Clear, 1-3: Cloudy, 45/48: Fog, 51-67: Rain, 71-77: Snow, 80-82: Showers, 95-99: Storm
+      if (code === 0) return '<svg viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="6" fill="#facc15" stroke="#facc15" stroke-width="2"/><path d="M16 4v4M16 24v4M4 16h4M24 16h4M7.5 7.5l2.8 2.8M21.7 21.7l2.8 2.8M7.5 24.5l2.8-2.8M21.7 10.5l2.8-2.8" stroke="#facc15" stroke-width="2" stroke-linecap="round"/></svg>';
+      if (code >= 1 && code <= 3) return '<svg viewBox="0 0 32 32" fill="none"><path d="M22 24a6 6 0 000-12 5.5 5.5 0 00-6-2.5 7 7 0 00-11 6 4.5 4.5 0 001 9h16z" fill="#94a3b8" opacity="0.8"/></svg>';
+      if (code >= 51 && code <= 67) return '<svg viewBox="0 0 32 32" fill="none"><path d="M22 20a6 6 0 000-12 5.5 5.5 0 00-6-2.5 7 7 0 00-11 6 4.5 4.5 0 001 9h16z" fill="#94a3b8"/><path d="M12 26l-2 4M18 26l-2 4M24 26l-2 4" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/></svg>';
+      if (code >= 95) return '<svg viewBox="0 0 32 32" fill="none"><path d="M22 20a6 6 0 000-12 5.5 5.5 0 00-6-2.5 7 7 0 00-11 6 4.5 4.5 0 001 9h16z" fill="#64748b"/><path d="M14 22l4-6h-4l3-6" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+      // Default: Cloud
+      return '<svg viewBox="0 0 32 32" fill="none"><path d="M22 24a6 6 0 000-12 5.5 5.5 0 00-6-2.5 7 7 0 00-11 6 4.5 4.5 0 001 9h16z" fill="#cbd5e1"/></svg>';
+    }
+
+    function getWeatherDesc(code) {
+      const map = {
+        0: 'Sereno', 1: 'Poco nuvoloso', 2: 'Parz. nuvoloso', 3: 'Nuvoloso',
+        45: 'Nebbia', 48: 'Nebbia brina', 51: 'Pioviggine', 53: 'Pioviggine',
+        55: 'Pioviggine intensa', 61: 'Pioggia', 63: 'Pioggia', 65: 'Pioggia forte',
+        80: 'Rovesci', 81: 'Rovesci', 82: 'Rovesci violenti', 95: 'Temporale'
+      }
+
+        ;
+      return map[code] || 'Variabile';
+    }
+
+    function computeSolarWindow(hourly) {
+      const times = hourly?.time || [];
+      const radiation = hourly?.shortwave_radiation || [];
+      const thresholdOverride = Number(window.SOLAR_START_WM2);
+      const threshold = Number.isFinite(thresholdOverride) ? thresholdOverride : 50;
+      const now = Date.now();
+      let activeNow = false;
+      let nextStart = null;
+
+      for (let i = 0; i < times.length; i += 1) {
+        const time = new Date(times[i]);
+        const rad = Number(radiation[i]);
+        if (!Number.isFinite(rad) || Number.isNaN(time.getTime())) continue;
+        const ts = time.getTime();
+        if (ts <= now && rad >= threshold) activeNow = true;
+
+        if (ts > now && rad >= threshold) {
+          nextStart = ts;
+          break;
+        }
+      }
+
+      const etaMinutes = nextStart != null ? (nextStart - now) / 60000 : null;
+
+      return {
+        activeNow, etaMinutes, threshold
+      }
+
+        ;
+    }
+
+    async function fetchWeather() {
+      const LAT = 37.XXXXXX;
+      const LON = 15.XXXXXX;
+
+      try {
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,weather_code&daily=weather_code,sunrise,sunset,temperature_2m_max,temperature_2m_min&hourly=shortwave_radiation&timezone=auto`;
+        const res = await fetch(url);
+        const data = await res.json();
+        const current = data.current;
+        const daily = data.daily;
+        const hourly = data.hourly;
+
+        const wIcon = document.getElementById('weatherIcon');
+        if (wIcon) wIcon.innerHTML = getWeatherIcon(current.weather_code);
+
+        const wDesc = document.getElementById('weatherDesc');
+        if (wDesc) wDesc.textContent = getWeatherDesc(current.weather_code);
+
+        const sunrise = new Date(daily.sunrise[0]).toLocaleTimeString('it-IT', {
+          hour: '2-digit', minute: '2-digit'
+        });
+
+        const sunset = new Date(daily.sunset[0]).toLocaleTimeString('it-IT', {
+          hour: '2-digit', minute: '2-digit'
+        });
+        const sunLine = document.getElementById('sunLine');
+
+        if (sunLine) sunLine.textContent = `Alba ${sunrise} · Tramonto ${sunset}`;
+
+        if (tempRange) tempRange.innerHTML = `${daily.temperature_2m_min[0].toFixed(1)}&deg;C - ${daily.temperature_2m_max[0].toFixed(1)}&deg;C`;
+
+        // Forecast for Day +1
+        const d1 = document.getElementById('forecastDate1');
+        const t1 = document.getElementById('forecastTemp1');
+        const i1 = document.getElementById('forecastIcon1');
+        if (d1) d1.textContent = formatDateShort(daily.time[1]);
+        if (t1) t1.innerHTML = `${daily.temperature_2m_min[1].toFixed(0)}&deg; - ${daily.temperature_2m_max[1].toFixed(0)}&deg;`;
+        if (i1) i1.innerHTML = getWeatherIcon(daily.weather_code[1]);
+
+        // Forecast for Day +2
+        const d2 = document.getElementById('forecastDate2');
+        const t2 = document.getElementById('forecastTemp2');
+        const i2 = document.getElementById('forecastIcon2');
+        if (d2) d2.textContent = formatDateShort(daily.time[2]);
+        if (t2) t2.innerHTML = `${daily.temperature_2m_min[2].toFixed(0)}&deg; - ${daily.temperature_2m_max[2].toFixed(0)}&deg;`;
+        if (i2) i2.innerHTML = getWeatherIcon(daily.weather_code[2]);
+
+
+        // Update visual sun arc
+        updateSunVisual(daily.sunrise[0], daily.sunset[0]);
+
+        // Update Solar Window State
+        const win = computeSolarWindow(hourly);
+        state.solarActive = win.activeNow;
+        state.solarEtaMinutes = win.etaMinutes;
+        // Determine NEXT sunrise
+        const now = new Date();
+        const srToday = new Date(daily.sunrise[0]);
+        // If passed today's sunrise, use tomorrow's
+        state.nextSunrise = (now > srToday) ? new Date(daily.sunrise[1]) : srToday;
+
+        updateBatterySunLine();
+
+      }
+
+      catch (e) {
+        console.error("Weather error:", e);
+      }
+    }
+
+    function updateSunVisual(sunriseIso, sunsetIso) {
+      const sr = new Date(sunriseIso);
+      const ss = new Date(sunsetIso);
+      const now = new Date();
+
+      const isDay = now >= sr && now <= ss;
+
+      // Update Text
+      const bigLabel = document.querySelector('.sun-card .label');
+      const bigValue = document.getElementById('sunBig');
+      const footer = document.getElementById('sunFooter');
+
+      const fmt = d => d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+
+      const diffMs = ss - sr;
+      const diffHrs = Math.floor(diffMs / 3600000);
+      const diffMins = Math.round((diffMs % 3600000) / 60000);
+      const durationText = `${diffHrs}h ${diffMins}m`;
+
+      if (bigLabel && bigValue && footer) {
+        if (isDay) {
+          bigLabel.textContent = "TRAMONTO";
+          bigValue.textContent = fmt(ss);
+          footer.innerHTML = `Alba: ${fmt(sr)} · Luce: ${durationText}`;
+        } else {
+          bigLabel.textContent = "ALBA";
+          bigValue.textContent = fmt(sr);
+          footer.innerHTML = `Tramonto: ${fmt(ss)} · Luce: ${durationText}`;
+        }
+      }
+
+      // Calculate position (Simple 0-1 progress)
+      const totalMinutesDay = (ss - sr) / 60000;
+      let progress = 0;
+
+      if (now < sr) progress = 0;
+      else if (now > ss) progress = 1;
+      else {
+        progress = (now - sr) / 60000 / totalMinutesDay;
+      }
+
+      const path = document.getElementById('sunPath');
+      const dot = document.getElementById('sunDot');
+
+      if (path && dot) {
+        // Calculate point on Quadratic Bezier: M10,45 Q50,-15 90,45
+        // P0=(10,45), P1=(50,-15), P2=(90,45)
+        const P0 = { x: 10, y: 45 };
+        const P1 = { x: 50, y: -15 };
+        const P2 = { x: 90, y: 45 };
+
+        // progress is 0..1
+        const t = progress;
+        const x = (1 - t) * (1 - t) * P0.x + 2 * (1 - t) * t * P1.x + t * t * P2.x;
+        const y = (1 - t) * (1 - t) * P0.y + 2 * (1 - t) * t * P1.y + t * t * P2.y;
+
+        dot.setAttribute('cx', x);
+        dot.setAttribute('cy', y);
+
+        // Dim dot if night
+        dot.style.opacity = isDay ? '1' : '0';
+      }
     }
 
     function deriveMetrics(regs) {
-      const solarReg = window.SOLAR_REG;
+      // Logic mirrored from Python backend (decode_values)
+      const batteryPercent = regs[28];
+      const inverterPower = regs[2] != null ? signed16(regs[2]) : 0;
+      let gridFlow = regs[3] != null ? signed16(regs[3]) : 0;
+      const gridVoltage = regs[0] != null ? (regs[0] / 10) : 0;
+
+      // FILTER: Clean Grid Noise (< 50W -> 0)
+      if (Math.abs(gridFlow) < 50) gridFlow = 0;
+
+      // Solar Calculation (Reg 70-75)
+      const pv1_v = (regs[70] || 0) / 10.0;
+      const pv1_a = (regs[71] || 0) / 10.0;
+      const pv2_v = (regs[74] || 0) / 10.0;
+      const pv2_a = (regs[75] || 0) / 10.0;
+      const solarPower = Math.round((pv1_v * pv1_a) + (pv2_v * pv2_a));
+
+      // Home Load Calculation
+      let homeLoad = inverterPower + gridFlow;
+      if (homeLoad < 0) homeLoad = 0;
+
       return {
-        batteryPercent: regs[28],
-        inverterPower: regs[2] != null ? signed16(regs[2]) : null,
-        gridVoltage: regs[0] != null ? (regs[0] / 10) : null,
-        gridFlow: regs[21] != null ? signed16(regs[21]) : null,
-        batteryVoltage: regs[33] != null ? (regs[33] / 10) : null,
-        solarPower: solarReg != null && regs[solarReg] != null ? regs[solarReg] : null
-      };
+        batteryPercent,
+        inverterPower,
+        gridFlow,
+        gridVoltage,
+        solarPower,
+        homeLoad
+      }
+
+        ;
     }
 
     function setLineState(line, mode) {
@@ -1288,71 +1837,81 @@ Reg 38     | 12288`;
 
       solarPowerEl.textContent = formatPower(metrics.solarPower);
       inverterPowerEl.textContent = formatPower(metrics.inverterPower);
-      homePowerEl.textContent = formatPower(metrics.inverterPower);
-      gridPowerEl.textContent = gridFlow != null ? formatPower(Math.abs(gridFlow)) : "--";
+      homePowerEl.textContent = formatPower(metrics.homeLoad); // Use calculated Home Load
+      gridPowerEl.textContent = formatPower(Math.abs(gridFlow));
 
-      const loadW = metrics.inverterPower != null ? Math.max(metrics.inverterPower, 0) : null;
-
-      if (metrics.batteryPercent != null && loadW != null) {
-        batteryPowerEl.textContent = `${metrics.batteryPercent}% · ${formatKw(loadW)}`;
-      } else if (metrics.batteryPercent != null) {
+      // Battery Status logic
+      // We don't have direct battery power in registers yet, so we infer or show just %
+      if (metrics.batteryPercent != null) {
         batteryPowerEl.textContent = `${metrics.batteryPercent}%`;
-      } else if (loadW != null) {
-        batteryPowerEl.textContent = formatKw(loadW);
-      } else {
+      }
+
+      else {
         batteryPowerEl.textContent = "--";
       }
 
       state.lastBatteryPercent = metrics.batteryPercent ?? null;
-      state.lastLoadW = loadW;
-      batteryRuntimeEl.textContent = estimateRuntimeText(metrics.batteryPercent, loadW);
+      state.lastLoadW = metrics.homeLoad;
+      batteryRuntimeEl.textContent = estimateRuntimeText(metrics.batteryPercent, metrics.homeLoad);
       updateBatterySunLine();
 
       if (gridFlow == null) {
         gridDirectionEl.textContent = "Standby";
         statusChip.textContent = "Attesa dati";
         setLineState(lineGrid, "idle");
-        setLineState(lineMeter, "idle");
-      } else if (gridFlow > 50) {
+      }
+
+      else if (gridFlow > 50) {
         gridDirectionEl.textContent = "Import";
         statusChip.textContent = "Prelievo da rete";
         setLineState(lineGrid, "flow-in");
-        setLineState(lineMeter, "flow-in");
-      } else if (gridFlow < -50) {
+      }
+
+      else if (gridFlow < -50) {
         gridDirectionEl.textContent = "Export";
         statusChip.textContent = "Immissione in rete";
         setLineState(lineGrid, "flow-out");
-        setLineState(lineMeter, "flow-out");
-      } else {
+      }
+
+      else {
         gridDirectionEl.textContent = "Standby";
         statusChip.textContent = "Quasi zero";
         setLineState(lineGrid, "idle");
-        setLineState(lineMeter, "idle");
       }
 
-      setLineState(lineHome, metrics.inverterPower && metrics.inverterPower > 10 ? "flow-in" : "idle");
-      setLineState(lineSolar, metrics.solarPower && metrics.solarPower > 10 ? "flow-in" : "idle");
-      setLineState(lineBattery, "idle");
+      setLineState(lineHome, metrics.homeLoad > 10 ? "flow-in" : "idle");
+      setLineState(lineSolar, metrics.solarPower > 10 ? "flow-in" : "idle");
+
+      // Infer Battery State from Power Balance: Acc = Inverter - Solar
+      // If Inverter > Solar, extra power comes from battery (Discharging)
+      // If Solar > Inverter, extra power goes to battery (Charging)
+      // Note: This is an approximation.
+      const battDelta = metrics.inverterPower - metrics.solarPower;
+      if (battDelta > 50) {
+        setLineState(lineBattery, "flow-in"); // Discharging (Batt -> Inv)
+      } else if (battDelta < -50 && metrics.batteryPercent < 100) {
+        setLineState(lineBattery, "flow-out"); // Charging (Inv -> Batt)
+      } else {
+        setLineState(lineBattery, "idle");
+      }
 
       lastUpdateEl.textContent = new Date(ts).toLocaleString("it-IT");
     }
 
     function renderTable(regs) {
-      const rows = Object.keys(regs)
-        .map(Number)
-        .sort((a, b) => a - b)
-        .map(key => {
-          const hint = registerHints[key];
-          const readable = hint ? hint.derive(regs[key]) : "-";
-          const label = hint ? hint.name : "n/d";
-          return `
-            <tr>
-              <td><strong>Reg ${key}</strong></td>
-              <td>${regs[key]}</td>
-              <td class="label">${label}${readable !== "-" ? ` · ${readable}` : ""}</td>
-            </tr>`;
-        })
-        .join("");
+      const rows = Object.keys(regs).map(Number).sort((a, b) => a - b).map(key => {
+        const hint = registerHints[key];
+        const readable = hint ? hint.derive(regs[key]) : "-";
+        const label = hint ? hint.name : "n/d";
+
+        return `<tr>
+          <td><strong>Reg ${key}</strong></td>
+          <td>${regs[key]}</td>
+          <td class="label">
+            ${label} ${readable !== "-" ? ` · ${readable}` : ""}
+          </td>
+        </tr>`;
+      }).join("");
 
       tableBody.innerHTML = rows || `<tr><td colspan="3" class="label">Nessun registro trovato</td></tr>`;
     }
@@ -1369,8 +1928,12 @@ Reg 38     | 12288`;
 
     async function fetchFromApi() {
       setApiStatus(`Lettura da ${API_URL}...`);
+
       try {
-        const res = await fetch(API_URL, { cache: "no-store" });
+        const res = await fetch(API_URL, {
+          cache: "no-store"
+        });
+
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
 
@@ -1382,9 +1945,13 @@ Reg 38     | 12288`;
         rawInput.value = formatRegsForTextarea(regs);
         updateDashboardWithRegs(regs, ts);
         const source = data.meta?.source || "API";
+
         setApiStatus(`Ultima lettura OK (${source}) @ ${new Date(ts).toLocaleTimeString("it-IT")}`);
-      } catch (err) {
+      }
+
+      catch (err) {
         statusChip.textContent = "API non disponibile";
+
         setApiStatus(`Errore API: ${err.message}`, "danger");
       }
     }
@@ -1392,17 +1959,24 @@ Reg 38     | 12288`;
     function toggleAuto() {
       state.auto = !state.auto;
       autoBtn.textContent = state.auto ? "Auto ON" : "Auto OFF";
+
       if (state.auto) {
         fetchFromApi();
         state.timer = setInterval(fetchFromApi, AUTO_MS);
-      } else if (state.timer) {
+      }
+
+      else if (state.timer) {
         clearInterval(state.timer);
         state.timer = null;
       }
     }
 
+    // (Duplicates removed)
+    // (Duplicates removed)
+
     function updateDateLine() {
       const now = new Date();
+
       dateLine.textContent = now.toLocaleString("it-IT", {
         weekday: "short",
         day: "2-digit",
@@ -1411,39 +1985,71 @@ Reg 38     | 12288`;
         hour: "2-digit",
         minute: "2-digit"
       });
+      // Force refresh weather periodically or on load
+      fetchWeather();
     }
 
-    function resolveWeatherCoords() {
-      const latOverride = Number(window.WEATHER_LAT);
-      const lonOverride = Number(window.WEATHER_LON);
-      if (!Number.isNaN(latOverride) && !Number.isNaN(lonOverride)) {
-        return Promise.resolve({ lat: latOverride, lon: lonOverride });
-      }
-
-      return new Promise(resolve => {
-        if (!navigator.geolocation) {
-          return resolve({ lat: 45.4642, lon: 9.19 });
-        }
-
-        navigator.geolocation.getCurrentPosition(
-          pos => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
-          () => resolve({ lat: 45.4642, lon: 9.19 }),
-          { enableHighAccuracy: false, timeout: 5000, maximumAge: 60 * 60 * 1000 }
-        );
-      });
-    }
+    // --- Old Weather Functions Removed (redefined above) ---
+    // resolveWeatherCoords removed to prevent Geolocation prompt
+    // fetchWeather removed (duplicate)
+    // updateWeather removed (merged into fetchWeather)
 
     function mapWeatherCode(code) {
       const c = Number(code);
-      if (c === 0) return { label: "Sereno", className: "sunny" };
-      if ([1, 2, 3].includes(c)) return { label: "Parz. nuvoloso", className: "cloudy" };
-      if ([45, 48].includes(c)) return { label: "Nebbia", className: "fog" };
-      if ([51, 53, 55].includes(c)) return { label: "Pioviggine", className: "rain" };
-      if ([61, 63, 65].includes(c)) return { label: "Pioggia", className: "rain" };
-      if ([71, 73, 75, 77].includes(c)) return { label: "Neve", className: "snow" };
-      if ([80, 81, 82].includes(c)) return { label: "Rovesci", className: "rain" };
-      if ([95, 96, 99].includes(c)) return { label: "Temporale", className: "storm" };
-      return { label: "Meteo variabile", className: "cloudy" };
+
+      if (c === 0) return {
+        label: "Sereno", className: "sunny"
+      }
+
+        ;
+
+      if ([1, 2, 3].includes(c)) return {
+        label: "Parz. nuvoloso", className: "cloudy"
+      }
+
+        ;
+
+      if ([45, 48].includes(c)) return {
+        label: "Nebbia", className: "fog"
+      }
+
+        ;
+
+      if ([51, 53, 55].includes(c)) return {
+        label: "Pioviggine", className: "rain"
+      }
+
+        ;
+
+      if ([61, 63, 65].includes(c)) return {
+        label: "Pioggia", className: "rain"
+      }
+
+        ;
+
+      if ([71, 73, 75, 77].includes(c)) return {
+        label: "Neve", className: "snow"
+      }
+
+        ;
+
+      if ([80, 81, 82].includes(c)) return {
+        label: "Rovesci", className: "rain"
+      }
+
+        ;
+
+      if ([95, 96, 99].includes(c)) return {
+        label: "Temporale", className: "storm"
+      }
+
+        ;
+
+      return {
+        label: "Meteo variabile", className: "cloudy"
+      }
+
+        ;
     }
 
     function formatTemp(value, digits = 1) {
@@ -1463,94 +2069,27 @@ Reg 38     | 12288`;
       if (!value) return "--:--";
       const d = new Date(value);
       if (Number.isNaN(d.getTime())) return "--:--";
-      return d.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
-    }
 
-    function computeSolarWindow(hourly) {
-      const times = hourly?.time || [];
-      const radiation = hourly?.shortwave_radiation || [];
-      const thresholdOverride = Number(window.SOLAR_START_WM2);
-      const threshold = Number.isFinite(thresholdOverride) ? thresholdOverride : 50;
-      const now = Date.now();
-      let activeNow = false;
-      let nextStart = null;
-
-      for (let i = 0; i < times.length; i += 1) {
-        const time = new Date(times[i]);
-        const rad = Number(radiation[i]);
-        if (!Number.isFinite(rad) || Number.isNaN(time.getTime())) continue;
-        const ts = time.getTime();
-        if (ts <= now && rad >= threshold) activeNow = true;
-        if (ts > now && rad >= threshold) {
-          nextStart = ts;
-          break;
-        }
-      }
-
-      const etaMinutes = nextStart != null ? (nextStart - now) / 60000 : null;
-      return { activeNow, etaMinutes, threshold };
-    }
-
-    async function fetchWeather() {
-      const coords = await resolveWeatherCoords();
-      const url = new URL("https://api.open-meteo.com/v1/forecast");
-      url.searchParams.set("latitude", coords.lat);
-      url.searchParams.set("longitude", coords.lon);
-      url.searchParams.set("current", "temperature_2m,weather_code");
-      url.searchParams.set("daily", "temperature_2m_min,temperature_2m_max,weather_code,sunrise,sunset");
-      url.searchParams.set("hourly", "shortwave_radiation");
-      url.searchParams.set("timezone", "auto");
-      url.searchParams.set("forecast_days", "3");
-
-      const res = await fetch(url.toString(), { cache: "no-store" });
-      if (!res.ok) throw new Error(`Meteo HTTP ${res.status}`);
-      return res.json();
-    }
-
-    async function updateWeather() {
-      try {
-        const data = await fetchWeather();
-        const daily = data.daily || {};
-        const tempMin = daily.temperature_2m_min?.[0];
-        const tempMax = daily.temperature_2m_max?.[0];
-        const weatherCode = data.current?.weather_code ?? daily.weather_code?.[0];
-        const sunrise = daily.sunrise?.[0];
-        const sunset = daily.sunset?.[0];
-        const solarWindow = computeSolarWindow(data.hourly);
-
-        tempRange.textContent = `${formatTemp(tempMin)} - ${formatTemp(tempMax)}`;
-        sunLine.textContent = `Alba ${formatTime(sunrise)} · Tramonto ${formatTime(sunset)}`;
-
-        const weather = mapWeatherCode(weatherCode);
-        weatherDesc.textContent = weather.label;
-        weatherIcon.className = `weather-icon ${weather.className}`;
-
-        state.solarActive = solarWindow.activeNow;
-        state.solarEtaMinutes = solarWindow.etaMinutes;
-        updateBatterySunLine();
-
-        forecastDate1.textContent = formatDateShort(daily.time?.[1]);
-        forecastTemp1.textContent = formatTemp(daily.temperature_2m_max?.[1], 0);
-        forecastDate2.textContent = formatDateShort(daily.time?.[2]);
-        forecastTemp2.textContent = formatTemp(daily.temperature_2m_max?.[2], 0);
-      } catch (err) {
-        weatherDesc.textContent = "Meteo non disponibile";
-        sunLine.textContent = "Alba --:-- · Tramonto --:--";
-        state.solarActive = false;
-        state.solarEtaMinutes = null;
-        updateBatterySunLine();
-      }
+      return d.toLocaleTimeString("it-IT", {
+        hour: "2-digit", minute: "2-digit"
+      });
     }
 
     // Bootstrap with sample data.
     rawInput.value = sampleRaw;
     updateDashboardFromText(sampleRaw);
-    setApiStatus(`Mostrati dati di esempio. Avvia l'API su ${API_URL} per i valori live.`);
     updateDateLine();
     setInterval(updateDateLine, 60000);
-    toggleAuto();
-    updateWeather();
-    setInterval(updateWeather, WEATHER_REFRESH_MS);
+
+    // Force Auto ON
+    state.auto = true;
+    autoBtn.textContent = "Auto ON";
+    fetchFromApi();
+    state.timer = setInterval(fetchFromApi, AUTO_MS);
+
+    // Initial Weather Fetch
+    fetchWeather();
+    setInterval(fetchWeather, WEATHER_REFRESH_MS);
   </script>
 </body>
 
