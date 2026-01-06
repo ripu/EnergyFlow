@@ -1,7 +1,9 @@
 <!doctype html>
 <html lang="it">
+
 <head>
   <meta charset="UTF-8">
+  <script src="logger.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Energy Flow Inverter</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -22,7 +24,9 @@
       --shadow: 0 24px 60px rgba(17, 24, 39, 0.12);
     }
 
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
 
     body {
       margin: 0;
@@ -105,12 +109,35 @@
       color: #f4a12e;
     }
 
-    .weather-icon.sunny { background: #fff3d4; color: #f4a12e; }
-    .weather-icon.cloudy { background: #e9eef7; color: #7b8aa1; }
-    .weather-icon.fog { background: #e8edf5; color: #8996aa; }
-    .weather-icon.rain { background: #e6f0ff; color: #4c7fd6; }
-    .weather-icon.storm { background: #efe7ff; color: #6c54d8; }
-    .weather-icon.snow { background: #eef4ff; color: #8ab5ff; }
+    .weather-icon.sunny {
+      background: #fff3d4;
+      color: #f4a12e;
+    }
+
+    .weather-icon.cloudy {
+      background: #e9eef7;
+      color: #7b8aa1;
+    }
+
+    .weather-icon.fog {
+      background: #e8edf5;
+      color: #8996aa;
+    }
+
+    .weather-icon.rain {
+      background: #e6f0ff;
+      color: #4c7fd6;
+    }
+
+    .weather-icon.storm {
+      background: #efe7ff;
+      color: #6c54d8;
+    }
+
+    .weather-icon.snow {
+      background: #eef4ff;
+      color: #8ab5ff;
+    }
 
     .temp-range {
       font-size: 18px;
@@ -198,7 +225,9 @@
       z-index: 1;
     }
 
-    .connector { display: none; }
+    .connector {
+      display: none;
+    }
 
     .connector::after {
       content: "";
@@ -210,12 +239,22 @@
       border-radius: 999px;
     }
 
-    .connector.idle { opacity: 0.25; }
-    .connector.flow-out::after { animation-direction: reverse; }
+    .connector.idle {
+      opacity: 0.25;
+    }
+
+    .connector.flow-out::after {
+      animation-direction: reverse;
+    }
 
     @keyframes flow {
-      0% { background-position: 0% 0%; }
-      100% { background-position: -200% 0%; }
+      0% {
+        background-position: 0% 0%;
+      }
+
+      100% {
+        background-position: -200% 0%;
+      }
     }
 
     .node {
@@ -301,11 +340,31 @@
       color: var(--accent-strong);
     }
 
-    .node.solar { grid-area: solar; --node-accent: #f2a534; }
-    .node.inverter { grid-area: inverter; --node-accent: #6aa6ff; }
-    .node.battery { grid-area: battery; --node-accent: #47b88f; }
-    .node.home { grid-area: home; --node-accent: #8a7df2; }
-    .node.grid { grid-area: grid; --node-accent: #94a3b8; }
+    .node.solar {
+      grid-area: solar;
+      --node-accent: #f2a534;
+    }
+
+    .node.inverter {
+      grid-area: inverter;
+      --node-accent: #6aa6ff;
+    }
+
+    .node.battery {
+      grid-area: battery;
+      --node-accent: #47b88f;
+    }
+
+    .node.home {
+      grid-area: home;
+      --node-accent: #8a7df2;
+    }
+
+    .node.grid {
+      grid-area: grid;
+      --node-accent: #94a3b8;
+    }
+
     .node.meter {
       grid-area: meter;
       align-self: center;
@@ -453,7 +512,8 @@
       min-width: 480px;
     }
 
-    th, td {
+    th,
+    td {
       padding: 10px 12px;
       text-align: left;
       border-bottom: 1px solid #edf2f7;
@@ -514,6 +574,7 @@
     }
   </style>
 </head>
+
 <body>
   <div class="shell">
     <header class="topbar">
@@ -528,7 +589,8 @@
             <div class="weather-icon sunny" id="weatherIcon">
               <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
                 <circle cx="16" cy="16" r="6" fill="currentColor"></circle>
-                <path d="M16 4v4M16 24v4M4 16h4M24 16h4M7.2 7.2l2.8 2.8M22 22l2.8 2.8M7.2 24.8l2.8-2.8M22 10l2.8-2.8" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+                <path d="M16 4v4M16 24v4M4 16h4M24 16h4M7.2 7.2l2.8 2.8M22 22l2.8 2.8M7.2 24.8l2.8-2.8M22 10l2.8-2.8"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
               </svg>
             </div>
             <div>
@@ -646,7 +708,8 @@
               <svg viewBox="0 0 60 50" fill="none" aria-hidden="true">
                 <rect x="12" y="8" width="36" height="28" rx="6" fill="currentColor" opacity="0.25"></rect>
                 <rect x="12" y="8" width="36" height="28" rx="6" stroke="currentColor" stroke-width="2"></rect>
-                <path d="M30 14l-6 10h8l-4 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                <path d="M30 14l-6 10h8l-4 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round"></path>
               </svg>
             </div>
           </div>
@@ -656,15 +719,277 @@
       <div class="control-bar">
         <div class="status-group">
           <div class="status-chip" id="statusChip">Attesa dati</div>
-          <div class="api-status" id="apiStatus">API HTTP: avvia <strong>python3 invert.py --serve</strong> (default http://localhost:8000/data)</div>
+          <div class="api-status" id="apiStatus">API HTTP: avvia <strong>python3 invert.py --serve</strong> (default
+            http://localhost:8000/data)</div>
         </div>
         <div class="control-actions">
+          <button id="viewToggleBtn" style="background: linear-gradient(120deg, #8b5cf6, #a78bfa); color: white;">Vista
+            3D</button>
           <button id="pullBtn">Aggiorna</button>
           <button id="autoBtn" class="ghost">Auto OFF</button>
           <div class="last-update">Ultimo aggiornamento: <span id="lastUpdate">--</span></div>
         </div>
       </div>
     </section>
+
+    <!-- 3D View Container -->
+    <div id="container3d"
+      style="display: none; width: 100%; height: 600px; border-radius: 26px; box-shadow: var(--shadow); background: #fcfcfc; position: relative; overflow: hidden;">
+      <div id="info3d" style="position: absolute; top: 10px; left: 20px; z-index: 10; pointer-events: none;">
+        <p style="margin: 0; color: #64748b; font-size: 14px;">Isometric Realtime View</p>
+      </div>
+    </div>
+
+    <!-- 3D Scripts -->
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+    </script>
+
+    <script type="module">
+      import * as THREE from 'three';
+      import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+      import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+      let scene, camera, renderer, labelRenderer, controls;
+      let animationId;
+      const nodes = {};
+      const flows = [];
+      let is3DInited = false;
+
+      function init3D() {
+        if (is3DInited) return;
+        is3DInited = true;
+
+        const container = document.getElementById('container3d');
+        const width = container.clientWidth;
+        const height = container.clientHeight;
+
+        // Scene
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xfcfcfc);
+        scene.fog = new THREE.Fog(0xfcfcfc, 20, 100);
+
+        // Camera
+        const aspect = width / height;
+        const frustumSize = 40;
+        camera = new THREE.OrthographicCamera(
+          frustumSize * aspect / -2, frustumSize * aspect / 2,
+          frustumSize / 2, frustumSize / -2,
+          1, 1000
+        );
+        camera.position.set(20, 20, 20);
+        camera.lookAt(0, 0, 0);
+
+        // Renderers
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(width, height);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.shadowMap.enabled = true;
+        container.appendChild(renderer.domElement);
+
+        labelRenderer = new CSS2DRenderer();
+        labelRenderer.setSize(width, height);
+        labelRenderer.domElement.style.position = 'absolute';
+        labelRenderer.domElement.style.top = '0px';
+        labelRenderer.domElement.style.pointerEvents = 'none';
+        container.appendChild(labelRenderer.domElement);
+
+        // Controls
+        controls = new OrbitControls(camera, labelRenderer.domElement);
+        controls.enableDamping = true;
+        controls.enableZoom = true;
+        controls.autoRotate = false;
+
+        // Lights
+        scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(10, 20, 10);
+        dirLight.castShadow = true;
+        scene.add(dirLight);
+
+        // Objects
+        createWorld();
+
+        // Resize
+        window.addEventListener('resize', onWindowResize);
+
+        animate();
+      }
+
+      const baseMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7, metalness: 0.1 });
+      const platformMaterial = new THREE.MeshStandardMaterial({ color: 0xf3f4f6, roughness: 0.8 });
+
+      function createPlatform(w, d) {
+        const h = 0.5;
+        const geom = new THREE.BoxGeometry(w, h, d);
+        const mesh = new THREE.Mesh(geom, platformMaterial);
+        mesh.position.y = -h / 2;
+        mesh.receiveShadow = true;
+        return mesh;
+      }
+
+      function createNode(id, x, z, label) {
+        const group = new THREE.Group();
+        group.position.set(x, 0, z);
+        group.add(createPlatform(6, 6));
+
+        let mainMesh;
+        if (id === 'solar') {
+          const panelGeom = new THREE.BoxGeometry(4, 0.2, 3);
+          mainMesh = new THREE.Mesh(panelGeom, new THREE.MeshStandardMaterial({ color: 0x2563eb, roughness: 0.2 }));
+          mainMesh.rotation.x = -Math.PI / 6;
+          mainMesh.position.y = 1.5;
+          // Legs
+          const l1 = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.5), baseMaterial); l1.position.set(-1.5, 0.75, -1); group.add(l1);
+          const l2 = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.5), baseMaterial); l2.position.set(1.5, 0.75, -1); group.add(l2);
+        } else if (id === 'battery') {
+          mainMesh = new THREE.Mesh(new THREE.BoxGeometry(2, 4, 1.5), new THREE.MeshStandardMaterial({ color: 0x10b981 }));
+          mainMesh.position.y = 2;
+        } else if (id === 'home') {
+          mainMesh = new THREE.Mesh(new THREE.BoxGeometry(3, 2.5, 3), baseMaterial); mainMesh.position.y = 1.25;
+          const roof = new THREE.Mesh(new THREE.ConeGeometry(2.5, 1.5, 4), new THREE.MeshStandardMaterial({ color: 0x475569 }));
+          roof.position.y = 3.25; roof.rotation.y = Math.PI / 4; group.add(roof);
+        } else if (id === 'grid') {
+          mainMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.5, 5), new THREE.MeshStandardMaterial({ color: 0x64748b })); mainMesh.position.y = 2.5;
+          const bar = new THREE.Mesh(new THREE.BoxGeometry(3, 0.2, 0.2), new THREE.MeshStandardMaterial({ color: 0x64748b })); bar.position.y = 4; group.add(bar);
+        } else if (id === 'inverter') {
+          mainMesh = new THREE.Mesh(new THREE.BoxGeometry(2, 3, 1), new THREE.MeshStandardMaterial({ color: 0xf1f5f9 })); mainMesh.position.y = 1.5;
+          const screen = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.5), new THREE.MeshStandardMaterial({ color: 0x000000 })); screen.position.set(0, 2, 0.51); group.add(screen);
+        }
+
+        mainMesh.castShadow = true; mainMesh.receiveShadow = true;
+        group.add(mainMesh);
+
+        const labelDiv = document.createElement('div');
+        labelDiv.style.background = "rgba(255, 255, 255, 0.9)";
+        labelDiv.style.padding = "8px 12px";
+        labelDiv.style.borderRadius = "12px";
+        labelDiv.style.boxShadow = "0 4px 20px rgba(0,0,0,0.08)";
+        labelDiv.innerHTML = `
+                <div style="font-size: 18px; font-weight: 700; color: #0f172a;" id="3d-val-${id}">--</div>
+                <div style="font-size: 12px; font-weight: 600; color: #64748b;" id="3d-unit-${id}">KW</div>
+                <div style="font-size: 11px; text-transform: uppercase; color: #94a3b8;">${label}</div>
+            `;
+        const labelObj = new CSS2DObject(labelDiv);
+        labelObj.position.set(0, 5, 0);
+        group.add(labelObj);
+
+        scene.add(group);
+        nodes[id] = { group };
+      }
+
+      function createConnection(fromId, toId) {
+        const p1 = nodes[fromId].group.position.clone(); p1.y = 0.5;
+        const p2 = nodes[toId].group.position.clone(); p2.y = 0.5;
+        const path = new THREE.LineCurve3(p1, p2);
+        const tube = new THREE.Mesh(new THREE.TubeGeometry(path, 20, 0.1, 8, false), new THREE.MeshBasicMaterial({ color: 0xe2e8f0, transparent: true, opacity: 0.5 }));
+        scene.add(tube);
+
+        const packet = new THREE.Mesh(new THREE.SphereGeometry(0.25), new THREE.MeshBasicMaterial({ color: 0x3b82f6 }));
+        packet.visible = false;
+        scene.add(packet);
+
+        flows.push({ from: fromId, to: toId, mesh: packet, path: path, progress: 0, active: false, speed: 0.01 });
+      }
+
+      function createWorld() {
+        createNode('inverter', 0, 0, 'Inverter');
+        createNode('solar', -10, -8, 'Solar');
+        createNode('battery', 10, -4, 'Battery');
+        createNode('home', 5, 8, 'Home');
+        createNode('grid', -8, 8, 'Grid');
+
+        createConnection('solar', 'inverter');
+        createConnection('inverter', 'battery');
+        createConnection('inverter', 'home');
+        createConnection('inverter', 'grid');
+      }
+
+      function onWindowResize() {
+        const container = document.getElementById('container3d');
+        if (!container) return; // Ensure container exists before trying to get its dimensions
+        const width = container.clientWidth;
+        const height = container.clientHeight;
+        const aspect = width / height;
+        const frustumSize = 40;
+
+        camera.left = -frustumSize * aspect / 2;
+        camera.right = frustumSize * aspect / 2;
+        camera.top = frustumSize / 2;
+        camera.bottom = -frustumSize / 2;
+
+        camera.updateProjectionMatrix();
+        renderer.setSize(width, height);
+        labelRenderer.setSize(width, height);
+      }
+
+      function animate() {
+        animationId = requestAnimationFrame(animate); // Store animation ID
+        controls.update();
+
+        flows.forEach(f => {
+          if (f.active) {
+            f.progress += f.speed;
+            if (f.progress > 1) f.progress = 0;
+            if (f.progress < 0) f.progress = 1;
+            f.mesh.position.copy(f.path.getPoint(f.progress));
+          }
+        });
+
+        renderer.render(scene, camera);
+        labelRenderer.render(scene, camera);
+      }
+
+      // Export update function to window so main script can call it
+      window.update3D = function (data) {
+        if (!is3DInited) init3D();
+
+        // Map data to 3D labels
+        const invW = data.derived.inverter_power_w || 0;
+        const gridW = data.derived.grid_flow_w || 0;
+        const battP = data.derived.battery_percent || 0;
+
+        let solarVal = 0;
+        if (invW > 0) solarVal = invW;
+        if (gridW < 0) solarVal += Math.abs(gridW);
+        const load = Math.abs(solarVal + gridW);
+
+        document.getElementById('3d-val-battery').textContent = battP + '%';
+        document.getElementById('3d-val-inverter').textContent = invW;
+        document.getElementById('3d-val-home').textContent = load.toFixed(0);
+
+        document.getElementById('3d-val-grid').textContent = Math.abs(gridW);
+        document.getElementById('3d-unit-grid').textContent = gridW > 0 ? 'W (IMPORT)' : 'W (EXPORT)';
+
+        document.getElementById('3d-val-solar').textContent = solarVal;
+
+        // Flows
+        activateFlow('solar', 'inverter', solarVal > 20);
+        activateFlow('inverter', 'home', true);
+        if (gridW > 0) activateFlow('grid', 'inverter', true); else activateFlow('inverter', 'grid', true);
+      };
+
+      function activateFlow(from, to, active) {
+        const f = flows.find(x => (x.from === from && x.to === to) || (x.from === to && x.to === from));
+        if (f) {
+          f.active = active;
+          f.mesh.visible = active;
+          if (f.from === from) f.speed = 0.02; else f.speed = -0.02;
+        }
+      }
+
+      window.stop3DAnimation = function () {
+        if (animationId) {
+          cancelAnimationFrame(animationId);
+          animationId = null;
+        }
+      };
+    </script>
 
     <details>
       <summary>Dettagli tecnici e registri</summary>
@@ -676,7 +1001,9 @@
             <button id="applyBtn" class="ghost">Applica testo</button>
             <button id="resetBtn" class="ghost">Ripristina esempio</button>
           </div>
-          <div class="hint">Suggerimento: mappa il FV con <code>window.SOLAR_REG = 7</code>, la capacita batteria con <code>window.BATTERY_KWH = 5.12</code> e la soglia FV con <code>window.SOLAR_START_WM2 = 50</code>.</div>
+          <div class="hint">Suggerimento: mappa il FV con <code>window.SOLAR_REG = 7</code>, la capacita batteria con
+            <code>window.BATTERY_KWH = 5.12</code> e la soglia FV con <code>window.SOLAR_START_WM2 = 50</code>.
+          </div>
         </div>
         <div class="table-wrapper">
           <table>
@@ -695,10 +1022,7 @@
   </div>
 
   <script>
-    const DEFAULT_API = window.location.protocol.startsWith("http")
-      ? `${window.location.protocol}//${window.location.hostname}:8000/data`
-      : "http://localhost:8000/data";
-    const API_URL = window.API_URL || DEFAULT_API;
+    const API_URL = "/data";
     const AUTO_MS = 5000;
     const WEATHER_REFRESH_MS = 15 * 60 * 1000;
     const DEFAULT_BATTERY_KWH = 5.12;
@@ -746,6 +1070,32 @@ Reg 38     | 12288`;
     const resetBtn = document.getElementById("resetBtn");
     const pullBtn = document.getElementById("pullBtn");
     const autoBtn = document.getElementById("autoBtn");
+    const viewToggleBtn = document.getElementById("viewToggleBtn");
+
+    // Elements to toggle
+    const flowCard = document.querySelector(".flow-card");
+    const detailsEl = document.querySelector("details");
+    const container3d = document.getElementById("container3d");
+
+    let is3d = false;
+
+    viewToggleBtn.addEventListener("click", () => {
+      is3d = !is3d;
+      if (is3d) {
+        flowCard.style.display = 'none';
+        detailsEl.style.display = 'none';
+        container3d.style.display = 'block';
+        viewToggleBtn.textContent = "Vista 2D";
+        // Trigger resize to fix canvas size if it was hidden
+        window.dispatchEvent(new Event('resize'));
+      } else {
+        flowCard.style.display = 'grid';
+        detailsEl.style.display = 'block';
+        container3d.style.display = 'none';
+        viewToggleBtn.textContent = "Vista 3D";
+      }
+    });
+
     const dateLine = document.getElementById("dateLine");
     const tempRange = document.getElementById("tempRange");
     const sunLine = document.getElementById("sunLine");
@@ -1014,6 +1364,10 @@ Reg 38     | 12288`;
         const res = await fetch(API_URL, { cache: "no-store" });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
+
+        // Update 3D View
+        if (window.update3D) window.update3D(data);
+
         const regs = normalizeRegs(data.raw || {});
         const ts = data.meta?.timestamp ? data.meta.timestamp * 1000 : Date.now();
         rawInput.value = formatRegsForTextarea(regs);
@@ -1190,4 +1544,5 @@ Reg 38     | 12288`;
     setInterval(updateWeather, WEATHER_REFRESH_MS);
   </script>
 </body>
+
 </html>
