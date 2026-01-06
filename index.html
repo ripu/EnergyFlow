@@ -974,6 +974,11 @@
         if (gridW > 0) activateFlow('grid', 'inverter', true); else activateFlow('inverter', 'grid', true);
       };
 
+      // Manual Init (for when no data is flowing yet)
+      window.init3DView = function () {
+        if (!is3DInited) init3D();
+      };
+
       function activateFlow(from, to, active) {
         const f = flows.find(x => (x.from === from && x.to === to) || (x.from === to && x.to === from));
         if (f) {
@@ -1087,6 +1092,7 @@ Reg 38     | 12288`;
         container3d.style.display = 'block';
         viewToggleBtn.textContent = "Vista 2D";
         // Trigger resize to fix canvas size if it was hidden
+        if (window.init3DView) window.init3DView();
         window.dispatchEvent(new Event('resize'));
       } else {
         flowCard.style.display = 'grid';
