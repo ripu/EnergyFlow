@@ -2142,7 +2142,7 @@
         minute: "2-digit"
       });
       // Force refresh weather periodically or on load
-      fetchWeather();
+
     }
 
     // --- Old Weather Functions Removed (redefined above) ---
@@ -2244,7 +2244,7 @@
     state.timer = setInterval(fetchFromApi, AUTO_MS);
 
     // Initial Weather Fetch
-    fetchWeather();
+
     setInterval(fetchWeather, WEATHER_REFRESH_MS);
   </script>
 </body>
