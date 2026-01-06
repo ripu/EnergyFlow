@@ -1560,9 +1560,19 @@
       const load = Number(loadW);
       if (!Number.isFinite(load)) return null;
       if (load <= 10) return Infinity;
-      const capacityWh = resolveBatteryCapacityWh();
-      const remainingWh = capacityWh * (batteryPercent / 100);
-      return (remainingWh / load) * 60;
+
+      // Battery stops at min_soc (default 10%), so usable is what's above that
+      const minSoc = config.battery?.min_soc || 0;
+      const usablePercent = Math.max(0, batteryPercent - minSoc);
+
+      if (usablePercent <= 0) return 0;
+
+      const totalWh = resolveBatteryCapacityWh();
+      // Wh available is based on the TOTAL capacity * USABLE percent
+      const availableWh = (totalWh * usablePercent) / 100;
+
+      // minutes = Wh / W * 60
+      return (availableWh / load) * 60;
     }
 
     function estimateRuntimeText(batteryPercent, loadW) {
