@@ -1537,8 +1537,7 @@
       if (!Number.isNaN(wh) && wh > 0) return wh;
       const kwh = Number(window.BATTERY_KWH);
       if (!Number.isNaN(kwh) && kwh > 0) return kwh * 1000;
-      // Use config value
-      return (config.battery?.capacity_kwh || 5.12) * 1000;
+      return DEFAULT_BATTERY_KWH * 1000;
     }
 
     function formatRuntimeMinutes(minutes) {
