@@ -9,7 +9,8 @@
         "port": 502
     },
     "battery": {
-        "capacity_kwh": 5.0
+        "capacity_kwh": 5.0,
+        "min_soc": 10
     },
     "solar": {
         "capacity_kwp": 6.0
