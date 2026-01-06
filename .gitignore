@@ -25,3 +25,7 @@ npm-debug.log*
 
 # User Configuration
 config.json
+
+# Utility scripts
+find_pi.py
+test_inverter.py
