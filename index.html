@@ -766,6 +766,10 @@
             <button id="autoBtn" class="ghost">Auto</button>
           </div>
           <div class="last-update">Ultimo: <span id="lastUpdate">--</span></div>
+          <div id="locationContainer" style="font-size: 11px; margin-top: 4px; display: none;">
+            📍 <a id="locationLink" href="#" target="_blank"
+              style="color: inherit; text-decoration: none; opacity: 0.8;">Posizione</a>
+          </div>
 
           <!-- Hidden Status -->
           <div style="display: none;">
@@ -1754,11 +1758,25 @@
       battery: { capacity_kwh: 5.0 }
     };
 
-    fetch('/config.json')
+    fetch('/config.json?t=' + Date.now())
       .then(res => res.json())
       .then(data => {
         config = data;
         console.log('Config loaded:', config);
+
+        // Update Location Link
+        const lat = config.location?.latitude;
+        const lon = config.location?.longitude;
+        if (lat && lon && (lat !== 0 || lon !== 0)) {
+          const locLink = document.getElementById('locationLink');
+          const locContainer = document.getElementById('locationContainer');
+          if (locLink && locContainer) {
+            locLink.href = `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`;
+            locLink.textContent = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+            locContainer.style.display = 'block';
+          }
+        }
+
         fetchWeather(); // Re-fetch weather with correct location
       })
       .catch(err => {
