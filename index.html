@@ -322,7 +322,7 @@
       width: 100%;
       max-width: 220px;
       margin: 0 auto;
-      height: 290px;
+      height: 320px;
       /* Fixed height for uniformity */
       display: flex;
       flex-direction: column;
@@ -374,6 +374,10 @@
       display: grid;
       place-items: center;
       color: var(--node-accent, #8aa0b8);
+    }
+
+    #batteryFillRect {
+      transition: width 0.6s ease, fill 0.6s ease;
     }
 
     .node .icon svg {
@@ -833,12 +837,34 @@
         </svg>
         <div class="node solar">
           <div class="tile">
-            <div class="icon"><svg viewBox="0 0 80 60" fill="none" aria-hidden="true">
-                <circle cx="62" cy="12" r="7" fill="currentColor" opacity="0.85"></circle>
-                <rect x="10" y="28" width="22" height="12" rx="2" fill="currentColor" opacity="0.25"></rect>
-                <rect x="36" y="28" width="22" height="12" rx="2" fill="currentColor" opacity="0.25"></rect>
-                <path d="M10 28l6-10h20l6 10" stroke="currentColor" stroke-width="2" stroke-linejoin="round"></path>
-                <path d="M36 28l6-10h20l6 10" stroke="currentColor" stroke-width="2" stroke-linejoin="round"></path>
+            <div class="icon"><svg viewBox="0 0 70 60" fill="none" aria-hidden="true">
+                <!-- Sun with rays -->
+                <circle cx="40" cy="22" r="10" fill="currentColor" opacity="0.9"></circle>
+                <!-- Sun rays -->
+                <line x1="40" y1="6" x2="40" y2="2" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                </line>
+                <line x1="40" y1="42" x2="40" y2="38" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                </line>
+                <line x1="24" y1="22" x2="20" y2="22" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                </line>
+                <line x1="60" y1="22" x2="56" y2="22" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                </line>
+                <line x1="28" y1="10" x2="25" y2="7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                </line>
+                <line x1="55" y1="37" x2="52" y2="34" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                </line>
+                <line x1="52" y1="10" x2="55" y2="7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                </line>
+                <line x1="25" y1="37" x2="28" y2="34" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                </line>
+                <!-- Solar panel -->
+                <rect x="15" y="40" width="50" height="16" rx="3" fill="currentColor" opacity="0.3"></rect>
+                <rect x="15" y="40" width="50" height="16" rx="3" stroke="currentColor" stroke-width="2"></rect>
+                <!-- Panel grid lines -->
+                <line x1="27" y1="40" x2="27" y2="56" stroke="currentColor" stroke-width="1" opacity="0.4"></line>
+                <line x1="40" y1="40" x2="40" y2="56" stroke="currentColor" stroke-width="1" opacity="0.4"></line>
+                <line x1="53" y1="40" x2="53" y2="56" stroke="currentColor" stroke-width="1" opacity="0.4"></line>
+                <line x1="15" y1="48" x2="65" y2="48" stroke="currentColor" stroke-width="1" opacity="0.4"></line>
               </svg></div>
           </div>
           <div class="node-label">Solar</div>
@@ -846,7 +872,7 @@
         </div>
         <div class="node inverter">
           <div class="tile">
-            <div class="icon"><svg viewBox="0 0 60 70" fill="none" aria-hidden="true">
+            <div class="icon"><svg viewBox="0 0 70 60" fill="none" aria-hidden="true">
                 <rect x="14" y="8" width="32" height="48" rx="6" fill="currentColor" opacity="0.2"></rect>
                 <rect x="14" y="8" width="32" height="48" rx="6" stroke="currentColor" stroke-width="2"></rect>
                 <rect x="22" y="18" width="16" height="10" rx="2" fill="currentColor" opacity="0.6"></rect>
@@ -860,10 +886,18 @@
         <div class="node battery">
           <div class="tile">
             <div class="icon"><svg viewBox="0 0 70 60" fill="none" aria-hidden="true">
+                <defs>
+                  <linearGradient id="batteryGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#22c55e" />
+                    <stop offset="100%" stop-color="#ef4444" />
+                  </linearGradient>
+                </defs>
                 <rect x="8" y="16" width="48" height="28" rx="6" fill="currentColor" opacity="0.2"></rect>
                 <rect x="8" y="16" width="48" height="28" rx="6" stroke="currentColor" stroke-width="2"></rect>
                 <rect x="56" y="24" width="6" height="12" rx="2" fill="currentColor"></rect>
-                <rect x="14" y="22" width="34" height="16" rx="4" fill="currentColor" opacity="0.6"></rect>
+                <!-- Dynamic fill showing battery level -->
+                <rect id="batteryFillRect" x="14" y="22" width="34" height="16" rx="4" fill="url(#batteryGradient)"
+                  opacity="0.85"></rect>
               </svg></div>
           </div>
           <div class="node-label">Battery</div>
@@ -885,7 +919,7 @@
         </div>
         <div class="node grid">
           <div class="tile">
-            <div class="icon"><svg viewBox="0 0 70 70" fill="none" aria-hidden="true">
+            <div class="icon"><svg viewBox="0 0 70 60" fill="none" aria-hidden="true">
                 <path d="M35 8L22 56H48L35 8Z" fill="currentColor" opacity="0.18"></path>
                 <path d="M35 8L22 56H48L35 8Z" stroke="currentColor" stroke-width="2"></path>
                 <path d="M20 30H50M18 40H52" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
@@ -1542,8 +1576,14 @@
         return;
       }
 
+      // Force solar inactive if it's past sunset (simple robust check)
+      const now = new Date();
+      if (state.dailySunset && now > state.dailySunset) {
+        state.solarActive = false;
+      }
+
       if (state.solarActive) {
-        batterySunEl.textContent = "FV: attivo";
+        batterySunEl.textContent = "FV: Produzione";
         return;
       }
 
@@ -1552,7 +1592,17 @@
         return;
       }
 
-      const now = new Date();
+      // use existing now
+      // const now = new Date(); // Removed duplicate declaration
+
+      // DEBUG: Log the calculation
+      console.log('Battery Night Calc:', {
+        now: now.toISOString(),
+        nextSunrise: state.nextSunrise?.toISOString(),
+        msToSunrise: state.nextSunrise - now,
+        minutesToSunrise: (state.nextSunrise - now) / 60000
+      });
+
       const msToSunrise = state.nextSunrise - now;
       const minutesToSunrise = msToSunrise / 60000;
 
@@ -1561,20 +1611,59 @@
         return;
       }
 
+      // Show total time to sunrise
+      const hToSunrise = Math.floor(minutesToSunrise / 60);
+      const mToSunrise = Math.round(minutesToSunrise % 60);
+
       // If battery is charging or full, logic might differ, but assuming discharging context:
       const runtimeMins = (runtimeMinutes === Infinity) ? 9999 : runtimeMinutes;
 
       const diff = minutesToSunrise - runtimeMins;
 
       if (diff <= 0) {
-        batterySunEl.textContent = "Copre fino all'alba";
-        batterySunEl.style.color = "var(--accent)";
+        // Battery covers until sunrise
+        batterySunEl.innerHTML = `Alba tra ${hToSunrise}h ${mToSunrise}m <span style='color: var(--accent)'>✓ Copre</span>`;
+        batterySunEl.style.color = "var(--muted)";
       } else {
-        const h = Math.floor(diff / 60);
-        const m = Math.round(diff % 60);
-        batterySunEl.innerHTML = `Mancano <span style='color: var(--danger)'>${h}h ${m}m</span> all'alba`;
+        // Battery will run out before sunrise
+        const hDeficit = Math.floor(diff / 60);
+        const mDeficit = Math.round(diff % 60);
+        batterySunEl.innerHTML = `Alba tra ${hToSunrise}h ${mToSunrise}m <span style='color: var(--danger)'>Mancano ${hDeficit}h ${mDeficit}m</span>`;
         batterySunEl.style.color = "var(--muted)";
       }
+    }
+
+    function updateBatteryFill(percent) {
+      const fillRect = document.getElementById('batteryFillRect');
+      if (!fillRect || percent == null) return;
+
+      // Battery internal dimensions: x=14, y=22, full width=34, height=16
+      const maxWidth = 34;
+      const fillWidth = (percent / 100) * maxWidth;
+
+      // Fill from left: x stays at 14, width changes
+      fillRect.setAttribute('x', 14);
+      fillRect.setAttribute('y', 22);
+      fillRect.setAttribute('width', fillWidth);
+      fillRect.setAttribute('height', 16);
+
+      // Color based on percentage (smooth transition)
+      let color;
+      if (percent >= 50) {
+        // Green to yellow (50-100%)
+        const ratio = (percent - 50) / 50;
+        color = `hsl(${120 * ratio + 60}, 70%, 50%)`;
+      } else if (percent >= 20) {
+        // Yellow to orange (20-50%)
+        const ratio = (percent - 20) / 30;
+        color = `hsl(${60 * ratio + 30}, 70%, 50%)`;
+      } else {
+        // Orange to red (0-20%)
+        const ratio = percent / 20;
+        color = `hsl(${30 * ratio}, 70%, 50%)`;
+      }
+
+      fillRect.setAttribute('fill', color);
     }
 
     function parseRegisters(rawText) {
@@ -1710,6 +1799,9 @@
         // Update visual sun arc
         updateSunVisual(daily.sunrise[0], daily.sunset[0]);
 
+        // Store sunset for logic checks
+        state.dailySunset = new Date(daily.sunset[0]);
+
         // Update Solar Window State
         const win = computeSolarWindow(hourly);
         state.solarActive = win.activeNow;
@@ -1717,8 +1809,29 @@
         // Determine NEXT sunrise
         const now = new Date();
         const srToday = new Date(daily.sunrise[0]);
-        // If passed today's sunrise, use tomorrow's
-        state.nextSunrise = (now > srToday) ? new Date(daily.sunrise[1]) : srToday;
+        const ssToday = new Date(daily.sunset[0]);
+
+        console.log('Sunrise calc:', {
+          now: now.toISOString(),
+          sunrise0: daily.sunrise[0],
+          sunrise1: daily.sunrise[1],
+          srToday: srToday.toISOString(),
+          ssToday: ssToday.toISOString()
+        });
+
+        // If it's night (past sunset), use tomorrow's sunrise
+        // Otherwise if we haven't reached today's sunrise yet, use today's
+        if (now > ssToday) {
+          // Past sunset - use tomorrow's sunrise from daily.sunrise[1]
+          state.nextSunrise = new Date(daily.sunrise[1]);
+          console.log('Using tomorrow sunrise:', state.nextSunrise.toISOString());
+        } else if (now < srToday) {
+          // Before today's sunrise - use today's
+          state.nextSunrise = srToday;
+        } else {
+          // Between sunrise and sunset - sun is up, but for battery calc use tomorrow's sunrise
+          state.nextSunrise = new Date(daily.sunrise[1]);
+        }
 
         updateBatterySunLine();
 
@@ -1843,7 +1956,11 @@
       // Battery Status logic
       // We don't have direct battery power in registers yet, so we infer or show just %
       if (metrics.batteryPercent != null) {
-        batteryPowerEl.textContent = `${metrics.batteryPercent}%`;
+        // Calculate kWh stored
+        const capWh = resolveBatteryCapacityWh();
+        const storedKwh = (capWh * (metrics.batteryPercent / 100)) / 1000;
+
+        batteryPowerEl.innerHTML = `${metrics.batteryPercent}% <span style="font-size: 18px; color: #ef4444; font-weight: 600; margin-left: 4px;">${storedKwh.toFixed(1)} kWh</span>`;
       }
 
       else {
@@ -1854,6 +1971,9 @@
       state.lastLoadW = metrics.homeLoad;
       batteryRuntimeEl.textContent = estimateRuntimeText(metrics.batteryPercent, metrics.homeLoad);
       updateBatterySunLine();
+
+      // Update visual battery fill
+      updateBatteryFill(metrics.batteryPercent);
 
       if (gridFlow == null) {
         gridDirectionEl.textContent = "Standby";
