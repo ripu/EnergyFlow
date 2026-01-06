@@ -716,20 +716,7 @@
         </div>
       </div>
 
-      <div class="control-bar">
-        <div class="status-group">
-          <div class="status-chip" id="statusChip">Attesa dati</div>
-          <div class="api-status" id="apiStatus">API HTTP: avvia <strong>python3 invert.py --serve</strong> (default
-            http://localhost:8000/data)</div>
-        </div>
-        <div class="control-actions">
-          <button id="viewToggleBtn" style="background: linear-gradient(120deg, #8b5cf6, #a78bfa); color: white;">Vista
-            3D</button>
-          <button id="pullBtn">Aggiorna</button>
-          <button id="autoBtn" class="ghost">Auto OFF</button>
-          <div class="last-update">Ultimo aggiornamento: <span id="lastUpdate">--</span></div>
-        </div>
-      </div>
+
     </section>
 
     <!-- 3D View Container -->
@@ -737,6 +724,22 @@
       style="display: none; width: 100%; height: 600px; border-radius: 26px; box-shadow: var(--shadow); background: #fcfcfc; position: relative; overflow: hidden;">
       <div id="info3d" style="position: absolute; top: 10px; left: 20px; z-index: 10; pointer-events: none;">
         <p style="margin: 0; color: #64748b; font-size: 14px;">Isometric Realtime View</p>
+      </div>
+    </div>
+
+    <!-- Control Bar (Moved here for visibility) -->
+    <div class="control-bar" style="margin-top: 24px;">
+      <div class="status-group">
+        <div class="status-chip" id="statusChip">Attesa dati</div>
+        <div class="api-status" id="apiStatus">API HTTP: avvia <strong>python3 invert.py --serve</strong> (default
+          http://localhost:8000/data)</div>
+      </div>
+      <div class="control-actions">
+        <button id="viewToggleBtn" style="background: linear-gradient(120deg, #8b5cf6, #a78bfa); color: white;">Vista
+          3D</button>
+        <button id="pullBtn">Aggiorna</button>
+        <button id="autoBtn" class="ghost">Auto OFF</button>
+        <div class="last-update">Ultimo aggiornamento: <span id="lastUpdate">--</span></div>
       </div>
     </div>
 
