@@ -102,8 +102,8 @@ MODBUS_PORT = 502
 ### Coordinate GPS (per meteo)
 Nel file `index.html` (riga ~1663), aggiorna le coordinate:
 ```javascript
-const LAT = 37.003794;  // Siracusa, IT
-const LON = 15.255515;
+const LAT = 45.4642;  // Your city latitude
+const LON = 9.1900;   // Your city longitude
 ```
 
 ### Capacità Batteria
@@ -164,7 +164,7 @@ MIT License - Vedi [LICENSE](LICENSE) per dettagli
 ## 👤 Autore
 
 **Ripu**
-- 📍 Siracusa, Italia
+- 📍 Italia
 - ⚡ Impianto: Fotovoltaico + Batteria di accumulo
 
 ---
