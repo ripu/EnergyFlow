@@ -8,27 +8,8 @@ from typing import Dict, List, Tuple
 from pymodbus.client import ModbusTcpClient
 
 # --- CONFIGURAZIONE ---
-def load_config():
-    """Load configuration from config.json"""
-    try:
-        with open("config.json", "r") as f:
-            return json.load(f)
-    except FileNotFoundError:
-        print("⚠️  config.json not found, using defaults")
-        return {
-            "inverter": {"ip": "192.168.1.100", "port": 502},
-            "api": {"port": 8003}
-        }
-    except Exception as e:
-        print(f"⚠️  Error loading config.json: {e}, using defaults")
-        return {
-            "inverter": {"ip": "192.168.1.100", "port": 502},
-            "api": {"port": 8003}
-        }
-
-CONFIG = load_config()
-INVERTER_IP = CONFIG["inverter"]["ip"]
-MODBUS_PORT = CONFIG["inverter"]["port"]
+INVERTER_IP = "192.168.1.124"  # IP inverter
+MODBUS_PORT = 502
 SLAVE_ID = 1
 DEFAULT_COUNT = 90  # Extended to read PV registers (70+) and Energy (82)
 # ----------------------
@@ -200,13 +181,6 @@ def make_handler(count: int):
         def do_GET(self):
             if self.path.startswith("/health"):
                 return self._send_json({"status": "ok", "ip": INVERTER_IP})
-            
-            if self.path.startswith("/config"):
-                # Serve only location and battery config (not sensitive inverter IP)
-                return self._send_json({
-                    "location": CONFIG.get("location", {"latitude": 0, "longitude": 0}),
-                    "battery": CONFIG.get("battery", {"capacity_kwh": 5.0})
-                })
 
             if self.path.startswith("/data"):
                 try:

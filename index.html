@@ -837,7 +837,7 @@
         </svg>
         <div class="node solar">
           <div class="tile">
-            <div class="icon"><svg viewBox="0 0 70 60" fill="none" aria-hidden="true">
+            <div class="icon"><svg viewBox="0 0 80 60" fill="none" aria-hidden="true">
                 <!-- Sun with rays -->
                 <circle cx="40" cy="22" r="10" fill="currentColor" opacity="0.9"></circle>
                 <!-- Sun rays -->
@@ -872,7 +872,7 @@
         </div>
         <div class="node inverter">
           <div class="tile">
-            <div class="icon"><svg viewBox="0 0 70 60" fill="none" aria-hidden="true">
+            <div class="icon"><svg viewBox="0 0 60 70" fill="none" aria-hidden="true">
                 <rect x="14" y="8" width="32" height="48" rx="6" fill="currentColor" opacity="0.2"></rect>
                 <rect x="14" y="8" width="32" height="48" rx="6" stroke="currentColor" stroke-width="2"></rect>
                 <rect x="22" y="18" width="16" height="10" rx="2" fill="currentColor" opacity="0.6"></rect>
@@ -919,7 +919,7 @@
         </div>
         <div class="node grid">
           <div class="tile">
-            <div class="icon"><svg viewBox="0 0 70 60" fill="none" aria-hidden="true">
+            <div class="icon"><svg viewBox="0 0 70 70" fill="none" aria-hidden="true">
                 <path d="M35 8L22 56H48L35 8Z" fill="currentColor" opacity="0.18"></path>
                 <path d="M35 8L22 56H48L35 8Z" stroke="currentColor" stroke-width="2"></path>
                 <path d="M20 30H50M18 40H52" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
@@ -1399,22 +1399,7 @@
   <script> const API_URL = "/data";
     const AUTO_MS = 5000;
     const WEATHER_REFRESH_MS = 15 * 60 * 1000;
-    // Configuration loaded from server
-    let APP_CONFIG = {
-      location: { latitude: 0, longitude: 0 },
-      battery: { capacity_kwh: 5.0 }
-    };
-
-    async function loadConfig() {
-      try {
-        const res = await fetch(`${API_URL.replace('/data', '/config')}`);
-        const config = await res.json();
-        APP_CONFIG = config;
-        console.log('Config loaded:', APP_CONFIG);
-      } catch (e) {
-        console.warn('Could not load config, using defaults:', e);
-      }
-    }
+    const DEFAULT_BATTERY_KWH = 5.12;
 
     const sampleRaw = `Reg 0 | 2258 Reg 1 | 41 Reg 2 | 915 Reg 3 | 705 Reg 4 | 700 Reg 7 | 4997 Reg 8 | 29 Reg 9 | 2 Reg 10 | 2 Reg 11 | 1 Reg 19 | 1 Reg 20 | 4145 Reg 21 | 65515 Reg 22 | 64624 Reg 23 | 1 Reg 24 | 16 Reg 27 | 2 Reg 28 | 89 Reg 29 | 561 Reg 32 | 40 Reg 33 | 722 Reg 35 | 64 Reg 36 | 171 Reg 37 | 300 Reg 38 | 12288`;
 
@@ -1552,7 +1537,8 @@
       if (!Number.isNaN(wh) && wh > 0) return wh;
       const kwh = Number(window.BATTERY_KWH);
       if (!Number.isNaN(kwh) && kwh > 0) return kwh * 1000;
-      return APP_CONFIG.battery.capacity_kwh * 1000;
+      // Use config value
+      return (config.battery?.capacity_kwh || 5.12) * 1000;
     }
 
     function formatRuntimeMinutes(minutes) {
@@ -1763,9 +1749,27 @@
         ;
     }
 
+    // Load configuration
+    let config = {
+      location: { latitude: 37.003794, longitude: 15.255515 },
+      battery: { capacity_kwh: 5.12 }
+    };
+
+    fetch('/config.json')
+      .then(res => res.json())
+      .then(data => {
+        config = data;
+        console.log('Config loaded:', config);
+        fetchWeather(); // Re-fetch weather with correct location
+      })
+      .catch(err => {
+        console.warn('Config not found, using defaults:', err);
+        fetchWeather();
+      });
+
     async function fetchWeather() {
-      const LAT = APP_CONFIG.location.latitude;
-      const LON = APP_CONFIG.location.longitude;
+      const LAT = config.location.latitude;
+      const LON = config.location.longitude;
 
       try {
         const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,weather_code&daily=weather_code,sunrise,sunset,temperature_2m_max,temperature_2m_min&hourly=shortwave_radiation&timezone=auto`;
@@ -1975,7 +1979,7 @@
         const capWh = resolveBatteryCapacityWh();
         const storedKwh = (capWh * (metrics.batteryPercent / 100)) / 1000;
 
-        batteryPowerEl.innerHTML = `${metrics.batteryPercent}% <span style="font-size: 18px; color: #ef4444; font-weight: 600; margin-left: 4px;">${storedKwh.toFixed(1)} kWh</span>`;
+        batteryPowerEl.innerHTML = `${metrics.batteryPercent}% <span style="font-size: 14px; color: #ef4444; font-weight: 600; margin-left: 4px;">${storedKwh.toFixed(1)} kWh</span>`;
       }
 
       else {
@@ -2216,20 +2220,15 @@
     updateDateLine();
     setInterval(updateDateLine, 60000);
 
-    // Initialize app with config loading
-    (async () => {
-      await loadConfig();
+    // Force Auto ON
+    state.auto = true;
+    autoBtn.textContent = "Auto ON";
+    fetchFromApi();
+    state.timer = setInterval(fetchFromApi, AUTO_MS);
 
-      // Force Auto ON
-      state.auto = true;
-      autoBtn.textContent = "Auto ON";
-      fetchFromApi();
-      state.timer = setInterval(fetchFromApi, AUTO_MS);
-
-      // Initial Weather Fetch
-      fetchWeather();
-      setInterval(fetchWeather, WEATHER_REFRESH_MS);
-    })();
+    // Initial Weather Fetch
+    fetchWeather();
+    setInterval(fetchWeather, WEATHER_REFRESH_MS);
   </script>
 </body>
 

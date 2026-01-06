@@ -1,6 +1,3 @@
-# Configuration (contains sensitive data)
-config.json
-
 # macOS
 .DS_Store
 .DS_Store?
@@ -25,3 +22,6 @@ npm-debug.log*
 .idea/
 *.swp
 *.swo
+
+# User Configuration
+config.json

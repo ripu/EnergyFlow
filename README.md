@@ -67,7 +67,65 @@ pip install pymodbus
    cd realtime-inverter
    ```
 
-2. **Configura il mapping Modbus**
+2. **Configura le tue impostazioni**
+   ```bash
+   cp config.example.json config.json
+   # Modifica config.json con i tuoi dati (GPS, IP inverter, capacità batteria)
+   ```
+
+3. **Personalizza il mapping Modbus** (opzionale)
+   
+   Modifica `registers.json` solo se il tuo inverter usa registri diversi:
+   ```json
+   {
+     "grid_voltage": 0,
+     "inverter_power": 2,
+     "grid_power": 3,
+     "battery_percent": 28
+   }
+   ```
+
+4. **Avvia il server backend**
+   ```bash
+   python3 invert.py --serve --port 8003
+   ```
+
+5. **Apri il browser**
+   ```
+   http://localhost:8003
+   ```
+
+## ⚙️ Configurazione
+
+### Prima Configurazione
+
+1. **Copia il file di esempio**
+   ```bash
+   cp config.example.json config.json
+   ```
+
+2. **Modifica `config.json` con i tuoi dati**
+   ```json
+   {
+     "location": {
+       "latitude": 37.003794,    // Le tue coordinate GPS
+       "longitude": 15.255515,
+       "timezone": "Europe/Rome"
+     },
+     "inverter": {
+       "ip": "192.168.1.124",    // IP del tuo inverter
+       "port": 502
+     },
+     "battery": {
+       "capacity_kwh": 5.12      // Capacità della tua batteria in kWh
+     },
+     "server": {
+       "port": 8003
+     }
+   }
+   ```
+
+3. **Personalizza il mapping Modbus**
    
    Modifica `registers.json` con i registri specifici del tuo inverter:
    ```json
@@ -76,41 +134,12 @@ pip install pymodbus
      "inverter_power": 2,
      "grid_power": 3,
      "battery_percent": 28,
-     ...
+     "pv1_voltage": 70,
+     "pv1_current": 71
    }
    ```
 
-3. **Avvia il server backend**
-   ```bash
-   python3 invert.py --serve --port 8003
-   ```
-
-4. **Apri il browser**
-   ```
-   http://localhost:8003
-   ```
-
-## ⚙️ Configurazione
-
-### Inverter Modbus
-Nel file `invert.py`, configura l'IP e la porta del tuo inverter:
-```python
-INVERTER_IP = "192.168.1.124"
-MODBUS_PORT = 502
-```
-
-### Coordinate GPS (per meteo)
-Nel file `index.html` (riga ~1663), aggiorna le coordinate:
-```javascript
-const LAT = 45.4642;  // Your city latitude
-const LON = 9.1900;   // Your city longitude
-```
-
-### Capacità Batteria
-Modifica in `index.html` (riga ~1495):
-```javascript
-const DEFAULT_BATTERY_KWH = 5.12;  // kWh della tua batteria
-```
+> **Nota**: Il file `config.json` è escluso da Git (vedi `.gitignore`), quindi le tue informazioni personali rimangono private.
 
 ## 📊 Funzionalità Avanzate
 
@@ -144,7 +173,9 @@ Tutte le icone SVG sono inline e personalizzabili. Cerca `viewBox="0 0 70 60"` n
 
 ## 📸 Screenshot
 
-*(Aggiungi screenshot del tuo dashboard qui)*
+![Dashboard Screenshot](screenshot.png)
+
+*Dashboard in tempo reale che mostra produzione solare, stato batteria, consumo domestico e flussi energetici animati*
 
 ## 🚀 Roadmap
 
@@ -164,7 +195,7 @@ MIT License - Vedi [LICENSE](LICENSE) per dettagli
 ## 👤 Autore
 
 **Ripu**
-- 📍 Italia
+- 📍 Siracusa, Italia
 - ⚡ Impianto: Fotovoltaico + Batteria di accumulo
 
 ---
