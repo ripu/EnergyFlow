@@ -8,8 +8,20 @@ from typing import Dict, List, Tuple
 from pymodbus.client import ModbusTcpClient
 
 # --- CONFIGURAZIONE ---
-INVERTER_IP = "192.168.1.124"  # IP inverter
-MODBUS_PORT = 502
+# Load configuration from config.json
+def load_config():
+    try:
+        with open("config.json", "r") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        print("⚠️  config.json not found, using defaults")
+        return {
+            "inverter": {"ip": "192.168.1.100", "port": 502}
+        }
+
+config = load_config()
+INVERTER_IP = config["inverter"]["ip"]
+MODBUS_PORT = config["inverter"]["port"]
 SLAVE_ID = 1
 DEFAULT_COUNT = 90  # Extended to read PV registers (70+) and Energy (82)
 # ----------------------
