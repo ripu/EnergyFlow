@@ -1,81 +1,87 @@
-# ⚡ Real-Time Inverter Dashboard
+# ⚡ EnergyFlow
 
-Dashboard in tempo reale per monitorare il mio impianto fotovoltaico domestico con visualizzazione dei flussi energetici, calcolo automatico dell'autonomia della batteria e previsioni meteo integrate.
+Real-time solar energy monitoring dashboard with animated flow visualization, intelligent battery autonomy calculation, and integrated weather forecasting.
 
 ![Dashboard Preview](https://img.shields.io/badge/status-active-success)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
-## 🎯 Motivazione
+## 📸 Dashboard Preview
 
-Ho creato questo progetto perché volevo **vedere in tempo reale** cosa stesse facendo il mio impianto fotovoltaico:
-- 📊 **Monitoraggio istantaneo** di produzione solare, consumo domestico e stato della batteria
-- 🔋 **Calcolo rapido dell'autonomia**: quanto durano le batterie fino all'alba?
-- ☀️ **Previsioni intelligenti**: il mio sistema coprirà tutta la notte senza dover prelevare dalla rete?
-- 🌐 **Visualizzazione intuitiva** dei flussi energetici tra pannelli, inverter, batteria, casa e rete
+![Dashboard Screenshot](screenshot.png)
 
-## ✨ Caratteristiche Principali
+*Real-time dashboard showing solar production, battery status, home consumption, and animated energy flows*
 
-### 📈 Monitoraggio Real-Time
-- **Produzione solare** in tempo reale (W/kW)
-- **Stato batteria** con percentuale e kWh disponibili
-- **Consumo domestico** istantaneo
-- **Scambio con la rete** (import/export)
-- **Potenza inverter** e tensione di rete
+## 🎯 Motivation
 
-### 🔋 Calcolo Autonomia Intelligente
-- Stima runtime batteria basata sul carico attuale
-- Calcolo automatico del tempo mancante all'alba
-- Indicatore visivo: "Copre fino all'alba" o deficit energetico
-- Batteria visiva con gradiente di colore (verde→giallo→rosso)
+I created this project because I wanted to **see in real-time** what my solar installation was doing:
+- 📊 **Instant monitoring** of solar production, home consumption, and battery status
+- 🔋 **Quick autonomy calculation**: how long will the batteries last until sunrise?
+- ☀️ **Smart forecasting**: will my system cover the entire night without drawing from the grid?
+- 🌐 **Intuitive visualization** of energy flows between panels, inverter, battery, home, and grid
 
-### 🌤️ Integrazione Meteo
-- Previsioni meteo da Open-Meteo (temperatura, condizioni, icone)
-- **Sun tracker visivo** stile iOS con arco solare animato
-- Calcolo durata del giorno (ore di luce solare)
-- Forecast a 2 giorni con icone meteo
+## ✨ Key Features
 
-### 🎨 Visualizzazione Dati
-- **Vista 2D**: Flow diagram con linee animate SVG che mostrano i flussi energetici
-- **Vista 3D**: Rappresentazione isometrica dell'impianto (Three.js)
-- Nodi uniformi con icone moderne e pulite
-- Animazioni fluide per tutte le transizioni
+### 📈 Real-Time Monitoring
+- **Solar production** in real-time (W/kW)
+- **Battery status** with percentage and available kWh
+- **Home consumption** instantaneous
+- **Grid exchange** (import/export)
+- **Inverter power** and grid voltage
+
+### 🔋 Intelligent Battery Autonomy
+- Battery runtime estimation based on current load
+- Automatic calculation of time until sunrise
+- Visual indicator: "Covers until sunrise" or energy deficit
+- Visual battery with color gradient (green→yellow→red)
+
+### 🌤️ Weather Integration
+- Weather forecast from Open-Meteo (temperature, conditions, icons)
+- **iOS-style sun tracker** with animated solar arc
+- Day length calculation (hours of sunlight)
+- 2-day forecast with weather icons
+
+### 🎨 Data Visualization
+- **2D View**: Flow diagram with animated SVG lines showing energy flows
+- **3D View**: Isometric representation of the system (Three.js)
+- Uniform nodes with modern, clean icons
+- Smooth animations for all transitions
 
 ## 🛠️ Tech Stack
 
 - **Frontend**: HTML5, CSS3, Vanilla JavaScript
 - **3D Graphics**: Three.js
 - **Backend**: Python 3 (`http.server`)
-- **Protocollo**: Modbus TCP (via `pymodbus`)
+- **Protocol**: Modbus TCP (via `pymodbus`)
 - **Weather API**: [Open-Meteo](https://open-meteo.com)
-- **Inverter**: Compatibile con registri Modbus standard
+- **Inverter**: Compatible with standard Modbus registers
 
-## 📦 Installazione
+## 📦 Installation
 
-### Prerequisiti
+### Prerequisites
 ```bash
 # Python 3.7+
 python3 --version
 
-# Installare pymodbus
+# Install pymodbus
 pip install pymodbus
 ```
 
 ### Setup
-1. **Clona il repository**
+1. **Clone the repository**
    ```bash
-   git clone https://github.com/ripu/realtime-inverter.git
-   cd realtime-inverter
+   git clone https://github.com/ripu/EnergyFlow.git
+   cd EnergyFlow
    ```
 
-2. **Configura le tue impostazioni**
+2. **Configure your settings**
    ```bash
    cp config.example.json config.json
-   # Modifica config.json con i tuoi dati (GPS, IP inverter, capacità batteria)
+   # Edit config.json with your data (GPS, inverter IP, battery capacity)
    ```
 
-3. **Personalizza il mapping Modbus** (opzionale)
+3. **Customize Modbus mapping** (optional)
    
-   Modifica `registers.json` solo se il tuo inverter usa registri diversi:
+   Edit `registers.json` only if your inverter uses different registers:
    ```json
    {
      "grid_voltage": 0,
@@ -85,39 +91,39 @@ pip install pymodbus
    }
    ```
 
-4. **Avvia il server backend**
+4. **Start the backend server**
    ```bash
    python3 invert.py --serve --port 8003
    ```
 
-5. **Apri il browser**
+5. **Open your browser**
    ```
    http://localhost:8003
    ```
 
-## ⚙️ Configurazione
+## ⚙️ Configuration
 
-### Prima Configurazione
+### Initial Setup
 
-1. **Copia il file di esempio**
+1. **Copy the example file**
    ```bash
    cp config.example.json config.json
    ```
 
-2. **Modifica `config.json` con i tuoi dati**
+2. **Edit `config.json` with your data**
    ```json
    {
      "location": {
-       "latitude": 0.0,        // Le tue coordinate GPS
+       "latitude": 0.0,        // Your GPS coordinates
        "longitude": 0.0,
        "timezone": "Europe/Rome"
      },
      "inverter": {
-       "ip": "192.168.1.100",  // IP del tuo inverter
+       "ip": "192.168.1.100",  // Your inverter IP
        "port": 502
      },
      "battery": {
-       "capacity_kwh": 5.0     // Capacità della tua batteria in kWh
+       "capacity_kwh": 5.0     // Your battery capacity in kWh
      },
      "server": {
        "port": 8003
@@ -125,9 +131,9 @@ pip install pymodbus
    }
    ```
 
-3. **Personalizza il mapping Modbus**
+3. **Customize Modbus mapping**
    
-   Modifica `registers.json` con i registri specifici del tuo inverter:
+   Edit `registers.json` with your inverter's specific registers:
    ```json
    {
      "grid_voltage": 0,
@@ -139,28 +145,26 @@ pip install pymodbus
    }
    ```
 
-> **Nota**: Il file `config.json` è escluso da Git (vedi `.gitignore`), quindi le tue informazioni personali rimangono private.
-
-## 📊 Funzionalità Avanzate
+## 📊 Advanced Features
 
 ### Auto-Refresh
-- **Auto ON/OFF**: Polling automatico ogni 3 secondi
-- **Pull manuale**: Aggiorna i dati on-demand
-- Timestamp ultimo aggiornamento sempre visibile
+- **Auto ON/OFF**: Automatic polling every 3 seconds
+- **Manual pull**: Update data on-demand
+- Last update timestamp always visible
 
-### Filtri Intelligenti
-- Valori di rete < 50W vengono azzerati (riduce rumore)
-- Gestione errori Modbus con fallback a dati di esempio
+### Smart Filters
+- Grid values < 50W are zeroed (reduces noise)
+- Modbus error handling with fallback to example data
 
 ### Sunrise/Sunset Logic
-- Calcolo preciso del prossimo evento solare
-- Adattamento automatico giorno/notte
-- Visualizzazione dinamica del punto solare sull'arco
+- Precise calculation of next solar event
+- Automatic day/night adaptation
+- Dynamic visualization of sun position on arc
 
-## 🎨 Personalizzazione
+## 🎨 Customization
 
-### Colori Tema
-Modifica le variabili CSS nel `<style>`:
+### Theme Colors
+Modify CSS variables in the `<style>` section:
 ```css
 --bg: #f4f6fa;
 --panel: #ffffff;
@@ -168,30 +172,24 @@ Modifica le variabili CSS nel `<style>`:
 --danger: #ef4444;
 ```
 
-### Icone Nodi
-Tutte le icone SVG sono inline e personalizzabili. Cerca `viewBox="0 0 70 60"` nel codice.
-
-## 📸 Screenshot
-
-![Dashboard Screenshot](screenshot.png)
-
-*Dashboard in tempo reale che mostra produzione solare, stato batteria, consumo domestico e flussi energetici animati*
+### Node Icons
+All SVG icons are inline and customizable. Search for `viewBox="0 0 70 60"` in the code.
 
 ## 🚀 Roadmap
 
-- [ ] Grafici storici per produzione/consumo
-- [ ] Notifiche push per eventi critici
-- [ ] Export dati CSV
-- [ ] App mobile companion
+- [ ] Historical charts for production/consumption
+- [ ] Push notifications for critical events
+- [ ] CSV data export
+- [ ] Mobile companion app
 
-## 🤝 Contributi
+## 🤝 Contributing
 
-Contributi, issue e richieste di funzionalità sono benvenuti!
+Contributions, issues, and feature requests are welcome!
 
-## 📄 Licenza
+## 📄 License
 
-MIT License - Vedi [LICENSE](LICENSE) per dettagli
+MIT License - See [LICENSE](LICENSE) for details
 
 ---
 
-⭐ Se questo progetto ti è utile, lascia una stella su GitHub!
+⭐ If you find this project useful, leave a star on GitHub!
