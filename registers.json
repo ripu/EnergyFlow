@@ -12,11 +12,11 @@
             "signed": true
         },
         "grid_flow": {
-            "reg": 3,
+            "reg": 80,
             "scale": 1,
             "unit": "W",
             "signed": true,
-            "note": "Positive=Import, Negative=Export"
+            "note": "Positive=Import, Negative=Export (Reg 80 confirmed better match)"
         },
         "battery_percent": {
             "reg": 28,
@@ -27,6 +27,12 @@
             "reg": 29,
             "scale": 0.1,
             "unit": "V"
+        },
+        "battery_power": {
+            "reg": 22,
+            "scale": 1,
+            "unit": "W",
+            "signed": true
         },
         "daily_energy": {
             "reg": 82,
