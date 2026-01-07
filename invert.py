@@ -96,26 +96,38 @@ def decode_values(regs: List[int]) -> Dict[str, float]:
     inverter_power = signed16(get(reg_map["inverter_power"]) or 0)
     grid_flow = signed16(get(reg_map["grid_flow"]) or 0)
     battery_percent = get(reg_map["battery_percent"]) or 0
+    # Battery Power: Positive = Charging, Negative = Discharging
+    battery_power = signed16(get(reg_map.get("battery_power", 22)) or 0)
     
-    # PV Calculation (Reg 70-75) - Voltage x10, Current x10
-    # Currently hardcoded logic because it involves math, but register IDs can be mapped if needed.
-    pv1_v = (get(70) or 0) / 10.0
-    pv1_a = (get(71) or 0) / 10.0
-    pv2_v = (get(74) or 0) / 10.0
-    pv2_a = (get(75) or 0) / 10.0
+    # PV Calculation (Reg 70-75)
+    # Clamp negative voltage/current to 0
+    pv1_v = max(0, signed16(get(70) or 0) / 10.0)
+    pv1_a = max(0, signed16(get(71) or 0) / 10.0)
     
-    pv_power_w = int((pv1_v * pv1_a) + (pv2_v * pv2_a))
+    pv2_v = max(0, signed16(get(74) or 0) / 10.0)
+    pv2_a = max(0, signed16(get(75) or 0) / 10.0)
+    
+    # If current is 0, power is 0 (ignore phantom voltage)
+    p1 = (pv1_v * pv1_a) if pv1_a > 0 else 0
+    p2 = (pv2_v * pv2_a) if pv2_a > 0 else 0
+    pv_power_w = int(p1 + p2)
     
     # Daily Energy
     daily_energy = (get(reg_map["daily_energy"]) or 0) / 10.0
 
     # Logic for 3D Dashboard:
-    # Home Load = Inverter AC + Grid Flow
-    home_load_w = inverter_power + grid_flow
+    # Balance Formula:
+    # Home Load = Solar + Grid (Import) + Battery (Discharge) - Grid (Export) - Battery (Charge)
+    # Simplified: Home = Solar + Grid_Flow (Pos=Import) - Battery_Power (Pos=Charge)
+    # Check:
+    # Solar(25) + Grid(0) - Bat(-1760) = 25 + 0 + 1760 = 1785. (Matches ~1.78kW)
+    home_load_w = pv_power_w + grid_flow - battery_power
+    
     if home_load_w < 0: home_load_w = 0 # Safety clamp
 
     return {
         "battery_percent": battery_percent,
+        "battery_power_w": battery_power,
         "inverter_power_w": inverter_power,
         "grid_voltage_v": grid_voltage,
         "grid_flow_w": grid_flow,
@@ -198,13 +210,36 @@ def make_handler(count: int):
                 try:
                     regs, source = read_registers(count=count)
                     
-                    # DEBUG: Print all non-zero registers to help mapping
+                    # DEBUG: Print all non-zero registers with mapping
                     print("\n--- DEBUG READ ---")
+                    mapping = load_mapping()
+                    inv_map = {}
+                    if mapping and "registers" in mapping:
+                        for k, v in mapping["registers"].items():
+                            if "reg" in v:
+                                inv_map[v["reg"]] = (k, v.get("scale", 1), v.get("unit", ""))
+
                     for i, val in enumerate(regs):
-                        if val > 0 and val < 65000: # Filter likely valid positive values
-                            print(f"Reg {i}: {val}")
-                        elif val > 65000: # Python signed check
-                            print(f"Reg {i}: {val} ({val-65536})")
+                        # Decode signed
+                        signed_val = val - 65536 if val > 32767 else val
+                        
+                        # Check if mapped
+                        extra = ""
+                        if i in inv_map:
+                            name, scale, unit = inv_map[i]
+                            scaled = signed_val * scale
+                            # Format nicely
+                            if isinstance(scaled, float):
+                                val_str = f"{scaled:.1f}"
+                            else:
+                                val_str = f"{scaled}"
+                            extra = f"  -> {name}: {val_str}{unit}"
+                        
+                        if val != 0:
+                            if val > 32767:
+                                print(f"Reg {i}: {val} ({signed_val}){extra}")
+                            else:
+                                print(f"Reg {i}: {val}{extra}")
                     print("------------------\n")
 
                     return self._send_json(build_payload(regs, source))
