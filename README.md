@@ -145,6 +145,19 @@ pip install pymodbus
    }
    ```
 
+### 5. Native macOS HUD (`EnergyBar.app`)
+We have developed a native, floating status bar for Mac users.
+
+- **Always on top**: Floats over other windows.
+- **Draggable**: Move it anywhere on screen.
+- **Interactive**: Hover to see the Close (X) button.
+- **Replaces Widget**: More performant and battery-friendly than the Übersicht widget.
+
+**Usage:**
+```bash
+./macos-widget/EnergyBar.app/Contents/MacOS/EnergyBar
+```
+
 ## 📊 Advanced Features
 
 ### Auto-Refresh

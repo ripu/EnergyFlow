@@ -16,7 +16,29 @@ struct DerivedData: Codable {
 // MARK: - Custom View (The HUD Face)
 class EnergyView: NSView {
     var attrText: NSAttributedString?
+    var isHovering = false
     
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        for trackingArea in self.trackingAreas {
+            self.removeTrackingArea(trackingArea)
+        }
+        
+        let options: NSTrackingArea.Options = [.mouseEnteredAndExited, .activeAlways, .inVisibleRect]
+        let trackingArea = NSTrackingArea(rect: self.bounds, options: options, owner: self, userInfo: nil)
+        self.addTrackingArea(trackingArea)
+    }
+    
+    override func mouseEntered(with event: NSEvent) {
+        isHovering = true
+        self.needsDisplay = true
+    }
+    
+    override func mouseExited(with event: NSEvent) {
+        isHovering = false
+        self.needsDisplay = true
+    }
+
     override func draw(_ dirtyRect: NSRect) {
         // Background
         let bgPath = NSBezierPath(roundedRect: bounds, xRadius: 10, yRadius: 10)
@@ -28,17 +50,70 @@ class EnergyView: NSView {
         bgPath.stroke()
         
         // Text
-        guard let ms = attrText else { return }
+        guard let ms = attrText else {
+            // Draw Close Button if hovering even without text
+            if isHovering { drawCloseButton() }
+            return
+        }
         
         let size = ms.size()
         let x = (bounds.width - size.width) / 2
         let y = (bounds.height - size.height) / 2
         ms.draw(at: NSPoint(x: x, y: y))
+        
+        if isHovering {
+            drawCloseButton()
+        }
+    }
+    
+    func drawCloseButton() {
+        let btnSize: CGFloat = 14
+        let xPos: CGFloat = 8 // Left side
+        // Vertically centered
+        let yPos = (bounds.height - btnSize) / 2
+        
+        let btnRect = NSRect(x: xPos, y: yPos, width: btnSize, height: btnSize)
+        
+        NSColor.systemRed.setFill()
+        let btnPath = NSBezierPath(ovalIn: btnRect)
+        btnPath.fill()
+        
+        // Draw X
+        let xPath = NSBezierPath()
+        let inset: CGFloat = 4
+        xPath.move(to: NSPoint(x: btnRect.minX + inset, y: btnRect.minY + inset))
+        xPath.line(to: NSPoint(x: btnRect.maxX - inset, y: btnRect.maxY - inset))
+        xPath.move(to: NSPoint(x: btnRect.maxX - inset, y: btnRect.minY + inset))
+        xPath.line(to: NSPoint(x: btnRect.minX + inset, y: btnRect.maxY - inset))
+        
+        NSColor.white.withAlphaComponent(0.8).setStroke()
+        xPath.lineWidth = 1.5
+        xPath.lineCapStyle = .round
+        xPath.stroke()
     }
     
     func update(attrText: NSAttributedString) {
         self.attrText = attrText
         self.needsDisplay = true
+    }
+    
+    override func mouseDown(with event: NSEvent) {
+        if isHovering {
+            let loc = convert(event.locationInWindow, from: nil)
+            
+            // Hitbox setup (Left side)
+            let btnSize: CGFloat = 20
+            let xPos: CGFloat = 5
+            let yPos = (bounds.height - btnSize) / 2
+            let btnRect = NSRect(x: xPos, y: yPos, width: btnSize, height: btnSize)
+            
+            if btnRect.contains(loc) {
+                NSApp.terminate(nil)
+                return
+            }
+        }
+        // Allow drag
+        self.window?.performDrag(with: event)
     }
 }
 
