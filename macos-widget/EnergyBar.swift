@@ -11,6 +11,7 @@ struct DerivedData: Codable {
     let battery_percent: Double
     let grid_flow_w: Double
     let inverter_power_w: Double? 
+    let battery_power_w: Double?
 }
 
 // MARK: - Custom View (The HUD Face)
@@ -213,15 +214,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let d = data.derived
         let solar = Int(d.solar_power_w)
         let bat = Int(d.battery_percent)
-        let grid = Int(d.grid_flow_w)
+        let rawGrid = Int(d.grid_flow_w) // Raw logic: Pos=Export
         let inverter = Int(d.inverter_power_w ?? 0)
+        let batPower = Int(d.battery_power_w ?? 0) // Pos=Charge
         
-        // --- Calculations ---
-        let safeGrid = abs(grid) < 50 ? 0 : grid
+        // --- Calculations matched to Dashboard ---
+        // 1. Grid Flow: Invert Raw so Pos=Import, Neg=Export
+        let gridFlow = rawGrid * -1
+        let safeGrid = abs(gridFlow) < 20 ? 0 : gridFlow
+        
+        // 2. Home Load = Inverter + GridFlow
         var load = inverter + safeGrid
         if load < 0 { load = 0 }
         
-        let batteryWh = 5120.0
+        // 3. Battery Capacity
+        let batteryWh = 12000.0 // 12 kWh
         let storedWh = batteryWh * (Double(bat) / 100.0)
         var timeString = ""
         if load > 200 { // Only show time if significant load
@@ -248,56 +255,52 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         func fmtKw(_ w: Int) -> String {
             let kw = Double(w) / 1000.0
-            return String(format: "%6.3fkW", kw)
+            return String(format: "%.1fkW", kw) // Compact, no padding
         }
         
         let fullStr = NSMutableAttributedString()
         
-        // 1. HOME
-        fullStr.append(attr("🏠 \(fmtKw(load))  ", cWhite))
-        
-        // 2. SOLAR
-        let sunIcon = solar > 0 ? "☀️" : "🌙"
-        fullStr.append(attr("\(sunIcon) \(fmtKw(solar))", solar > 0 ? cGreen : cDim))
-        
-        // Solar Arrow
-        if solar > 10 {
-            fullStr.append(attr(" → ", cGreen))
-        } else {
-            fullStr.append(attr("   ", cDim))
-        }
-        
-        // 3. BATTERY
-        let batIcon = bat > 20 ? "🔋" : "🪫"
-        var batColor = cWhite
-        var batArrow = " "
-        
-        // Heuristic: Net Battery Flow
-        if solar > load + 100 {
-            batArrow = "↑" // Charging
-            batColor = cGreen
-        } else if load > solar + 50 && bat > 0 {
-            batArrow = "↓" // Discharging
-            batColor = cOrange
-        }
-        
-        fullStr.append(attr("\(batIcon) \(bat)%\(timeString)", batColor))
-        fullStr.append(attr(" \(batArrow) ", batColor))
-        
-        // 4. GRID
+        // 1. GRID
         let gridIcon = "🗼"
         var gridColor = cDim
         var gridArrow = " "
         
-        if safeGrid > 50 { 
+        if safeGrid > 20 { 
             gridArrow = "↓" // Import
             gridColor = cRed 
-        } else if safeGrid < -50 {
+        } else if safeGrid < -20 {
             gridArrow = "↑" // Export
             gridColor = cGreen 
         }
         
-        fullStr.append(attr("\(gridArrow) \(gridIcon) \(fmtKw(abs(grid)))", gridColor))
+        fullStr.append(attr("\(gridArrow)\(gridIcon)\(fmtKw(abs(safeGrid)))", gridColor))
+        fullStr.append(attr(" ", cDim)) // Minimal spacer
+
+        // 2. HOME
+        fullStr.append(attr("🏠\(fmtKw(load))", cWhite))
+        fullStr.append(attr(" ", cDim)) // Minimal spacer
+        
+        // 3. SOLAR
+        let sunIcon = solar > 0 ? "☀️" : "🌙"
+        fullStr.append(attr("\(sunIcon)\(fmtKw(solar))", solar > 0 ? cGreen : cDim))
+        
+        // 4. BATTERY
+        let batIcon = bat > 20 ? "🔋" : "🪫"
+        var batColor = cWhite
+        var batArrow = " "
+        
+        // Logic: Explicit Battery Power
+        if batPower > 20 {
+            batArrow = "↑" // Charging
+            batColor = cGreen
+        } else if batPower < -20 {
+             batArrow = "↓" // Discharging
+             batColor = cOrange
+        }
+        
+        fullStr.append(attr("  ", cDim)) // Reduced spacer for Battery (was 3 spaces)
+        fullStr.append(attr("\(batIcon)\(bat)%\(timeString)", batColor))
+        fullStr.append(attr(" \(batArrow)", batColor))
         
         log("HUD Updated")
         

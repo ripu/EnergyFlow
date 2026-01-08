@@ -93,11 +93,22 @@ def decode_values(regs: List[int]) -> Dict[str, float]:
 
     # Decode using map
     grid_voltage = (get(reg_map["grid_voltage"]) / 10.0) if get(reg_map["grid_voltage"]) is not None else 0
-    inverter_power = signed16(get(reg_map["inverter_power"]) or 0)
-    grid_flow = signed16(get(reg_map["grid_flow"]) or 0)
+    # Inverter Power (Reg 2): Total AC Generation
+    inverter_power = abs(signed16(get(reg_map["inverter_power"]) or 0)) 
+    
+    # Grid Flow Priority: 80 -> 21 -> 3
+    # Raw 80 is Positive for Export. Logic expects Negative for Export.
+    raw_grid = signed16(get(80) or 0)
+    if raw_grid == 0:
+         raw_grid = signed16(get(21) or 0)
+    if raw_grid == 0:
+         raw_grid = signed16(get(3) or 0)
+         
+    grid_flow = -1 * raw_grid
+    
     battery_percent = get(reg_map["battery_percent"]) or 0
     # Battery Power: Positive = Charging, Negative = Discharging
-    battery_power = signed16(get(reg_map.get("battery_power", 22)) or 0)
+    battery_power = signed16(get(22) or 0)
     
     # PV Calculation (Reg 70-75)
     # Clamp negative voltage/current to 0
@@ -110,20 +121,21 @@ def decode_values(regs: List[int]) -> Dict[str, float]:
     # If current is 0, power is 0 (ignore phantom voltage)
     p1 = (pv1_v * pv1_a) if pv1_a > 0 else 0
     p2 = (pv2_v * pv2_a) if pv2_a > 0 else 0
-    pv_power_w = int(p1 + p2)
+    # pv_power_w = int(p1 + p2) 
+    # Use DERIVED Solar instead of Reg 70-75 which are unreliable
     
     # Daily Energy
     daily_energy = (get(reg_map["daily_energy"]) or 0) / 10.0
 
-    # Logic for 3D Dashboard:
-    # Balance Formula:
-    # Home Load = Solar + Grid (Import) + Battery (Discharge) - Grid (Export) - Battery (Charge)
-    # Simplified: Home = Solar + Grid_Flow (Pos=Import) - Battery_Power (Pos=Charge)
-    # Check:
-    # Solar(25) + Grid(0) - Bat(-1760) = 25 + 0 + 1760 = 1785. (Matches ~1.78kW)
-    home_load_w = pv_power_w + grid_flow - battery_power
-    
-    if home_load_w < 0: home_load_w = 0 # Safety clamp
+    # Logic for Balance Formula:
+    # Home Load = Inverter(AC) + Grid(Import) - Grid(Export)
+    # Since grid_flow is Negative for Export, we just ADD it.
+    home_load_w = inverter_power + grid_flow
+    if home_load_w < 0: home_load_w = 0
+
+    # Solar Derived: Solar = Home + Battery(Charge) - Grid
+    pv_power_w = home_load_w + battery_power - grid_flow
+    if pv_power_w < 0: pv_power_w = 0
 
     return {
         "battery_percent": battery_percent,

@@ -4,7 +4,6 @@
 ._*
 .Spotlight-V100
 .Trashes
-.gitignore
 
 # Python
 __pycache__/
@@ -32,5 +31,4 @@ find_pi.py
 test_inverter.py
 
 # Documentation & Workflows (Private)
-SODE.md
 .agent/
