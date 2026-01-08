@@ -237,7 +237,7 @@
       /* 2 rows */
       grid-template-areas:
         "solar inverter battery"
-        "grid meter home";
+        "grid inverter home";
       /* Inverter spans or is centered */
       gap: 32px 24px;
       padding: 32px;
@@ -835,14 +835,11 @@
           <!-- Battery <-> Inverter (Battery-Right to Inverter-Top) -->
           <path id="lineBattery" d="M580 100 C 540 100, 480 160, 450 160" class="connection-line idle" />
 
-          <!-- Inverter <-> Meter (Vertical Center) -->
-          <path id="lineInvMeter" d="M400 230 L 400 280" class="connection-line idle" />
+          <!-- Grid <-> Inverter (Grid-Bottom-Left to Inverter-Bottom) -->
+          <path id="lineGrid" d="M220 320 C 300 320, 380 280, 400 230" class="connection-line idle" />
 
-          <!-- Grid <-> Meter (Horizontal Bottom Left) -->
-          <path id="lineGrid" d="M220 320 L 350 320" class="connection-line idle" />
-
-          <!-- Meter -> Home (Horizontal Bottom Right) -->
-          <path id="lineHome" d="M450 320 L 580 320" class="connection-line idle" />
+          <!-- Inverter -> Home (Inverter-Bottom to Home-Bottom-Right) -->
+          <path id="lineHome" d="M400 230 C 420 280, 500 320, 580 320" class="connection-line idle" />
         </svg>
         <div class="node solar">
           <div class="tile">
@@ -941,17 +938,7 @@
           <div class="node-sub" id="gridDirection">Standby</div>
         </div>
 
-        <div class="node meter">
-          <div class="tile"
-            style="border-radius: 50%; width: 90px; height: 90px; margin: 0 auto; display: grid; place-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
-            <div class="icon" style="position: relative; width: 40px; height: 40px; color: #f59e0b;">
-              <svg viewBox="0 0 24 24" fill="currentColor">
-                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
-              </svg>
-            </div>
-          </div>
-          <!-- <div class="node-label" style="margin-top: 8px;">Meter</div> -->
-        </div>
+
       </div>
     </section>
     <!-- 3D View Container -->
@@ -1496,7 +1483,6 @@
     const lineBattery = document.getElementById("lineBattery");
     const lineHome = document.getElementById("lineHome");
     const lineGrid = document.getElementById("lineGrid");
-    const lineInvMeter = document.getElementById("lineInvMeter");
 
     const state = {
       auto: true, // Default ON
@@ -1555,11 +1541,9 @@
     }
 
     function resolveBatteryCapacityWh() {
-      const wh = Number(window.BATTERY_WH);
-      if (!Number.isNaN(wh) && wh > 0) return wh;
-      const kwh = Number(window.BATTERY_KWH);
-      if (!Number.isNaN(kwh) && kwh > 0) return kwh * 1000;
-      return DEFAULT_BATTERY_KWH * 1000;
+      // User confirmed 12kWh capacity
+      if (window.BATTERY_KWH) return window.BATTERY_KWH * 1000;
+      return 12000;
     }
 
     function formatRuntimeMinutes(minutes) {
@@ -1971,25 +1955,50 @@
     }
 
     function deriveMetrics(regs) {
-      // Logic mirrored from Python backend (decode_values)
+      // Logic refined based on Balance Physics & User Inputs:
+      // 1. Inverter Active Power (Reg 2) = Total AC Output (Home + Grid Export).
+      // 2. Grid Flow = Reg 80. Raw Positive = Export (108W). 
+      //    We map this to Negative for 'Flow' logic (Export < 0, Import > 0).
+      // 3. Home Load = Inverter AC Output + Grid Import (or - Grid Export).
+      //    Formula: Home = Reg2 + GridFlow (signed).
+      //    Check: 2510 (Inv) + (-108) (Grid Exp) = 2402 W. (Matches ~2.4kW).
+      // 4. Battery Power = Reg 22 (Positive = Charging).
+      // 5. Solar = Derived Balance: Solar = Home + Battery - Grid.
+
       const batteryPercent = regs[28];
-      const inverterPower = regs[2] != null ? signed16(regs[2]) : 0;
-      let gridFlow = regs[3] != null ? signed16(regs[3]) : 0;
       const gridVoltage = regs[0] != null ? (regs[0] / 10) : 0;
 
-      // FILTER: Clean Grid Noise (< 50W -> 0)
-      if (Math.abs(gridFlow) < 50) gridFlow = 0;
+      // Battery Power: Reg 22
+      const batteryPower = regs[22] != null ? signed16(regs[22]) : 0;
 
-      // Solar Calculation (Reg 70-75)
-      const pv1_v = (regs[70] || 0) / 10.0;
-      const pv1_a = (regs[71] || 0) / 10.0;
-      const pv2_v = (regs[74] || 0) / 10.0;
-      const pv2_a = (regs[75] || 0) / 10.0;
-      const solarPower = Math.round((pv1_v * pv1_a) + (pv2_v * pv2_a));
+      // Inverter Power (Reg 2): Total AC Generation
+      // Note: If Importing, Inverter might be 0, but Grid supplies Home.
+      const inverterPower = regs[2] != null ? Math.abs(signed16(regs[2])) : 0;
+
+      // Grid Flow: Reg 80 (Priority)
+      // Raw: Positive = Export.
+      // Target: Positive = Import, Negative = Export.
+      let rawGrid = 0;
+      if (regs[80] != null) rawGrid = signed16(regs[80]);
+      else if (regs[21] != null) rawGrid = signed16(regs[21]);
+      else if (regs[3] != null) rawGrid = signed16(regs[3]);
+
+      let gridFlow = -1 * rawGrid;
+      // No more noise filter for value, just for display status if needed.
 
       // Home Load Calculation
+      // Home = Inverter(AC) + Grid(Import) - Grid(Export)
+      // Since gridFlow is Negative for Export, we just ADD it.
+      // Case 1: Inv 2500, Grid Export 100 (Flow -100). Home = 2500 + (-100) = 2400.
+      // Case 2: Inv 0, Grid Import 2000 (Flow 2000). Home = 0 + 2000 = 2000.
       let homeLoad = inverterPower + gridFlow;
       if (homeLoad < 0) homeLoad = 0;
+
+      // Solar Calculation (Derived)
+      // Solar = Home + Battery - GridFlow
+      // Check: 2400(Home) + 700(Charge) - (-100)(Grid) = 3100 + 100 = 3200.
+      let solarPower = homeLoad + batteryPower - gridFlow;
+      if (solarPower < 0) solarPower = 0;
 
       return {
         batteryPercent,
@@ -1997,10 +2006,9 @@
         gridFlow,
         gridVoltage,
         solarPower,
-        homeLoad
-      }
-
-        ;
+        homeLoad,
+        batteryPower
+      };
     }
 
     function setLineState(line, mode) {
@@ -2014,20 +2022,27 @@
 
       solarPowerEl.textContent = formatPower(metrics.solarPower);
       inverterPowerEl.textContent = formatPower(metrics.inverterPower);
-      homePowerEl.textContent = formatPower(metrics.homeLoad); // Use calculated Home Load
+      homePowerEl.textContent = formatPower(metrics.homeLoad);
       gridPowerEl.textContent = formatPower(Math.abs(gridFlow));
 
       // Battery Status logic
-      // We don't have direct battery power in registers yet, so we infer or show just %
       if (metrics.batteryPercent != null) {
         // Calculate kWh stored
         const capWh = resolveBatteryCapacityWh();
         const storedKwh = (capWh * (metrics.batteryPercent / 100)) / 1000;
 
-        batteryPowerEl.innerHTML = `${metrics.batteryPercent}% <span style="font-size: 14px; color: #ef4444; font-weight: 600; margin-left: 4px;">${storedKwh.toFixed(1)} kWh</span>`;
-      }
+        // Show Power (+Charge/-Discharge) AND %/kWh
+        const powerStr = formatPower(Math.abs(metrics.batteryPower));
+        const dirArrow = metrics.batteryPower > 0 ? "▲" : (metrics.batteryPower < 0 ? "▼" : "");
+        const color = metrics.batteryPower > 0 ? "#10b981" : (metrics.batteryPower < 0 ? "#ef4444" : "#64748b");
 
-      else {
+        batteryPowerEl.innerHTML = `
+          <div style="font-size: 1.25rem;">${powerStr} <span style="font-size: 1rem; color: ${color};">${dirArrow}</span></div>
+          <div style="font-size: 0.85rem; color: #64748b; font-weight: 500; margin-top: 4px;">
+            ${metrics.batteryPercent}% (${storedKwh.toFixed(1)} kWh)
+          </div>
+        `;
+      } else {
         batteryPowerEl.textContent = "--";
       }
 
@@ -2035,33 +2050,24 @@
       state.lastLoadW = metrics.homeLoad;
       batteryRuntimeEl.textContent = estimateRuntimeText(metrics.batteryPercent, metrics.homeLoad);
       updateBatterySunLine();
-
-      // Update visual battery fill
       updateBatteryFill(metrics.batteryPercent);
 
-      if (gridFlow == null) {
-        gridDirectionEl.textContent = "Standby";
-        statusChip.textContent = "Attesa dati";
-        setLineState(lineGrid, "idle");
-      }
-
-      else if (gridFlow > 50) {
+      // Grid Direction Text
+      if (gridFlow > 20) {
         gridDirectionEl.textContent = "Import";
         statusChip.textContent = "Prelievo da rete";
-        setLineState(lineGrid, "flow-in"); // Grid -> Meter
-      }
-
-      else if (gridFlow < -50) {
+        setLineState(lineGrid, "flow-in"); // Grid -> Inverter
+      } else if (gridFlow < -20) {
         gridDirectionEl.textContent = "Export";
         statusChip.textContent = "Immissione in rete";
-        setLineState(lineGrid, "flow-out"); // Meter -> Grid
-      }
-
-      else {
+        setLineState(lineGrid, "flow-out"); // Inverter -> Grid
+      } else {
         gridDirectionEl.textContent = "Standby";
         statusChip.textContent = "Quasi zero";
         setLineState(lineGrid, "idle");
       }
+
+
 
       // Meter -> Home (If load exists)
       setLineState(lineHome, metrics.homeLoad > 10 ? "flow-in" : "idle");
@@ -2069,28 +2075,33 @@
       // Solar -> Inverter
       setLineState(lineSolar, metrics.solarPower > 10 ? "flow-in" : "idle");
 
-      // Inverter <-> Meter
-      // If Inverter is producing more than it charges battery, it sends to Meter.
-      // If Inverter is consuming from Meter (e.g. charging from grid), it flows Meter->Inv.
-      const invNet = metrics.inverterPower; // Positive = Output AC
-      if (invNet > 20) {
-        setLineState(lineInvMeter, "flow-in"); // Inv -> Meter (Down)
-      } else if (invNet < -20) {
-        setLineState(lineInvMeter, "flow-out"); // Meter -> Inv (Up)
+      // Battery <-> Inverter
+      // SVG: Battery(580,100) -> Inverter(450,160).
+      // Flow-in = Battery -> Inverter (Discharging).
+      // Flow-out = Inverter -> Battery (Charging).
+      // metrics.batteryPower: Positive = Charging, Negative = Discharging.
+
+      if (metrics.batteryPower < -20) {
+        setLineState(lineBattery, "flow-in"); // Discharging
+      } else if (metrics.batteryPower > 20) {
+        setLineState(lineBattery, "flow-out"); // Charging
       } else {
-        setLineState(lineInvMeter, "idle");
+        setLineState(lineBattery, "idle");
       }
 
-      // Battery
-      const battDelta = metrics.inverterPower - metrics.solarPower;
-      // This logic is approximate. A better one:
-      // If Solar > Inv, we are likely charging battery (if Inv is positive).
-      // Actually, Real logic: Battery Power is not in regs[28] (that is %).
-      // But we can infer direction roughly.
-      if (battDelta > 50) {
-        setLineState(lineBattery, "flow-in"); // Discharging (Batt -> Inv)
-      } else if (battDelta < -50 && metrics.batteryPercent < 100) {
-        setLineState(lineBattery, "flow-out"); // Charging (Inv -> Batt)
+
+      // Battery Flow
+      // Logic: batteryPower is explicit (Positive = Charge, Negative = Discharge)
+      // Line is Battery <-> Inverter.
+      // Flow-in = Towards Inverter (Discharging).
+      // Flow-out = Towards Battery (Charging).
+
+      if (metrics.batteryPower < -20) {
+        // Discharging (Negative) -> Flow FROM Battery TO Inverter
+        setLineState(lineBattery, "flow-in"); // Battery -> Inverter
+      } else if (metrics.batteryPower > 20) {
+        // Charging (Positive) -> Flow FROM Inverter TO Battery
+        setLineState(lineBattery, "flow-out"); // Inverter -> Battery
       } else {
         setLineState(lineBattery, "idle");
       }
