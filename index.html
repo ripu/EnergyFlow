@@ -237,7 +237,7 @@
       /* 2 rows */
       grid-template-areas:
         "solar inverter battery"
-        "grid inverter home";
+        "grid meter home";
       /* Inverter spans or is centered */
       gap: 32px 24px;
       padding: 32px;
@@ -830,14 +830,19 @@
     <section class="flow-card">
       <div class="flow-board">
         <!-- Connecting Lines SVG --><svg class="svg-lines" viewBox="0 0 800 400" preserveAspectRatio="none">
-          <!-- Solar -> Inverter (Curved: Solar-Left to Inverter-Center) -->
-          <path id="lineSolar" d="M220 100 C 260 100, 340 160, 360 160" class="connection-line idle" />
-          <!-- Battery <-> Inverter (Curved: Battery-Right to Inverter-Center) -->
-          <path id="lineBattery" d="M580 100 C 540 100, 460 160, 440 160" class="connection-line idle" />
-          <!-- Grid <-> Inverter (Curved: Grid-Bottom-Left to Inverter-Center) -->
-          <path id="lineGrid" d="M220 300 C 260 300, 360 260, 400 200" class="connection-line idle" />
-          <!-- Inverter ->Home (Angled: Inverter-Bottom-Right to Home-Left) -->
-          <path id="lineHome" d="M440 160 C 460 300, 540 300, 580 300" class="connection-line idle" />
+          <!-- Solar -> Inverter (Solar-Left to Inverter-Top) -->
+          <path id="lineSolar" d="M220 100 C 260 100, 320 160, 350 160" class="connection-line idle" />
+          <!-- Battery <-> Inverter (Battery-Right to Inverter-Top) -->
+          <path id="lineBattery" d="M580 100 C 540 100, 480 160, 450 160" class="connection-line idle" />
+
+          <!-- Inverter <-> Meter (Vertical Center) -->
+          <path id="lineInvMeter" d="M400 230 L 400 280" class="connection-line idle" />
+
+          <!-- Grid <-> Meter (Horizontal Bottom Left) -->
+          <path id="lineGrid" d="M220 320 L 350 320" class="connection-line idle" />
+
+          <!-- Meter -> Home (Horizontal Bottom Right) -->
+          <path id="lineHome" d="M450 320 L 580 320" class="connection-line idle" />
         </svg>
         <div class="node solar">
           <div class="tile">
@@ -934,6 +939,18 @@
           <div class="node-label">Grid</div>
           <div class="node-value" id="gridPower">--</div>
           <div class="node-sub" id="gridDirection">Standby</div>
+        </div>
+
+        <div class="node meter">
+          <div class="tile"
+            style="border-radius: 50%; width: 90px; height: 90px; margin: 0 auto; display: grid; place-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+            <div class="icon" style="position: relative; width: 40px; height: 40px; color: #f59e0b;">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+              </svg>
+            </div>
+          </div>
+          <!-- <div class="node-label" style="margin-top: 8px;">Meter</div> -->
         </div>
       </div>
     </section>
@@ -1479,6 +1496,7 @@
     const lineBattery = document.getElementById("lineBattery");
     const lineHome = document.getElementById("lineHome");
     const lineGrid = document.getElementById("lineGrid");
+    const lineInvMeter = document.getElementById("lineInvMeter");
 
     const state = {
       auto: true, // Default ON
@@ -2030,13 +2048,13 @@
       else if (gridFlow > 50) {
         gridDirectionEl.textContent = "Import";
         statusChip.textContent = "Prelievo da rete";
-        setLineState(lineGrid, "flow-in");
+        setLineState(lineGrid, "flow-in"); // Grid -> Meter
       }
 
       else if (gridFlow < -50) {
         gridDirectionEl.textContent = "Export";
         statusChip.textContent = "Immissione in rete";
-        setLineState(lineGrid, "flow-out");
+        setLineState(lineGrid, "flow-out"); // Meter -> Grid
       }
 
       else {
@@ -2045,14 +2063,30 @@
         setLineState(lineGrid, "idle");
       }
 
+      // Meter -> Home (If load exists)
       setLineState(lineHome, metrics.homeLoad > 10 ? "flow-in" : "idle");
+
+      // Solar -> Inverter
       setLineState(lineSolar, metrics.solarPower > 10 ? "flow-in" : "idle");
 
-      // Infer Battery State from Power Balance: Acc = Inverter - Solar
-      // If Inverter > Solar, extra power comes from battery (Discharging)
-      // If Solar > Inverter, extra power goes to battery (Charging)
-      // Note: This is an approximation.
+      // Inverter <-> Meter
+      // If Inverter is producing more than it charges battery, it sends to Meter.
+      // If Inverter is consuming from Meter (e.g. charging from grid), it flows Meter->Inv.
+      const invNet = metrics.inverterPower; // Positive = Output AC
+      if (invNet > 20) {
+        setLineState(lineInvMeter, "flow-in"); // Inv -> Meter (Down)
+      } else if (invNet < -20) {
+        setLineState(lineInvMeter, "flow-out"); // Meter -> Inv (Up)
+      } else {
+        setLineState(lineInvMeter, "idle");
+      }
+
+      // Battery
       const battDelta = metrics.inverterPower - metrics.solarPower;
+      // This logic is approximate. A better one:
+      // If Solar > Inv, we are likely charging battery (if Inv is positive).
+      // Actually, Real logic: Battery Power is not in regs[28] (that is %).
+      // But we can infer direction roughly.
       if (battDelta > 50) {
         setLineState(lineBattery, "flow-in"); // Discharging (Batt -> Inv)
       } else if (battDelta < -50 && metrics.batteryPercent < 100) {
