@@ -627,30 +627,122 @@
     }
 
     @media (max-width: 640px) {
-      .flow-board {
-        grid-template-columns: 1fr;
-        grid-template-areas:
-          "solar"
-          "inverter"
-          "battery"
-          "home"
-          "grid"
-          "meter";
+
+      /* --- Compact Shell & Header --- */
+      .shell {
+        padding: 8px 12px;
+        gap: 8px;
       }
 
+      .topbar {
+        row-gap: 8px;
+      }
+
+      .title-block img {
+        width: 24px !important;
+        height: 24px !important;
+      }
+
+      h1 {
+        font-size: 20px !important;
+      }
+
+      .subtitle {
+        font-size: 12px;
+      }
+
+      /* Full width widgets */
+      .controls-card,
+      .weather-card,
+      .sun-card,
+      .forecast-item {
+        width: 100%;
+        height: auto;
+        min-height: 80px;
+        min-width: 0;
+      }
+
+      /* --- 2-Column Grid Layout --- */
+      .flow-board {
+        padding: 16px 12px;
+        gap: 12px;
+        grid-template-columns: 1fr 1fr;
+        grid-template-areas:
+          "solar solar"
+          "home battery"
+          "grid grid";
+        /* Inverter explicitly removed from areas */
+      }
+
+      /* Hide SVG Lines & Inverter Node on Mobile */
+      .svg-lines {
+        display: none !important;
+      }
+
+      .node.inverter {
+        display: none !important;
+      }
+
+      /* --- Node Compact Styling --- */
+      .node {
+        height: auto;
+        min-height: 150px;
+        /* Reduced from 320px */
+        padding: 12px;
+        max-width: none;
+        /* Allow spanning full width */
+      }
+
+      .node .tile {
+        height: 80px;
+      }
+
+      .node .icon svg {
+        width: 48px;
+        height: 48px;
+      }
+
+      .node-value {
+        font-size: clamp(24px, 6vw, 32px);
+      }
+
+      .node-label {
+        font-size: 11px;
+        margin-bottom: 2px;
+      }
+
+      .node-sub {
+        font-size: 13px;
+      }
+
+      /* Specific Node Tweaks */
+      .node.solar {
+        justify-self: stretch;
+        max-width: 100%;
+      }
+
+      .node.grid {
+        justify-self: stretch;
+        max-width: 100%;
+      }
+
+      /* Controls */
       .control-bar {
         flex-direction: column;
-        align-items: flex-start;
+        align-items: stretch;
       }
 
       .control-actions {
-        width: 100%;
         justify-content: space-between;
+        width: 100%;
       }
 
+      /* Hide less important elements if needed */
       .node.meter {
-        order: 6;
+        display: none;
       }
+
+      /* Hide raw meter if present */
     }
 
     /* --- SUN CARD REDESIGN --- */
