@@ -43,12 +43,12 @@ def read_registers(count: int = DEFAULT_COUNT) -> Tuple[List[int], str]:
 
     try:
         # Try Input Registers FIRST (User confirmed this works for valid data)
-        rr = client.read_input_registers(0, count=count, slave=SLAVE_ID)
+        rr = client.read_input_registers(0, count=count, device_id=SLAVE_ID)
         source = "input_registers"
 
         if rr.isError():
             print("⚠️ Input Registers failed, trying Holding Registers...")
-            rr = client.read_holding_registers(0, count=count, slave=SLAVE_ID)
+            rr = client.read_holding_registers(0, count=count, device_id=SLAVE_ID)
             source = "holding_registers"
             
         if rr.isError():
