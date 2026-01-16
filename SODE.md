@@ -4,6 +4,8 @@
 > *Live monitoring of photovoltaic energy flow via Modbus & Web Dashboard.*
 
 ## 1. Project Overview
+![Dashboard Screenshot](screenshot_latest.png)
+
 **Realtime Inverter** is a lightweight solution to read energy data from a Q.HOME (or compatible) inverter via Modbus TCP and visualize it on a real-time responsive dashboard.
 The system bypasses cloud delays by connecting directly to the inverter's local interface.
 
@@ -83,3 +85,22 @@ python3 invert.py --serve --port 8003
 - **Repo**: `ripu/energyflow`
 - **Branching**: `main` as stable.
 - **Commit Policy**: All changes must be tested locally before push. Update SODE on architectural changes.
+
+## 7. Change Log
+- **2026-01-08 (Night Mode & Logo)**:
+    - **Logo**: Added "Energy Flow" lightning bolt branding.
+    - **Sun Card**: Redesigned (Height 90px, Grid Layout, Countdown).
+    - **Night Mode**: Solar forced to **0W** if astronomical Night (Frontend) or <40W (Backend).
+    - **Grid Flow**: Switch to `Reg 21` (Meter Active Power) priority.
+    - **HUD**: Added Battery Autonomy display (e.g. `(7h23m)`). Tightened spacing.
+
+- **2026-01-12 (RPi Deployment)**:
+    - **Deployment**: Service deployed to `rpi-casa` (port 8003).
+    - **Modbus Fix**: Updated `invert.py` for `pymodbus` v3.11 compatibility (`slave` -> `device_id`).
+    - **Service**: Systemd unit `energyflow.service` created.
+
+- **2026-01-16 (Register Map Fixes)**:
+    - **Registers**: Fixed Grid Flow (Reg 80, Scale 10x) and Home Load (Reg 38, Scale 0.1x).
+    - **Solar Logic**: Derived as `Home + Battery - Grid`.
+    - **UI**: Hidden Inverter value (icon only), fixed Dashboard bindings.
+    - **Backend**: `invert.py` refactored for dynamic `registers.json` config.

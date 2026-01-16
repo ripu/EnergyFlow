@@ -43,12 +43,12 @@ def read_registers(count: int = DEFAULT_COUNT) -> Tuple[List[int], str]:
 
     try:
         # Try Input Registers FIRST (User confirmed this works for valid data)
-        rr = client.read_input_registers(0, count=count, device_id=SLAVE_ID)
+        rr = client.read_input_registers(0, count=count, slave=SLAVE_ID)
         source = "input_registers"
 
         if rr.isError():
             print("⚠️ Input Registers failed, trying Holding Registers...")
-            rr = client.read_holding_registers(0, count=count, device_id=SLAVE_ID)
+            rr = client.read_holding_registers(0, count=count, slave=SLAVE_ID)
             source = "holding_registers"
             
         if rr.isError():
@@ -69,72 +69,117 @@ def load_mapping():
         return None
 
 def decode_values(regs: List[int]) -> Dict[str, float]:
-    """Deriva i valori principali dai registri grezzi."""
+    """Deriva i valori principali dai registri grezzi usando registers.json."""
     mapping = load_mapping()
     
+    # helper for safe access
     def get(idx: int):
-        return regs[idx] if idx < len(regs) else None
+        return regs[idx] if idx < len(regs) else 0
 
-    # Defaults (hardcoded fallback)
-    reg_map = {
-        "grid_voltage": 0,
-        "inverter_power": 2,
-        "grid_flow": 3,
-        "battery_percent": 28,
-        "battery_voltage": 29,
-        "daily_energy": 82
+    # Default configuration if json missing
+    registers_conf = {
+        "grid_voltage": {"reg": 0, "scale": 0.1},
+        "inverter_power": {"reg": 2, "scale": 1, "signed": True},
+        "grid_flow": {"reg": 80, "scale": 10, "signed": True}, # Default updated to matches observation
+        "battery_percent": {"reg": 28, "scale": 1},
+        "battery_voltage": {"reg": 29, "scale": 0.1},
+        "battery_power": {"reg": 22, "scale": 1, "signed": True},
+        "daily_energy": {"reg": 82, "scale": 0.1},
+        "home_load": {"reg": 38, "scale": 0.1}
     }
-    
-    # Override defaults if mapping file exists
-    if mapping and "registers" in mapping:
-        for key, conf in mapping["registers"].items():
-            if "reg" in conf:
-                reg_map[key] = conf["reg"]
 
-    # Decode using map
-    grid_voltage = (get(reg_map["grid_voltage"]) / 10.0) if get(reg_map["grid_voltage"]) is not None else 0
-    # Inverter Power (Reg 2): Total AC Generation
-    inverter_power = abs(signed16(get(reg_map["inverter_power"]) or 0)) 
+    if mapping and "registers" in mapping:
+        registers_conf = mapping["registers"]
+
+    values = {}
     
-    # Grid Flow Priority: 80 -> 21 -> 3
-    # Raw 80 is Positive for Export. Logic expects Negative for Export.
-    raw_grid = signed16(get(80) or 0)
-    if raw_grid == 0:
-         raw_grid = signed16(get(21) or 0)
-    if raw_grid == 0:
-         raw_grid = signed16(get(3) or 0)
-         
-    grid_flow = -1 * raw_grid
+    # Dynamic Read
+    for key, conf in registers_conf.items():
+        reg_idx = conf.get("reg", 0)
+        raw_val = get(reg_idx)
+        
+        # Apply Signed
+        if conf.get("signed", False):
+            raw_val = signed16(raw_val)
+            
+        # Apply Scale
+        scale = conf.get("scale", 1)
+        val = raw_val * scale
+        
+        values[key] = val
+
+    # Helper accessors
+    inverter_power = abs(values.get("inverter_power", 0))
+    grid_flow = values.get("grid_flow", 0) * -1 # Invert logic: User wants Neg=Export? 
+    # Logic note: original code had grid_flow = -1 * raw_grid.
+    # registers.json note says: "Positive=Import, Negative=Export".
+    # So if raw is +581 (Import), final should be +581.
+    # But original code inverted it?
+    # Original code: 
+    #   raw_grid = signed16(get(80)) ...
+    #   grid_flow = -1 * raw_grid
+    # If reg 80 is 57 (Import), raw_grid=57. grid_flow=-57.
+    # Wait. If I import from grid, I expect POSITIVE in most dashboards?
+    # Let's check SODE logic: "Grid: Inverted logic (Negative = Export)."
+    # If Import is Positive, then Export is Negative.
+    # If Reg 80 is Positive for Import (57), then we should keep it Positive?
+    # OLD CODE: grid_flow = -1 * raw_grid. So 57 becomes -57.
+    # This implies OLD CODE treated Reg 80 as "Export is Positive"? 
+    # Or OLD CODE wanted Import to be Negative?
+    # Let's trust the JSON Note which I wrote/approved: "Positive=Import, Negative=Export".
+    # If Reg 80 is 58 (Import), we want +580.
+    # If OLD CODE did -1*, it was probably wrong or consistent with a different convention.
+    # I will stick to "Positive = Import" for the dashboard logic unless proven otherwise.
+    # BUT, to match existing flow logic (Home = Inverter + Grid):
+    # If I consume 1000W house, Inverter 0W. Grid must be +1000W.
+    # So grid_flow MUST be positive for Import.
+    # So if Reg 80 is Positive for Import, we do NOT invert.
     
-    battery_percent = get(reg_map["battery_percent"]) or 0
-    # Battery Power: Positive = Charging, Negative = Discharging
-    battery_power = signed16(get(22) or 0)
+    grid_flow_w = values.get("grid_flow", 0) 
     
-    # PV Calculation (Reg 70-75)
-    # Clamp negative voltage/current to 0
-    pv1_v = max(0, signed16(get(70) or 0) / 10.0)
-    pv1_a = max(0, signed16(get(71) or 0) / 10.0)
+    # Special fix: if the user insisted on specific config in JSON, I should trust JSON.
+    # But for now, let's assume JSON "Positive=Import" is correct and reg 80 is Import.
     
-    pv2_v = max(0, signed16(get(74) or 0) / 10.0)
-    pv2_a = max(0, signed16(get(75) or 0) / 10.0)
-    
-    # If current is 0, power is 0 (ignore phantom voltage)
-    p1 = (pv1_v * pv1_a) if pv1_a > 0 else 0
-    p2 = (pv2_v * pv2_a) if pv2_a > 0 else 0
-    # pv_power_w = int(p1 + p2) 
-    # Use DERIVED Solar instead of Reg 70-75 which are unreliable
-    
-    # Daily Energy
-    daily_energy = (get(reg_map["daily_energy"]) or 0) / 10.0
+    battery_power = values.get("battery_power", 0)
+    battery_percent = values.get("battery_percent", 0)
+    daily_energy = values.get("daily_energy", 0)
+    grid_voltage = values.get("grid_voltage", 0)
+    battery_voltage = values.get("battery_voltage", 0)
 
     # Logic for Balance Formula:
-    # Home Load = Inverter(AC) + Grid(Import) - Grid(Export)
-    # Since grid_flow is Negative for Export, we just ADD it.
-    home_load_w = inverter_power + grid_flow
+    # Home Load is now DIRECTLY read from Reg 38 (User verified 12288 -> 1.22kW)
+    # If not present, fallback to calculation? No, valid configuration should have it.
+    home_load_w = values.get("home_load", 0)
+    
+    # If home_load is 0 (missing reg), fallback to old logic for safety?
+    # Old logic: Inverter + Grid.
+    if home_load_w == 0 and values.get("inverter_power", 0) > 0:
+         home_load_w = inverter_power + grid_flow_w
+
     if home_load_w < 0: home_load_w = 0
 
     # Solar Derived: Solar = Home + Battery(Charge) - Grid
-    pv_power_w = home_load_w + battery_power - grid_flow
+    # Battery Power: Positive = Charging (Load), Negative = Discharging (Source)
+    # Grid Flow: Positive = Import (Source), Negative = Export (Load? No, Export is Flow OUT).
+    #
+    # Balance: Sources = Loads
+    # Solar + Grid_Import + Battery_Discharge = Home + Grid_Export + Battery_Charge
+    #
+    # Let's map to our variables:
+    # grid_flow_w: +Import, -Export.
+    # battery_power: +Charge, -Discharge.
+    # home_load: +Load.
+    # solar: ?
+    #
+    # Solar + (grid_flow if >0) + (-battery if <0) = home_load + (-grid_flow if <0) + (battery if >0)
+    # Solar + grid_flow - battery_power = home_load  (Simplified sign math)
+    # Solar = home_load + battery_power - grid_flow
+    #
+    # Example:
+    # Home 1228. Grid 580 (Import). Battery 0.
+    # Solar = 1228 + 0 - 580 = 648. CORRECT.
+    
+    pv_power_w = home_load_w + battery_power - grid_flow_w
     if pv_power_w < 0: pv_power_w = 0
 
     return {
@@ -142,11 +187,11 @@ def decode_values(regs: List[int]) -> Dict[str, float]:
         "battery_power_w": battery_power,
         "inverter_power_w": inverter_power,
         "grid_voltage_v": grid_voltage,
-        "grid_flow_w": grid_flow,
+        "grid_flow_w": grid_flow_w,
         "home_load_w": home_load_w,
         "solar_power_w": pv_power_w,
         "daily_energy_kwh": daily_energy,
-        "battery_voltage_v": (get(reg_map["battery_voltage"]) or 0) / 10.0,
+        "battery_voltage_v": battery_voltage,
     }
 
 

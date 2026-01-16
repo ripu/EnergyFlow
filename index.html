@@ -6,6 +6,7 @@
   <script src="logger.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Energy Flow Inverter</title>
+  <link rel="icon" href="logo.png" type="image/png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -652,45 +653,125 @@
       }
     }
 
+    /* --- SUN CARD REDESIGN --- */
     .sun-card {
-      background: linear-gradient(135deg, #38bdf8 0%, #0369a1 100%);
-      border-radius: 18px;
-      padding: 8px 12px;
+      grid-area: sun;
+      background: linear-gradient(135deg, #0ea5e9 0%, #38bdf8 100%);
+      border-radius: 14px;
+      /* Matched to forecast-item */
       color: white;
-      min-width: 130px;
       position: relative;
-      box-shadow: 0 10px 20px -5px rgba(14, 165, 233, 0.4);
-      height: 90px;
+      overflow: hidden;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
+      padding: 8px 12px;
+      box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+      height: 90px;
+      /* Matched to forecast-item */
+      box-sizing: border-box;
     }
 
-    .sun-card .sun-header {
+    .sun-top-row {
       display: flex;
-      flex-direction: column;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 0px;
     }
 
-    .sun-card .label {
-      font-size: 9px;
-      opacity: 0.8;
-      font-weight: 600;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
+    .current-time {
+      font-size: 20px;
+      /* Reduced from 24 */
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: -0.02em;
     }
 
-    .sun-card .value {
-      font-size: 16px;
+    .next-event {
+      text-align: right;
+    }
+
+    .event-time {
+      font-size: 11px;
+      /* Reduced */
       font-weight: 700;
       line-height: 1.1;
     }
 
+    .event-label {
+      font-size: 8px;
+      /* Reduced */
+      opacity: 0.9;
+      font-weight: 500;
+      white-space: nowrap;
+      text-transform: uppercase;
+    }
+
+    .sun-graph-container {
+      position: relative;
+      flex: 1;
+      display: flex;
+      align-items: flex-end;
+      /* Push graph to bottom */
+      justify-content: center;
+      margin-bottom: 0px;
+    }
+
     .sun-graph {
       width: 100%;
-      height: 32px;
-      margin-top: 0;
-      margin-bottom: -4px;
+      height: 28px;
+      /* Reduced height to fit in 90px */
       overflow: visible;
+      opacity: 0.9;
+    }
+
+    .daylight-duration {
+      position: absolute;
+      bottom: 3px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 9px;
+      font-weight: 600;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+      white-space: nowrap;
+    }
+
+    .sun-bottom-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 9px;
+      /* Reduced */
+      font-weight: 600;
+      opacity: 0.95;
+      margin-top: 2px;
+    }
+
+    .sun-event.left {
+      text-align: left;
+    }
+
+    .sun-event.right {
+      text-align: right;
+    }
+
+    .sun-event .label {
+      opacity: 0.7;
+      font-weight: 500;
+      margin-right: 2px;
+      text-transform: uppercase;
+    }
+
+    .sun-event .val {
+      font-weight: 700;
+    }
+
+
+    /* Remove old styles */
+    .sun-card .sun-header,
+    .sun-card .label,
+    .sun-card .value,
+    .sun-card .sun-footer {
+      display: none;
     }
 
     .sun-path-bg {
@@ -752,8 +833,10 @@
     <header class="topbar">
       <div class="title-block">
         <h1
-          style="font-weight: 800; letter-spacing: -0.04em; background: linear-gradient(135deg, #1e293b 0%, #334155 100%); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-          Energy Flow</h1>
+          style="display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: -0.04em; background: linear-gradient(135deg, #1e293b 0%, #334155 100%); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+          <img src="logo.png" alt="Logo" style="width: 32px; height: 32px; -webkit-text-fill-color: initial;">
+          Energy Flow
+        </h1>
         <div class="subtitle">Dashboard in tempo reale</div>
       </div>
       <div class="topbar-right">
@@ -795,21 +878,41 @@
           </div>
         </div>
         <div class="sun-card">
-          <div class="sun-header"><span class="label">NEXT EVENT</span><span class="value" id="sunBig">--:--</span>
-          </div><svg class="sun-graph" viewBox="0 0 100 50" preserveAspectRatio="none">
-            <defs>
-              <linearGradient id="sunGradient" x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0%" stop-color="rgba(255, 255, 255, 0.35)" />
-                <stop offset="100%" stop-color="rgba(255, 255, 255, 0)" />
-              </linearGradient>
-            </defs>
-            <!-- Closed path for fill: Move to Start, Curve to End, Line to Bottom Right, Line to Bottom Left, Close -->
-            <path id="sunPath" class="sun-path-bg" d="M10,45 Q50,-15 90,45 L90,50 L10,50 Z" />
-            <circle id="sunDot" class="sun-dot" cx="10" cy="45" r="4" fill="white" stroke="rgba(0,0,0,0.1)"
-              stroke-width="1" />
-            <line class="horizon" x1="0" y1="45" x2="100" y2="45" stroke="rgba(255,255,255,0.3)" />
-          </svg>
-          <div class="sun-footer" id="sunFooter">Sunrise: --:--</div>
+          <!-- Top Row: Current Time (Left) - Next Event Countdown (Right) -->
+          <div class="sun-top-row">
+            <div class="current-time" id="sunCurrentTime">--:--</div>
+            <div class="next-event">
+              <div class="event-time" id="sunNextTime">--:--</div>
+              <div class="event-label" id="sunNextLabel">alla prox alba</div>
+            </div>
+          </div>
+
+          <!-- Middle: Graph -->
+          <div class="sun-graph-container">
+            <svg class="sun-graph" viewBox="0 0 100 50" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="sunGradient" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0%" stop-color="rgba(255, 255, 255, 0.35)" />
+                  <stop offset="100%" stop-color="rgba(255, 255, 255, 0)" />
+                </linearGradient>
+              </defs>
+              <path id="sunPath" class="sun-path-bg" d="M10,45 Q50,-15 90,45 L90,50 L10,50 Z" />
+              <circle id="sunDot" class="sun-dot" cx="10" cy="45" r="4" fill="white" stroke="rgba(0,0,0,0.1)"
+                stroke-width="1" />
+              <line class="horizon" x1="0" y1="45" x2="100" y2="45" stroke="rgba(255,255,255,0.3)" />
+            </svg>
+            <div class="daylight-duration" id="sunDuration">luce: --:--</div>
+          </div>
+
+          <!-- Bottom Row: Sunrise (Left) - Sunset (Right) -->
+          <div class="sun-bottom-row">
+            <div class="sun-event left">
+              <span class="label">alba:</span> <span class="val" id="sunAlba">--:--</span>
+            </div>
+            <div class="sun-event right">
+              <span class="label">tramonto:</span> <span class="val" id="sunTramonto">--:--</span>
+            </div>
+          </div>
         </div>
         <div class="forecast">
           <div class="forecast-item">
@@ -887,7 +990,7 @@
               </svg></div>
           </div>
           <div class="node-label">Inverter</div>
-          <div class="node-value" id="inverterPower">--</div>
+          <div class="node-value" id="inverterPower" style="visibility: hidden;">--</div>
         </div>
         <div class="node battery">
           <div class="tile">
@@ -1893,66 +1996,107 @@
     function updateSunVisual(sunriseIso, sunsetIso) {
       const sr = new Date(sunriseIso);
       const ss = new Date(sunsetIso);
-      const now = new Date();
-
+      const now = new Date(); // Use real time for display
       const isDay = now >= sr && now <= ss;
+      window.isDay = isDay; // Expose globally for metrics logic
 
-      // Update Text
-      const bigLabel = document.querySelector('.sun-card .label');
-      const bigValue = document.getElementById('sunBig');
-      const footer = document.getElementById('sunFooter');
+      // DOM Elements
+      const els = {
+        current: document.getElementById('sunCurrentTime'),
+        nextTime: document.getElementById('sunNextTime'),
+        nextLabel: document.getElementById('sunNextLabel'),
+        duration: document.getElementById('sunDuration'),
+        alba: document.getElementById('sunAlba'),
+        tramonto: document.getElementById('sunTramonto'),
+        path: document.getElementById('sunPath'),
+        dot: document.getElementById('sunDot')
+      };
 
       const fmt = d => d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
 
-      const diffMs = ss - sr;
-      const diffHrs = Math.floor(diffMs / 3600000);
-      const diffMins = Math.round((diffMs % 3600000) / 60000);
-      const durationText = `${diffHrs}h ${diffMins}m`;
+      // 1. Current Time (Top Left)
+      if (els.current) els.current.textContent = fmt(now);
 
-      if (bigLabel && bigValue && footer) {
-        if (isDay) {
-          bigLabel.textContent = "TRAMONTO";
-          bigValue.textContent = fmt(ss);
-          footer.innerHTML = `Alba: ${fmt(sr)} · Luce: ${durationText}`;
-        } else {
-          bigLabel.textContent = "ALBA";
-          bigValue.textContent = fmt(sr);
-          footer.innerHTML = `Tramonto: ${fmt(ss)} · Luce: ${durationText}`;
-        }
+      // 2. Sunrise / Sunset (Bottom Row)
+      if (els.alba) els.alba.textContent = fmt(sr);
+      if (els.tramonto) els.tramonto.textContent = fmt(ss);
+
+      // 3. Duration (Center)
+      const totalMs = ss - sr;
+      const hours = Math.floor(totalMs / 3600000);
+      const minutes = Math.round((totalMs % 3600000) / 60000);
+      if (els.duration) els.duration.textContent = `luce: ${hours}h ${minutes}m`;
+
+      // 4. Next Event Countdown (Top Right)
+      // If Day: Count to Sunset. If Night: Count to Sunrise (tomorrow/today).
+      let targetDate = isDay ? ss : sr;
+      let label = isDay ? "al tramonto" : "all'alba";
+
+      // If night and now > ss, we need next day's sunrise
+      // Simplified: Just showing time of next event usually, but user asked for "hours/minutes missing" (countdown?)
+      // User request: "ore e minuti che mancano alla prossima alba" (or tramonto if day?)
+      // Let's interpret "alla prox alba" as "to next sunrise". But contextually usually means next phase.
+      // Re-reading request: "- ore e minuti che mancano alla prossima alba in alto a destra"
+      // Wait, specific text was "alla prox alba". Assuming logic:
+      // If Night (before sunrise): Count to Sunrise today.
+      // If Day: Count to Sunset? Original design usually Next Event.
+      // Let's implement Next Event Countdown.
+
+      if (!isDay && now > ss) {
+        // It's night, after sunset. Target is tomorrow sunrise.
+        // We don't have tomorrow's sunrise var passed easily here, approximate +24h or re-use SR if SR > Now (early morning)
+        // For safety, if Now > SS, target is SR + 24h.
+        targetDate = new Date(sr.getTime() + 24 * 60 * 60 * 1000);
+        label = "alla prox alba";
+      } else if (!isDay && now < sr) {
+        // Early morning before sunrise
+        targetDate = sr;
+        label = "all'alba";
+      } else {
+        // Day time
+        targetDate = ss;
+        label = "al tramonto";
       }
 
-      // Calculate position (Simple 0-1 progress)
+      const diffMs = targetDate - now;
+      if (diffMs > 0) {
+        const h = Math.floor(diffMs / 3600000);
+        const m = Math.floor((diffMs % 3600000) / 60000);
+        if (els.nextTime) els.nextTime.textContent = `${h}h ${m}m`;
+      } else {
+        if (els.nextTime) els.nextTime.textContent = "--:--";
+      }
+      if (els.nextLabel) els.nextLabel.textContent = label;
+
+
+      // 5. Graph Position (Quadratic Curve)
+      // M10,45 Q50,-15 90,45
+      // P0=(10,45), P1=(50,-15), P2=(90,45)
+
       const totalMinutesDay = (ss - sr) / 60000;
       let progress = 0;
-
       if (now < sr) progress = 0;
       else if (now > ss) progress = 1;
       else {
         progress = (now - sr) / 60000 / totalMinutesDay;
       }
 
-      const path = document.getElementById('sunPath');
-      const dot = document.getElementById('sunDot');
-
-      if (path && dot) {
-        // Calculate point on Quadratic Bezier: M10,45 Q50,-15 90,45
-        // P0=(10,45), P1=(50,-15), P2=(90,45)
+      if (els.path && els.dot) {
         const P0 = { x: 10, y: 45 };
         const P1 = { x: 50, y: -15 };
         const P2 = { x: 90, y: 45 };
 
-        // progress is 0..1
         const t = progress;
         const x = (1 - t) * (1 - t) * P0.x + 2 * (1 - t) * t * P1.x + t * t * P2.x;
         const y = (1 - t) * (1 - t) * P0.y + 2 * (1 - t) * t * P1.y + t * t * P2.y;
 
-        dot.setAttribute('cx', x);
-        dot.setAttribute('cy', y);
-
-        // Dim dot if night
-        dot.style.opacity = isDay ? '1' : '0';
+        els.dot.setAttribute('cx', x);
+        els.dot.setAttribute('cy', y);
+        els.dot.style.opacity = isDay ? '1' : '0'; // Hide dot at night
       }
     }
+
+
 
     function deriveMetrics(regs) {
       // Logic refined based on Balance Physics & User Inputs:
@@ -1975,15 +2119,13 @@
       // Note: If Importing, Inverter might be 0, but Grid supplies Home.
       const inverterPower = regs[2] != null ? Math.abs(signed16(regs[2])) : 0;
 
-      // Grid Flow: Reg 80 (Priority)
-      // Raw: Positive = Export.
-      // Target: Positive = Import, Negative = Export.
-      let rawGrid = 0;
-      if (regs[80] != null) rawGrid = signed16(regs[80]);
-      else if (regs[21] != null) rawGrid = signed16(regs[21]);
-      else if (regs[3] != null) rawGrid = signed16(regs[3]);
-
-      let gridFlow = -1 * rawGrid;
+      // Grid Flow: Reg 21 (Meter Active Power - Signed)
+      // Positive = Import, Negative = Export.
+      // Matches our visualization logic directly.
+      let gridFlow = 0;
+      if (regs[21] != null) gridFlow = signed16(regs[21]);
+      else if (regs[80] != null) gridFlow = -1 * signed16(regs[80]); // Fallback
+      else if (regs[3] != null) gridFlow = -1 * signed16(regs[3]);   // Fallback
       // No more noise filter for value, just for display status if needed.
 
       // Home Load Calculation
@@ -1991,13 +2133,29 @@
       // Since gridFlow is Negative for Export, we just ADD it.
       // Case 1: Inv 2500, Grid Export 100 (Flow -100). Home = 2500 + (-100) = 2400.
       // Case 2: Inv 0, Grid Import 2000 (Flow 2000). Home = 0 + 2000 = 2000.
-      let homeLoad = inverterPower + gridFlow;
-      if (homeLoad < 0) homeLoad = 0;
+      let homeLoad = 0;
+      if (regs[38] != null) homeLoad = regs[38] * 0.1;
+      else {
+        homeLoad = inverterPower + gridFlow;
+        if (homeLoad < 0) homeLoad = 0;
+      }
 
       // Solar Calculation (Derived)
       // Solar = Home + Battery - GridFlow
       // Check: 2400(Home) + 700(Charge) - (-100)(Grid) = 3100 + 100 = 3200.
       let solarPower = homeLoad + batteryPower - gridFlow;
+
+      // --- NIGHT MODE CLAMP ---
+      // Use Astronomical calc from UI (window.isDay) if available.
+      // Fallback to PV Voltage check if UI not ready.
+      if (typeof window.isDay !== 'undefined') {
+        if (!window.isDay) solarPower = 0;
+      } else {
+        // Fallback: Check Reg 70 (PV1 Voltage) & Reg 74 (PV2 Voltage)
+        const pvVoltage = (regs[70] || 0) + (regs[74] || 0);
+        if (pvVoltage < 200) solarPower = 0;
+      }
+
       if (solarPower < 0) solarPower = 0;
 
       return {
@@ -2127,8 +2285,9 @@
       tableBody.innerHTML = rows || `<tr><td colspan="3" class="label">Nessun registro trovato</td></tr>`;
     }
 
-    function updateDashboardWithRegs(regs, ts) {
-      renderMetrics(deriveMetrics(regs), ts);
+    function updateDashboardWithRegs(regs, ts, derivedOverride) {
+      const metrics = derivedOverride || deriveMetrics(regs);
+      renderMetrics(metrics, ts);
       renderTable(regs);
     }
 
@@ -2154,7 +2313,22 @@
         const regs = normalizeRegs(data.raw || {});
         const ts = data.meta?.timestamp ? data.meta.timestamp * 1000 : Date.now();
         rawInput.value = formatRegsForTextarea(regs);
-        updateDashboardWithRegs(regs, ts);
+
+        // Use Server Derived values if available!
+        let derived = null;
+        if (data.derived) {
+          derived = {
+            batteryPercent: data.derived.battery_percent,
+            inverterPower: data.derived.inverter_power_w,
+            gridFlow: data.derived.grid_flow_w,
+            gridVoltage: data.derived.grid_voltage_v,
+            solarPower: data.derived.solar_power_w,
+            homeLoad: data.derived.home_load_w,
+            batteryPower: data.derived.battery_power_w
+          };
+        }
+
+        updateDashboardWithRegs(regs, ts, derived);
         const source = data.meta?.source || "API";
 
         setApiStatus(`Ultima lettura OK (${source}) @ ${new Date(ts).toLocaleTimeString("it-IT")}`);
