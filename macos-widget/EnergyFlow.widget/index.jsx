@@ -52,7 +52,7 @@ export const className = `
   
   .solar { color: #f59e0b; }
   .grid-import { color: #ef4444; }
-  .grid-export { color: #8b5cf6; }
+  .grid-export { color: #10b981; }
   .battery-high { color: #10b981; }
   .battery-low { color: #ef4444; }
   .home { color: #3b82f6; }
