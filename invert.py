@@ -43,12 +43,28 @@ def read_registers(count: int = DEFAULT_COUNT) -> Tuple[List[int], str]:
 
     try:
         # Try Input Registers FIRST (User confirmed this works for valid data)
-        rr = client.read_input_registers(0, count=count, slave=SLAVE_ID)
+        # Compatibility for different pymodbus versions
+        # v3.11+ uses 'device_id', older v3.x uses 'slave', v2.x uses 'unit'
+        # We try 'slave' first (local dev), then fallback to 'device_id' (RPi).
+        try:
+            rr = client.read_input_registers(0, count=count, slave=SLAVE_ID)
+        except TypeError:
+            try:
+                 rr = client.read_input_registers(0, count=count, device_id=SLAVE_ID)
+            except TypeError:
+                 rr = client.read_input_registers(0, count=count, unit=SLAVE_ID)
         source = "input_registers"
 
         if rr.isError():
             print("⚠️ Input Registers failed, trying Holding Registers...")
-            rr = client.read_holding_registers(0, count=count, slave=SLAVE_ID)
+            # NOTE: Holding registers might fail independently.
+            try:
+                rr = client.read_holding_registers(0, count=count, slave=SLAVE_ID)
+            except TypeError:
+                try:
+                    rr = client.read_holding_registers(0, count=count, device_id=SLAVE_ID)
+                except TypeError:
+                    rr = client.read_holding_registers(0, count=count, unit=SLAVE_ID)
             source = "holding_registers"
             
         if rr.isError():
