@@ -2,35 +2,28 @@ import WidgetKit
 import SwiftUI
 
 // MARK: - Data Models
-struct EnergyData: Codable {
-    let solar: Solar
-    let battery: Battery
-    let grid: Grid
-    let home: Home
+struct QuickEnergyData: Codable {
+    let derived: QuickDerived
 }
 
-struct Solar: Codable {
-    let power_w: Double
-}
-
-struct Battery: Codable {
-    let percent: Double
-    let power_w: Double // Negative = Charging, Positive = Discharging
-    let state: String
-}
-
-struct Grid: Codable {
-    let flow_w: Double // Positive = Import, Negative = Export
-}
-
-struct Home: Codable {
-    let power_w: Double
+struct QuickDerived: Codable {
+    let solar_power_w: Double
+    let battery_percent: Double
+    let battery_power_w: Double? // Optional in API?
+    let grid_flow_w: Double
+    let home_load_w: Double
+    
+    // Inverter might be useful but redundant for simple view
 }
 
 // MARK: - Timeline Entry
 struct EnergyEntry: TimelineEntry {
     let date: Date
-    let data: EnergyData?
+struct EnergyEntry: TimelineEntry {
+    let date: Date
+    let data: QuickEnergyData?
+    let error: String?
+}
     let error: String?
 }
 
@@ -58,7 +51,7 @@ struct Provider: TimelineProvider {
                 entry = EnergyEntry(date: currentDate, data: nil, error: error.localizedDescription)
             } else if let data = data {
                 do {
-                    let decodedData = try JSONDecoder().decode(EnergyData.self, from: data)
+                    let decodedData = try JSONDecoder().decode(QuickEnergyData.self, from: data)
                     entry = EnergyEntry(date: currentDate, data: decodedData, error: nil)
                 } catch {
                     entry = EnergyEntry(date: currentDate, data: nil, error: "Decode Error")
@@ -73,12 +66,15 @@ struct Provider: TimelineProvider {
         task.resume()
     }
     
-    var sampleData: EnergyData {
-        EnergyData(
-            solar: Solar(power_w: 2500),
-            battery: Battery(percent: 75, power_w: -500, state: "Charging"),
-            grid: Grid(flow_w: -1000),
-            home: Home(power_w: 1000)
+    var sampleData: QuickEnergyData {
+        QuickEnergyData(
+            derived: QuickDerived(
+                solar_power_w: 2500,
+                battery_percent: 75,
+                battery_power_w: -500,
+                grid_flow_w: -1000,
+                home_load_w: 1000
+            )
         )
     }
 }
@@ -103,14 +99,15 @@ struct EnergyFlowWidgetEntryView : View {
                 Text("Offline: \(error)")
                     .font(.caption)
                     .foregroundColor(.red)
-            } else if let data = entry.data {
+            } else if let root = entry.data {
+                let data = root.derived
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                     
                     // Solar
                     StatusCard(
                         icon: "sun.max.fill",
                         color: .orange,
-                        value: "\(Int(data.solar.power_w)) W",
+                        value: "\(Int(data.solar_power_w)) W",
                         label: "Produzione"
                     )
                     
@@ -118,7 +115,7 @@ struct EnergyFlowWidgetEntryView : View {
                     StatusCard(
                         icon: "house.fill",
                         color: .blue,
-                        value: "\(Int(data.home.power_w)) W",
+                        value: "\(Int(data.home_load_w)) W",
                         label: "Consumo"
                     )
                     
@@ -126,16 +123,16 @@ struct EnergyFlowWidgetEntryView : View {
                     StatusCard(
                         icon: "battery.100",
                         color: .green,
-                        value: "\(Int(data.battery.percent))%",
-                        label: data.battery.power_w < 0 ? "Carica" : "Scarica"
+                        value: "\(Int(data.battery_percent))%",
+                        label: (data.battery_power_w ?? 0) > 0 ? "Carica" : "Scarica"
                     )
                     
                     // Grid
                     StatusCard(
                         icon: "bolt.fill",
-                        color: data.grid.flow_w > 0 ? .red : .purple,
-                        value: "\(abs(Int(data.grid.flow_w))) W",
-                        label: data.grid.flow_w > 0 ? "Import" : "Export"
+                        color: data.grid_flow_w > 0 ? .red : .green,
+                        value: "\(abs(Int(data.grid_flow_w))) W",
+                        label: data.grid_flow_w > 0 ? "Import" : "Export"
                     )
                 }
             } else {

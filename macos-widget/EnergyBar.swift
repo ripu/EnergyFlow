@@ -10,6 +10,7 @@ struct DerivedData: Codable {
     let solar_power_w: Double
     let battery_percent: Double
     let grid_flow_w: Double
+    let home_load_w: Double?
     let inverter_power_w: Double? 
     let battery_power_w: Double?
 }
@@ -219,26 +220,28 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let batPower = Int(d.battery_power_w ?? 0) // Pos=Charge
         
         // --- Calculations matched to Dashboard ---
-        // 1. Grid Flow: Invert Raw so Pos=Import, Neg=Export
-        let gridFlow = rawGrid * -1
+        // 1. Grid Flow: Raw from API is Positive=Import, Negative=Export
+        // We do NOT need to invert it anymore.
+        let gridFlow = rawGrid 
         let safeGrid = abs(gridFlow) < 20 ? 0 : gridFlow
         
-        // 2. Home Load = Inverter + GridFlow
-        var load = inverter + safeGrid
+        // 2. Home Load = Direct from API (or fallback)
+        var load = Int(d.home_load_w ?? Double(inverter + safeGrid))
         if load < 0 { load = 0 }
         
         // 3. Battery Capacity
         let batteryWh = 12000.0 // 12 kWh
         let storedWh = batteryWh * (Double(bat) / 100.0)
         var timeString = ""
-        if load > 200 { // Only show time if significant load
-            let hours = storedWh / Double(load)
-            if hours < 24 {
-                let h = Int(hours)
-                let m = Int((hours - Double(h)) * 60)
-                timeString = " (\(h)h\(m))"
-            }
-        }
+        if batPower < -20 && load > 0 {
+             // Time to empty = Stored / Load
+             let hours = storedWh / Double(load)
+             if hours < 48 {
+                 let h = Int(hours)
+                 let m = Int((hours - Double(h)) * 60)
+                 timeString = String(format: " (%dh%02dm)", h, m)
+             }
+         }
 
         // --- Flow State Determination ---
         let cWhite = NSColor.white
@@ -298,7 +301,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
              batColor = cOrange
         }
         
-        fullStr.append(attr("  ", cDim)) // Reduced spacer for Battery (was 3 spaces)
+        fullStr.append(attr(" ", cDim)) // Reduced spacer for Battery (was 2 spaces)
         fullStr.append(attr("\(batIcon)\(bat)%\(timeString)", batColor))
         fullStr.append(attr(" \(batArrow)", batColor))
         
