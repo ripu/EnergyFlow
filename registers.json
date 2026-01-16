@@ -13,7 +13,7 @@
         },
         "grid_flow": {
             "reg": 80,
-            "scale": 1,
+            "scale": 10,
             "unit": "W",
             "signed": true,
             "note": "Positive=Import, Negative=Export (Reg 80 confirmed better match)"
@@ -38,6 +38,11 @@
             "reg": 82,
             "scale": 0.1,
             "unit": "kWh"
+        },
+        "home_load": {
+            "reg": 38,
+            "scale": 0.1,
+            "unit": "W"
         }
     },
     "pv_calculation": {
