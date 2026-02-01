@@ -111,3 +111,8 @@ python3 invert.py --serve --port 8003
     - **Access**: Verified accessibility via IP on port 8003.
     - **Versioning**: v1.3.0
 
+- **2026-02-01 (Hotfix)**:
+    - **Registers**: Fixed `grid_flow` scale (10 -> 1) to match real readings (138 raw ~ 143W).
+    - **Config**: Removed `home_load` from `registers.json` to force calculated value (Inverter + Grid) instead of strange Register 38 value (12kW).
+
+
