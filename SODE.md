@@ -104,3 +104,10 @@ python3 invert.py --serve --port 8003
     - **Solar Logic**: Derived as `Home + Battery - Grid`.
     - **UI**: Hidden Inverter value (icon only), fixed Dashboard bindings.
     - **Backend**: `invert.py` refactored for dynamic `registers.json` config.
+
+- **2026-02-01 (Re-Deployment & Fixes)**:
+    - **System**: Re-deployed to `<rpi-host>` with Python virtual environment (`venv`).
+    - **Service**: Fixed `energyflow.service` installation and enabled on boot.
+    - **Access**: Verified accessibility via IP on port 8003.
+    - **Versioning**: v1.3.0
+

@@ -1,0 +1,14 @@
+[Unit]
+Description=EnergyFlow Inverter Monitor
+After=network.target
+
+[Service]
+ExecStart=/home/pi/EnergyFlow/venv/bin/python3 /home/pi/EnergyFlow/invert.py --serve --port 8003
+WorkingDirectory=/home/pi/EnergyFlow
+StandardOutput=inherit
+StandardError=inherit
+Restart=always
+User=pi
+
+[Install]
+WantedBy=multi-user.target
