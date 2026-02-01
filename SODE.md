@@ -114,5 +114,7 @@ python3 invert.py --serve --port 8003
 - **2026-02-01 (Hotfix)**:
     - **Registers**: Fixed `grid_flow` scale (10 -> 1) to match real readings (138 raw ~ 143W).
     - **Config**: Removed `home_load` from `registers.json` to force calculated value (Inverter + Grid) instead of strange Register 38 value (12kW).
+    - **Logic**: Updated `invert.py` to allow `home_load` calculation even when `inverter_power` is 0 (Night/Grid-only mode).
+
 
 

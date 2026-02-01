@@ -169,7 +169,7 @@ def decode_values(regs: List[int]) -> Dict[str, float]:
     
     # If home_load is 0 (missing reg), fallback to old logic for safety?
     # Old logic: Inverter + Grid.
-    if home_load_w == 0 and values.get("inverter_power", 0) > 0:
+    if home_load_w == 0:
          home_load_w = inverter_power + grid_flow_w
 
     if home_load_w < 0: home_load_w = 0
