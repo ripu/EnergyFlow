@@ -2,7 +2,8 @@ import argparse
 import json
 import time
 import os
-from http.server import BaseHTTPRequestHandler, HTTPServer
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Dict, List, Tuple
 
 from pymodbus.client import ModbusTcpClient
@@ -37,7 +38,8 @@ def read_registers(count: int = DEFAULT_COUNT) -> Tuple[List[int], str]:
     Legge i registri Modbus dall'inverter.
     Ritorna (lista_registri, sorgente_utilizzata).
     """
-    client = ModbusTcpClient(INVERTER_IP, port=MODBUS_PORT)
+    # timeout=3s: evita che una read Modbus lenta/persa appenda il server (vedi poller in background)
+    client = ModbusTcpClient(INVERTER_IP, port=MODBUS_PORT, timeout=3, retries=1)
     if not client.connect():
         raise ConnectionError(f"Impossibile connettersi a {INVERTER_IP}:{MODBUS_PORT}")
 
@@ -242,6 +244,72 @@ def print_table(regs: List[int], source: str):
     print("Es: Se vedi 98, potrebbe essere la batteria al 98%.")
 
 
+# --- CACHE + POLLER (B) ---
+# Il polling Modbus gira in un thread di background: l'inverter viene letto ogni
+# POLL_INTERVAL secondi e il risultato salvato in cache. Le richieste HTTP /data
+# servono SOLO la cache → mai bloccanti, anche se l'inverter non risponde.
+POLL_INTERVAL = 5  # secondi tra una lettura inverter e la successiva
+
+_cache = {"payload": None, "ts": 0.0, "error": None}
+_cache_lock = threading.Lock()
+
+
+def poll_loop(count: int, debug: bool = False):
+    """Loop infinito: legge l'inverter e aggiorna la cache. Gira come daemon thread."""
+    print(f"🔄 Poller avviato (intervallo {POLL_INTERVAL}s, count={count})")
+    while True:
+        t0 = time.time()
+        try:
+            regs, source = read_registers(count=count)
+            payload = build_payload(regs, source)
+            elapsed_ms = (time.time() - t0) * 1000
+            with _cache_lock:
+                _cache["payload"] = payload
+                _cache["ts"] = time.time()
+                _cache["error"] = None
+            d = payload["derived"]
+            # Log conciso + timing (regola #7: timing su operazioni pesanti)
+            print(
+                f"✅ Poll {elapsed_ms:.0f}ms src={source} "
+                f"home={d['home_load_w']:.0f}W solar={d['solar_power_w']:.0f}W "
+                f"grid={d['grid_flow_w']:.0f}W batt={d['battery_power_w']:.0f}W/{d['battery_percent']:.0f}%"
+            )
+            if debug:
+                _print_debug_regs(regs)
+        except Exception as exc:
+            elapsed_ms = (time.time() - t0) * 1000
+            with _cache_lock:
+                _cache["error"] = str(exc)
+            print(f"⚠️ Poll error dopo {elapsed_ms:.0f}ms: {exc}")
+        time.sleep(POLL_INTERVAL)
+
+
+def _print_debug_regs(regs: List[int]):
+    """Dump verboso dei registri non-zero con mapping (solo se --debug)."""
+    print("\n--- DEBUG READ ---")
+    mapping = load_mapping()
+    inv_map = {}
+    if mapping and "registers" in mapping:
+        for k, v in mapping["registers"].items():
+            if "reg" in v:
+                inv_map[v["reg"]] = (k, v.get("scale", 1), v.get("unit", ""))
+    for i, val in enumerate(regs):
+        if val == 0:
+            continue
+        signed_val = val - 65536 if val > 32767 else val
+        extra = ""
+        if i in inv_map:
+            name, scale, unit = inv_map[i]
+            scaled = signed_val * scale
+            val_str = f"{scaled:.1f}" if isinstance(scaled, float) else f"{scaled}"
+            extra = f"  -> {name}: {val_str}{unit}"
+        if val > 32767:
+            print(f"Reg {i}: {val} ({signed_val}){extra}")
+        else:
+            print(f"Reg {i}: {val}{extra}")
+    print("------------------\n")
+
+
 def make_handler(count: int):
     class Handler(BaseHTTPRequestHandler):
         def do_POST(self):
@@ -280,44 +348,28 @@ def make_handler(count: int):
                 return self._send_json({"status": "ok", "ip": INVERTER_IP})
 
             if self.path.startswith("/data"):
-                try:
-                    regs, source = read_registers(count=count)
-                    
-                    # DEBUG: Print all non-zero registers with mapping
-                    print("\n--- DEBUG READ ---")
-                    mapping = load_mapping()
-                    inv_map = {}
-                    if mapping and "registers" in mapping:
-                        for k, v in mapping["registers"].items():
-                            if "reg" in v:
-                                inv_map[v["reg"]] = (k, v.get("scale", 1), v.get("unit", ""))
+                # Serve SOLO dalla cache popolata dal poller in background: mai bloccante.
+                with _cache_lock:
+                    payload = _cache["payload"]
+                    err = _cache["error"]
+                    ts = _cache["ts"]
 
-                    for i, val in enumerate(regs):
-                        # Decode signed
-                        signed_val = val - 65536 if val > 32767 else val
-                        
-                        # Check if mapped
-                        extra = ""
-                        if i in inv_map:
-                            name, scale, unit = inv_map[i]
-                            scaled = signed_val * scale
-                            # Format nicely
-                            if isinstance(scaled, float):
-                                val_str = f"{scaled:.1f}"
-                            else:
-                                val_str = f"{scaled}"
-                            extra = f"  -> {name}: {val_str}{unit}"
-                        
-                        if val != 0:
-                            if val > 32767:
-                                print(f"Reg {i}: {val} ({signed_val}){extra}")
-                            else:
-                                print(f"Reg {i}: {val}{extra}")
-                    print("------------------\n")
+                if payload is None:
+                    # Nessuna lettura riuscita ancora (avvio o inverter offline da subito)
+                    return self._send_json(
+                        {"error": err or "no data yet (poller in avvio)"}, code=503
+                    )
 
-                    return self._send_json(build_payload(regs, source))
-                except Exception as exc:
-                    return self._send_json({"error": str(exc)}, code=500)
+                age = time.time() - ts
+                # Copia superficiale + meta freschezza; non muto la cache condivisa
+                out = dict(payload)
+                out["meta"] = dict(
+                    payload["meta"],
+                    age_s=round(age, 1),
+                    stale=age > POLL_INTERVAL * 3,
+                    last_error=err,
+                )
+                return self._send_json(out)
 
             # Static File Serving
             if self.path == "/" or self.path == "/index.html":
@@ -370,7 +422,11 @@ def make_handler(count: int):
     return Handler
 
 
-def serve(host: str, port: int, count: int):
+def serve(host: str, port: int, count: int, debug: bool = False):
+    # Avvia il poller Modbus in un daemon thread PRIMA di aprire il server HTTP (B).
+    poller = threading.Thread(target=poll_loop, args=(count, debug), daemon=True)
+    poller.start()
+
     # Try to bind to port, if busy increment and retry
     max_retries = 10
     server = None
@@ -378,7 +434,7 @@ def serve(host: str, port: int, count: int):
     
     for i in range(max_retries):
         try:
-            server = HTTPServer((host, current_port), make_handler(count))
+            server = ThreadingHTTPServer((host, current_port), make_handler(count))
             break # Success
         except OSError as e:
             if e.errno == 48: # Address already in use
@@ -417,10 +473,11 @@ def main():
     parser.add_argument("--host", default="0.0.0.0", help="Host su cui esporre l'API (default: 0.0.0.0).")
     parser.add_argument("--port", type=int, default=8000, help="Porta API (default: 8000).")
     parser.add_argument("--count", type=int, default=DEFAULT_COUNT, help="Quanti registri leggere (default: 50).")
+    parser.add_argument("--debug", action="store_true", help="Dump verboso dei registri ad ogni poll (default: off).")
     args = parser.parse_args()
 
     if args.serve:
-        serve(args.host, args.port, args.count)
+        serve(args.host, args.port, args.count, debug=args.debug)
     else:
         print(f"Tentativo di connessione a {INVERTER_IP}...")
         try:
