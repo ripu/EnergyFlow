@@ -25,8 +25,11 @@ The system bypasses cloud delays by connecting directly to the inverter's local 
     - **Home**: Calculated as `Inverter Power + Grid Flow`.
     - **Grid**: Inverted logic (Negative = Export).
 - **Functions**:
-    - `read_registers()`: Polls 90+ registers.
-    - `serve()`: Runs `HTTPServer` (default port 8003).
+    - `read_registers()`: Polls 90+ registers. `ModbusTcpClient` con `timeout=3s, retries=1`.
+    - `poll_loop()`: **Daemon thread** che legge l'inverter ogni `POLL_INTERVAL` (5s) e salva in **cache thread-safe**. Logga timing in ms (regola #7).
+    - `serve()`: Runs `ThreadingHTTPServer` (default port 8003). Avvia il poller prima del server.
+- **Concurrency model**: il polling Modbus è **disaccoppiato** dall'HTTP. `/data` serve SOLO la cache (mai bloccante) con meta `age_s`/`stale`/`last_error`. Niente più hang del server se l'inverter è lento/offline.
+- **Flag**: `--debug` per dump verboso registri ad ogni poll (default off, no spam log).
 
 ### 2.2 Frontend (`index.html`)
 - **Role**: Client UI Dashboard.
@@ -70,6 +73,21 @@ sequenceDiagram
 # Start server (default port 8003)
 python3 invert.py --serve --port 8003
 ```
+
+## 4.3 Remote Access (Tailscale)
+- **LAN**: `http://<rpi-host>.local:8003/` (mDNS, solo rete locale).
+- **Tailnet (HTTPS)**: `https://<rpi-host>.<tailnet>.ts.net/` — `tailscale serve` proxy → `127.0.0.1:8003`. Cert Let's Encrypt automatico (rinnovo gestito da Tailscale). Solo dentro il tailnet, nessuna porta aperta su internet.
+- **Config serve** (sul RPi, persiste tra reboot): `sudo tailscale serve --bg http://127.0.0.1:8003`. Disattiva: `sudo tailscale serve --https=443 off`.
+- ⚠️ Prerequisito: client Tailscale **connesso** sulla macchina che accede (es. Mac: `Tailscale up`). mDNS `.local` NON passa sul tailnet → usare hostname tailnet.
+
+## 4.4 Kiosk Display (RPi → monitor verticale)
+- **Compositor**: labwc (Wayland) sotto lightdm, autologin utente `pi`. Monitor `HDMI-A-1` (NEC E326, 1920×1080).
+- **Autostart**: `~/.config/labwc/autostart` (copia tracciata in `deploy/labwc-autostart`):
+    1. `wlr-randr --output HDMI-A-1 --transform 270` → verticale (270° = dritto per questo setup).
+    2. `chromium --kiosk --password-store=basic --app=http://localhost:8003/` → dashboard fullscreen all'avvio (URL **locale** = nessuna dipendenza rete/tailscale per il display).
+    - ⚠️ `--password-store=basic` **obbligatorio**: senza, chromium chiede "Choose password for new keyring" (gnome-keyring) e non avvia la pagina.
+    - Applicare modifiche all'autostart senza reboot: `sudo systemctl restart lightdm` (riavvia la sessione labwc; il service `energyflow` resta su). Il lancio detached di chromium via SSH NON sopravvive alla sessione → usare l'autostart.
+- **Rotazione live** (senza reboot): `wlr-randr --output HDMI-A-1 --transform <0|90|180|270>` con `XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0`.
 
 ## 5. Data Dictionary (Key Registers)
 
@@ -116,6 +134,13 @@ python3 invert.py --serve --port 8003
     - **Config**: Removed `home_load` from `registers.json` to force calculated value (Inverter + Grid) instead of strange Register 38 value (12kW).
     - **Logic**: Updated `invert.py` to allow `home_load` calculation even when `inverter_power` is 0 (Night/Grid-only mode).
     - **Remote Access**: Installed Tailscale on `<rpi-host>`.
+
+- **2026-05-31 (Server non-bloccante + HTTPS + Kiosk verticale)** — v1.3.1:
+    - **Backend**: `HTTPServer` → `ThreadingHTTPServer`; `ModbusTcpClient` con `timeout=3s`; **poller in daemon thread** + cache thread-safe (`/data` mai bloccante). Risolto hang del server su read Modbus lenta. Flag `--debug`. Log poll con timing ms.
+    - **Service**: `Environment=PYTHONUNBUFFERED=1` → log poller visibili in journald.
+    - **HTTPS**: `tailscale serve` → `https://<rpi-host>.<tailnet>.ts.net/` (cert Let's Encrypt auto, tailnet-only). Vedi §4.3.
+    - **Kiosk**: monitor `HDMI-A-1` ruotato verticale (`transform 270`) + chromium kiosk su `http://localhost:8003/` via `~/.config/labwc/autostart`. Verificato dopo reboot. Vedi §4.4.
+    - **Deploy**: diretto sul RPi (scp + restart service), nessun push GitHub.
 
 
 

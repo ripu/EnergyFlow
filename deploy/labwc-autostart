@@ -1,0 +1,20 @@
+#!/bin/sh
+# --- EnergyFlow kiosk autostart (labwc/Wayland) ---
+# Deploy: copiare in ~/.config/labwc/autostart sul RPi (utente pi), chmod +x.
+# Compositor: labwc sotto lightdm, autologin pi. Monitor: HDMI-A-1 (1920x1080).
+
+# 1) Monitor in verticale (270°)
+wlr-randr --output HDMI-A-1 --transform 270
+
+# 2) Dashboard a tutto schermo in kiosk (URL locale: nessuna dipendenza rete)
+#    --password-store=basic: evita il prompt gnome-keyring di chromium su Linux.
+( sleep 3; exec chromium \
+    --kiosk \
+    --password-store=basic \
+    --app=http://localhost:8003/ \
+    --noerrdialogs \
+    --disable-infobars \
+    --disable-session-crashed-bubble \
+    --disable-features=TranslateUI \
+    --ozone-platform=wayland \
+    --check-for-update-interval=31536000 ) &
