@@ -142,6 +142,12 @@ python3 invert.py --serve --port 8003
     - **Kiosk**: monitor `HDMI-A-1` ruotato verticale (`transform 270`) + chromium kiosk su `http://localhost:8003/` via `~/.config/labwc/autostart`. Verificato dopo reboot. Vedi §4.4.
     - **Deploy**: diretto sul RPi (scp + restart service), nessun push GitHub.
 
+- **2026-07-05 15:05 (Fix inverter irraggiungibile)** — v1.3.2:
+    - **Sintomo**: dashboard senza numeri; `/data` rispondeva `{"error": "Impossibile connettersi a 192.168.x.x:502"}`, journald pieno di `Poll error ... timed out`.
+    - **Causa**: il DHCP del router ha riassegnato l'IP dell'inverter `192.168.x.x` → `192.168.x.x` (trovato con sweep porta 502 dal RPi).
+    - **Fix**: aggiornato `config.json` (locale + RPi) con nuovo IP, `systemctl restart energyflow`. Verificato: dati freschi (`stale: false`), solar 6.3kW.
+    - **⚠️ TODO**: impostare **DHCP reservation** sul router per il MAC dell'inverter, altrimenti il problema si ripresenterà al prossimo lease.
+
 
 
 
