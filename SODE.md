@@ -29,6 +29,7 @@ The system bypasses cloud delays by connecting directly to the inverter's local 
     - `poll_loop()`: **Daemon thread** che legge l'inverter ogni `POLL_INTERVAL` (5s) e salva in **cache thread-safe**. Logga timing in ms (regola #7).
     - `serve()`: Runs `ThreadingHTTPServer` (default port 8003). Avvia il poller prima del server.
 - **Concurrency model**: il polling Modbus è **disaccoppiato** dall'HTTP. `/data` serve SOLO la cache (mai bloccante) con meta `age_s`/`stale`/`last_error`. Niente più hang del server se l'inverter è lento/offline.
+- **Auto-discovery inverter** (self-healing): dopo **5 poll falliti consecutivi** (~40s) il poller fa uno sweep della subnet /24 locale sulla porta 502 (ThreadPool, ~3s), verifica i candidati con **firma registri** (reg 0 = tensione rete 180-260V, reg 28 = SOC 0-100) per escludere altri device Modbus, aggiorna l'IP in memoria e **riscrive `config.json`**. Ritenta al massimo 1 sweep/60s. Copre il caso DHCP che riassegna l'IP dell'inverter (incidente 2026-07-05). Log: `🔍 Discovery ...` con timing ms.
 - **Flag**: `--debug` per dump verboso registri ad ogni poll (default off, no spam log).
 
 ### 2.2 Frontend (`index.html`)
@@ -147,6 +148,12 @@ python3 invert.py --serve --port 8003
     - **Causa**: il DHCP del router ha riassegnato l'IP dell'inverter `192.168.x.x` → `192.168.x.x` (trovato con sweep porta 502 dal RPi).
     - **Fix**: aggiornato `config.json` (locale + RPi) con nuovo IP, `systemctl restart energyflow`. Verificato: dati freschi (`stale: false`), solar 6.3kW.
     - **⚠️ TODO**: impostare **DHCP reservation** sul router per il MAC dell'inverter, altrimenti il problema si ripresenterà al prossimo lease.
+
+- **2026-07-05 15:30 (Auto-discovery inverter)** — v1.3.3:
+    - **Backend**: nuovo blocco auto-discovery in `invert.py` — dopo 5 poll falliti consecutivi, sweep subnet /24 porta 502 + verifica firma registri (anti falsi-positivi) → aggiorna IP in memoria + `config.json`. Max 1 sweep/60s. Vedi §2.1.
+    - **Refactor**: `read_registers(ip=, port=)` parametrici per testare candidati discovery.
+    - **Test locale**: simulato IP sbagliato (`.99`) → poll fail → discovery trova `.130` in ~2.6s → read OK (SOC 98%, 249.7V). Config persistita.
+    - **Deploy**: in attesa conferma Ripu.
 
 
 

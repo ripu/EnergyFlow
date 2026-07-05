@@ -1,8 +1,10 @@
 import argparse
 import json
+import socket
 import time
 import os
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Dict, List, Tuple
 
@@ -33,15 +35,18 @@ def signed16(value: int) -> int:
     return value - 65536 if value > 32767 else value
 
 
-def read_registers(count: int = DEFAULT_COUNT) -> Tuple[List[int], str]:
+def read_registers(count: int = DEFAULT_COUNT, ip: str = None, port: int = None) -> Tuple[List[int], str]:
     """
     Legge i registri Modbus dall'inverter.
+    ip/port opzionali (default: config corrente) — usati dalla discovery per testare candidati.
     Ritorna (lista_registri, sorgente_utilizzata).
     """
+    ip = ip or INVERTER_IP
+    port = port or MODBUS_PORT
     # timeout=3s: evita che una read Modbus lenta/persa appenda il server (vedi poller in background)
-    client = ModbusTcpClient(INVERTER_IP, port=MODBUS_PORT, timeout=3, retries=1)
+    client = ModbusTcpClient(ip, port=port, timeout=3, retries=1)
     if not client.connect():
-        raise ConnectionError(f"Impossibile connettersi a {INVERTER_IP}:{MODBUS_PORT}")
+        raise ConnectionError(f"Impossibile connettersi a {ip}:{port}")
 
     try:
         # Try Input Registers FIRST (User confirmed this works for valid data)
@@ -244,6 +249,94 @@ def print_table(regs: List[int], source: str):
     print("Es: Se vedi 98, potrebbe essere la batteria al 98%.")
 
 
+# --- AUTO-DISCOVERY INVERTER ---
+# Se l'inverter sparisce (es. DHCP gli cambia IP), il poller dopo
+# DISCOVERY_FAIL_THRESHOLD poll falliti consecutivi fa uno sweep della subnet
+# sulla porta Modbus, verifica il candidato leggendo i registri-firma e
+# aggiorna config.json. Vedi SODE §2.1.
+DISCOVERY_FAIL_THRESHOLD = 5   # poll falliti consecutivi prima dello sweep (~40s)
+DISCOVERY_MIN_INTERVAL = 60    # secondi minimi tra due sweep consecutivi
+
+
+def _local_subnet_prefix() -> str:
+    """Prefisso /24 della LAN locale (es. '192.168.1.'). Fallback: subnet dell'ultimo IP noto."""
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            s.connect(("8.8.8.8", 80))  # nessun pacchetto inviato: serve solo a scegliere l'interfaccia
+            return s.getsockname()[0].rsplit(".", 1)[0] + "."
+        finally:
+            s.close()
+    except OSError:
+        return INVERTER_IP.rsplit(".", 1)[0] + "."
+
+
+def _port_open(ip: str, port: int, timeout: float = 0.6) -> bool:
+    try:
+        with socket.create_connection((ip, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
+def _looks_like_inverter(regs: List[int]) -> bool:
+    """Firma anti falsi-positivi: reg 0 = tensione rete ~230V*10, reg 28 = SOC 0-100."""
+    if len(regs) < 29:
+        return False
+    return 1800 <= regs[0] <= 2600 and 0 <= regs[28] <= 100
+
+
+def _persist_inverter_ip(new_ip: str):
+    """Riscrive config.json con il nuovo IP (preserva il resto della config)."""
+    try:
+        with open("config.json", "r") as f:
+            cfg = json.load(f)
+        cfg.setdefault("inverter", {})["ip"] = new_ip
+        with open("config.json", "w") as f:
+            json.dump(cfg, f, indent=4)
+        print(f"💾 config.json aggiornato: inverter.ip = {new_ip}")
+    except Exception as exc:
+        # Non fatale: l'IP in memoria è già aggiornato, persiste solo fino al restart
+        print(f"⚠️ Impossibile salvare config.json: {exc}")
+
+
+def discover_inverter() -> str:
+    """
+    Sweep della subnet /24 sulla porta Modbus + verifica firma registri.
+    Ritorna il nuovo IP se trovato, altrimenti None. Timing loggato (regola #7).
+    """
+    global INVERTER_IP
+    t0 = time.time()
+    prefix = _local_subnet_prefix()
+    print(f"🔍 Discovery: sweep {prefix}0/24 porta {MODBUS_PORT}...")
+
+    candidates = []
+    with ThreadPoolExecutor(max_workers=64) as pool:
+        ips = [f"{prefix}{i}" for i in range(1, 255)]
+        for ip, is_open in zip(ips, pool.map(lambda ip: _port_open(ip, MODBUS_PORT), ips)):
+            if is_open:
+                candidates.append(ip)
+
+    print(f"🔍 Discovery: {len(candidates)} candidati porta aperta: {candidates or 'nessuno'}")
+
+    for ip in candidates:
+        try:
+            regs, _ = read_registers(count=30, ip=ip)
+        except Exception:
+            continue
+        if _looks_like_inverter(regs):
+            elapsed_ms = (time.time() - t0) * 1000
+            print(f"✅ Discovery {elapsed_ms:.0f}ms: inverter trovato su {ip} (era {INVERTER_IP})")
+            INVERTER_IP = ip
+            _persist_inverter_ip(ip)
+            return ip
+        print(f"🔍 Discovery: {ip} ha porta {MODBUS_PORT} aperta ma firma registri non combacia, skip")
+
+    elapsed_ms = (time.time() - t0) * 1000
+    print(f"⚠️ Discovery {elapsed_ms:.0f}ms: inverter non trovato su {prefix}0/24")
+    return None
+
+
 # --- CACHE + POLLER (B) ---
 # Il polling Modbus gira in un thread di background: l'inverter viene letto ogni
 # POLL_INTERVAL secondi e il risultato salvato in cache. Le richieste HTTP /data
@@ -257,6 +350,8 @@ _cache_lock = threading.Lock()
 def poll_loop(count: int, debug: bool = False):
     """Loop infinito: legge l'inverter e aggiorna la cache. Gira come daemon thread."""
     print(f"🔄 Poller avviato (intervallo {POLL_INTERVAL}s, count={count})")
+    consecutive_fails = 0
+    last_discovery = 0.0
     while True:
         t0 = time.time()
         try:
@@ -267,6 +362,7 @@ def poll_loop(count: int, debug: bool = False):
                 _cache["payload"] = payload
                 _cache["ts"] = time.time()
                 _cache["error"] = None
+            consecutive_fails = 0
             d = payload["derived"]
             # Log conciso + timing (regola #7: timing su operazioni pesanti)
             print(
@@ -278,9 +374,19 @@ def poll_loop(count: int, debug: bool = False):
                 _print_debug_regs(regs)
         except Exception as exc:
             elapsed_ms = (time.time() - t0) * 1000
+            consecutive_fails += 1
             with _cache_lock:
                 _cache["error"] = str(exc)
-            print(f"⚠️ Poll error dopo {elapsed_ms:.0f}ms: {exc}")
+            print(f"⚠️ Poll error dopo {elapsed_ms:.0f}ms (fail #{consecutive_fails}): {exc}")
+            # Auto-discovery: l'inverter potrebbe aver cambiato IP (DHCP).
+            if (
+                consecutive_fails >= DISCOVERY_FAIL_THRESHOLD
+                and time.time() - last_discovery >= DISCOVERY_MIN_INTERVAL
+            ):
+                last_discovery = time.time()
+                if discover_inverter():
+                    consecutive_fails = 0
+                    continue  # riprova subito col nuovo IP, senza aspettare POLL_INTERVAL
         time.sleep(POLL_INTERVAL)
 
 
