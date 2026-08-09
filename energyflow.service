@@ -5,12 +5,34 @@ After=network.target
 [Service]
 # PYTHONUNBUFFERED: forza flush immediato di stdout/stderr → log poller visibili in journald (regole #7/#10)
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/home/pi/EnergyFlow/venv/bin/python3 /home/pi/EnergyFlow/invert.py --serve --port 8003
+# Token di accesso (regola #17). Il '-' rende il file opzionale: al primo avvio
+# .env non esiste ancora, invert.py lo genera con perm 600 e dal riavvio
+# successivo systemd lo carica da qui. Il file NON è committato (regola #16.8).
+EnvironmentFile=-/home/pi/EnergyFlow/.env
+# Niente --port: la porta ha un'unica fonte di verità (regola #6), risolta da
+# invert.py come config.json server.port → default 8003. Averla anche qui
+# significava tenerla allineata a mano in tre posti diversi.
+# Niente --host: il default è già 127.0.0.1 (loopback). Il kiosk carica
+# http://localhost:8003 e tailscale serve fa proxy verso 127.0.0.1:8003, quindi
+# nessuno dei due ha bisogno che il server sia esposto sulla LAN.
+ExecStart=/home/pi/EnergyFlow/venv/bin/python3 /home/pi/EnergyFlow/invert.py --serve
 WorkingDirectory=/home/pi/EnergyFlow
 StandardOutput=inherit
 StandardError=inherit
 Restart=always
 User=pi
+
+# --- Hardening (conservativo: solo direttive compatibili con questo workload) ---
+# Il processo scrive in /home/pi/EnergyFlow (config.json, .env, log/), quindi
+# ProtectHome resta OFF: bloccherebbe la sua stessa cartella di lavoro.
+NoNewPrivileges=true
+PrivateTmp=true
+# 'full': /usr, /boot ed /etc in sola lettura. Non 'strict', che renderebbe
+# read-only anche /home e romperebbe log/ e l'auto-discovery che riscrive config.json.
+ProtectSystem=full
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
 
 [Install]
 WantedBy=multi-user.target

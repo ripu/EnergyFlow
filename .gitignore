@@ -25,10 +25,31 @@ npm-debug.log*
 
 # User Configuration
 config.json
+.env
 
 # Utility scripts
 find_pi.py
 test_inverter.py
+# scanner.py: superato da `invert.py --debug` e `--snapshot` (regola #8:
+# niente script separati di check nel repo).
+scanner.py
+
+# App macOS compilata: nel repo sta il sorgente (EnergyBar.swift), non il binario.
+# Un eseguibile non firmato committato in un repo pubblico, con il README che invita
+# ad avviarlo, non è verificabile da chi lo scarica.
+macos-widget/EnergyBar.app/
 
 # Documentation & Workflows (Private)
 .agent/
+
+# Classificazione workspace interna (regola #27): il file deve esistere sul disco,
+# non deve finire in un repo pubblico.
+.antigravity.yml
+
+# Screenshot che mostrano dati reali a schermo.
+# screenshot_latest.png rende leggibili le coordinate GPS di casa nell'header
+# della dashboard: non va committato finché non viene rigenerato con dati finti.
+screenshot_latest.png
+
+# Log applicativi giornalieri (regola #10): restano sulla macchina, non nel repo.
+log/

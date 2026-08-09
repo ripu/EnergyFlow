@@ -1,50 +1,923 @@
 {
-    "registers": {
-        "grid_voltage": {
-            "reg": 0,
-            "scale": 0.1,
-            "unit": "V"
-        },
-        "inverter_power": {
-            "reg": 2,
-            "scale": 1,
-            "unit": "W",
-            "signed": true
-        },
-        "grid_flow": {
-            "reg": 80,
-            "scale": 1,
-            "unit": "W",
-            "signed": true,
-            "note": "Positive=Import, Negative=Export (Reg 80 confirmed better match)"
-        },
-        "battery_percent": {
-            "reg": 28,
-            "scale": 1,
-            "unit": "%"
-        },
-        "battery_voltage": {
-            "reg": 29,
-            "scale": 0.1,
-            "unit": "V"
-        },
-        "battery_power": {
-            "reg": 22,
-            "scale": 1,
-            "unit": "W",
-            "signed": true
-        },
-        "daily_energy": {
-            "reg": 82,
-            "scale": 0.1,
-            "unit": "kWh"
-        }
+  "map_version": "2.1",
+  "device": "SolaX X1-Hybrid G4 monofase (rebrand Q.CELLS Q.HOME/Q.VOLT ESS HYB-G3 1P)",
+  "device_self_id": "Gli holding register dell'apparecchio rispondono in ASCII big-endian: 0-6 numero di serie, 7-13 'Solax', 14-20 'X1-Hybrid G4'. Holding 133-138 = orologio interno (sec, min, ora, giorno, mese, anno-2000). Il rebrand non e' un'ipotesi, e' il firmware che si presenta cosi'.",
+  "source": [
+    "evcc templates/definition/meter/solax.yaml (products: Solax Hybrid X1/X3 G3/G4, Qcells Q.HOME ESS HYB-G3)",
+    "wills106/homeassistant-solax-modbus custom_components/solax_modbus/plugin_solax.py (sezioni allowedtypes AC|HYBRID|GEN4)",
+    "letture live dell'impianto 2026-08-09 (vedi campo evidence di ogni registro)",
+    "portale ufficiale Q.CELLS/SolaX: 3 campioni Modbus accoppiati agli stessi istanti (2026-08-09 18:13, 18:17, 18:21) + osservazione diretta dei segni alle 18:33-18:34"
+  ],
+  "register_space": "input_registers (function code 4). Blocchi di lettura: 0-124, 125-249, 250-374.",
+  "word_order": "low_first",
+  "word_order_evidence": "Registri (72,73)=(15992,3): 15992+3*65536=212600 -> x0.01 = 2126.0 kWh export totale. L'ordine inverso darebbe 1048051715 kWh. evcc usa il decode 'uint32s' (word swapped) sugli stessi indirizzi 74/82/148.",
+  "nominal": {
+    "note": "Usati per i limiti di plausibilita' sulle potenze (|P| <= 3x nominale). Stimati dai dati: 44.8 kWh prodotti in giornata e 7000 W di scarica batteria massima.",
+    "pv_wp": 10000,
+    "inverter_ac_w": 10000
+  },
+  "fields": {
+    "inverter_voltage_v": {
+      "reg": 0,
+      "type": "u16",
+      "scale": 0.1,
+      "unit": "V",
+      "sign": "sempre positivo (tensione AC di uscita inverter)",
+      "confidence": "high",
+      "evidence": "247.0 V contro 247.7 V del portale. E' la tensione AC ai morsetti dell'inverter, non quella del contatore (i registri meter 200/201/205 sono a zero su questo modello). I3 coppia (0,1,2): 247.0 x 5.6 = 1383 W contro reg2 = 1376 W (0.5%).",
+      "publish": "measured.inverter_voltage_v"
     },
-    "pv_calculation": {
-        "pv1_voltage_reg": 70,
-        "pv1_current_reg": 71,
-        "pv2_voltage_reg": 74,
-        "pv2_current_reg": 75,
-        "scale": 0.1
+    "inverter_current_a": {
+      "reg": 1,
+      "type": "s16",
+      "scale": 0.1,
+      "unit": "A",
+      "sign": "segue il segno di inverter_power_w",
+      "confidence": "high",
+      "evidence": "5.6 A contro 5.8 A del portale. I3 coppia (0,1,2).",
+      "publish": "measured.inverter_current_a"
+    },
+    "inverter_power_w": {
+      "reg": 2,
+      "type": "s16",
+      "scale": 1,
+      "unit": "W",
+      "sign": "positivo = potenza AC in uscita dall'inverter (verso casa/rete); negativo = assorbimento AC (carica batteria da rete)",
+      "confidence": "high",
+      "evidence": "1376 W contro 1434 W del portale (campionamenti non simultanei, la potenza scende). I3 coppia (0,1,2) + I2 rendimento 1092/(1020+126) = 95.3% sull'istante 18:33:50.",
+      "publish": "measured.inverter_power_signed_w"
+    },
+    "pv1_voltage_v": {
+      "reg": 3,
+      "type": "u16",
+      "scale": 0.1,
+      "unit": "V",
+      "sign": "sempre positivo",
+      "confidence": "high",
+      "evidence": "251.4 V contro 254.3 V del portale. I3 coppia (3,5,10): 251.4 x 2.8 = 703.9 W contro reg10 = 722 W (2.5%).",
+      "publish": "measured.pv1_voltage_v"
+    },
+    "pv2_voltage_v": {
+      "reg": 4,
+      "type": "u16",
+      "scale": 0.1,
+      "unit": "V",
+      "sign": "sempre positivo",
+      "confidence": "high",
+      "evidence": "250.1 V contro 252.2 V del portale. I3 coppia (4,6,11).",
+      "publish": "measured.pv2_voltage_v"
+    },
+    "pv1_current_a": {
+      "reg": 5,
+      "type": "u16",
+      "scale": 0.1,
+      "unit": "A",
+      "sign": "sempre positivo",
+      "confidence": "high",
+      "evidence": "2.8 A contro 2.9 A del portale. E' un u16 a 16 bit, NON la word alta di un 32 bit: la mappa v1 leggeva reg 71 e reg 75 (word alte di grid_feedin_power e grid_import_total) e ne concludeva che la corrente PV non fosse leggibile.",
+      "publish": "measured.pv1_current_a"
+    },
+    "pv2_current_a": {
+      "reg": 6,
+      "type": "u16",
+      "scale": 0.1,
+      "unit": "A",
+      "sign": "sempre positivo",
+      "confidence": "high",
+      "evidence": "2.9 A contro 3.0 A del portale. I3 coppia (4,6,11).",
+      "publish": "measured.pv2_current_a"
+    },
+    "grid_frequency_hz": {
+      "reg": 7,
+      "type": "u16",
+      "scale": 0.01,
+      "unit": "Hz",
+      "sign": "sempre positivo",
+      "confidence": "high",
+      "evidence": "4995 -> 49.95 Hz contro 49.96 Hz del portale.",
+      "publish": "measured.grid_frequency_hz"
+    },
+    "inverter_temp_c": {
+      "reg": 8,
+      "type": "s16",
+      "scale": 1,
+      "unit": "C",
+      "sign": "negativo possibile (inverter freddo)",
+      "confidence": "high",
+      "evidence": "47 C. E' la temperatura dell'INVERTER: quelle della batteria sono reg 24 (media pacco) e reg 186/187 (max/min cella). La variante x0.1 nella mappa HA e' marcata GEN5|X3, questo e' un X1 GEN4.",
+      "publish": "measured.inverter_temp_c"
+    },
+    "run_mode": {
+      "reg": 9,
+      "type": "u16",
+      "scale": 1,
+      "unit": "",
+      "sign": "enum",
+      "confidence": "high",
+      "evidence": "Valore 2 = 'Normal Mode' nella tabella GEN4, coerente con inverter che produce.",
+      "publish": "measured.run_mode"
+    },
+    "pv1_power_w": {
+      "reg": 10,
+      "type": "u16",
+      "scale": 1,
+      "unit": "W",
+      "sign": "sempre positivo",
+      "confidence": "high",
+      "evidence": "722 W contro 752 W del portale. I3 coppia (3,5,10) + I2 + I6 (integrale contro reg 150).",
+      "publish": "measured.pv1_power_w"
+    },
+    "pv2_power_w": {
+      "reg": 11,
+      "type": "u16",
+      "scale": 1,
+      "unit": "W",
+      "sign": "sempre positivo",
+      "confidence": "high",
+      "evidence": "743 W contro 773 W del portale. I3 coppia (4,6,11) + I2 + I6.",
+      "publish": "measured.pv2_power_w"
+    },
+    "battery_voltage_v": {
+      "reg": 20,
+      "type": "u16",
+      "scale": 0.1,
+      "unit": "V",
+      "sign": "sempre positivo",
+      "confidence": "high",
+      "evidence": "4211 -> 421.1 V, contro 421.2 V del portale su 3 campioni. I5: 421.1 / media celle 3.356 = 125.5 celle in serie. La mappa v1 leggeva reg 29 (word bassa dell'energia scaricata totale) e pubblicava 1220.5 V.",
+      "publish": "measured.battery_voltage_v"
+    },
+    "battery_current_a": {
+      "reg": 21,
+      "type": "s16",
+      "scale": 0.1,
+      "unit": "A",
+      "sign": "positivo = carica, negativo = scarica",
+      "confidence": "high",
+      "evidence": "0.0 A a batteria ferma, -0.2/-0.4 A durante la scarica osservata alle 18:33-18:34: stesso segno di reg 22.",
+      "publish": "measured.battery_current_a"
+    },
+    "battery_power_w": {
+      "reg": 22,
+      "type": "s16",
+      "scale": 1,
+      "unit": "W",
+      "sign": "positivo = carica (la batteria assorbe), negativo = scarica",
+      "confidence": "high",
+      "evidence": "Osservato dal vivo alle 18:33:50: PV 1020 W, inverter 1092 W AC, reg22 = -126 W. L'inverter eroga piu' di quanto il PV produca, la differenza esce dalla batteria -> negativo = scarica. Convenzione identica a quella dei client Swift esistenti (EnergyBar.swift: 'Pos=Charge'); evcc legge lo stesso registro con scale -1 perche' la sua convenzione e' opposta.",
+      "publish": "measured.battery_power_w"
+    },
+    "battery_temp_c": {
+      "reg": 24,
+      "type": "s16",
+      "scale": 1,
+      "unit": "C",
+      "sign": "negativo possibile",
+      "confidence": "high",
+      "evidence": "33 C, identico al portale. Compreso fra reg 187 (30.9 C) e reg 186 (35.8 C).",
+      "publish": "measured.battery_temp_c"
+    },
+    "mppt_count": {
+      "reg": 27,
+      "type": "u16",
+      "scale": 1,
+      "unit": "",
+      "sign": "conteggio",
+      "confidence": "high",
+      "evidence": "Vale 2 e l'impianto ha esattamente due stringhe con V/I/P popolati; la terza stringa (reg 290-292 su GEN5) e' assente.",
+      "publish": "measured.mppt_count"
+    },
+    "battery_percent": {
+      "reg": 28,
+      "type": "u16",
+      "scale": 1,
+      "unit": "%",
+      "sign": "0-100",
+      "confidence": "high",
+      "evidence": "99%, identico al portale su 3 campioni.",
+      "publish": "measured.battery_percent"
+    },
+    "battery_discharge_today_kwh": {
+      "reg": 32,
+      "type": "u16",
+      "scale": 0.1,
+      "unit": "kWh",
+      "sign": "sempre positivo",
+      "confidence": "high",
+      "evidence": "3.1 kWh, identico al portale. Entra in I4: 38.0 / (44.5 + 3.1 - 8.4) = 96.9% di rendimento giornaliero.",
+      "publish": "energy.today.battery_discharge_kwh"
+    },
+    "battery_charge_today_kwh": {
+      "reg": 35,
+      "type": "u16",
+      "scale": 0.1,
+      "unit": "kWh",
+      "sign": "sempre positivo",
+      "confidence": "high",
+      "evidence": "8.4 kWh, identico al portale. Vedi I4.",
+      "publish": "energy.today.battery_charge_kwh"
+    },
+    "battery_discharge_total_kwh": {
+      "reg": 29,
+      "type": "u32",
+      "scale": 0.1,
+      "unit": "kWh",
+      "sign": "monotono non decrescente",
+      "confidence": "high",
+      "evidence": "(29,30) = (12205,0) -> 1220.5 kWh, identico al portale. Rapporto scarica/carica 1220.5/1478.2 = 82.6%, round-trip plausibile. La mappa v1 leggeva il solo reg 29 come tensione batteria x0.1.",
+      "publish": "energy.total.battery_discharge_kwh"
+    },
+    "battery_charge_total_kwh": {
+      "reg": 33,
+      "type": "u32",
+      "scale": 0.1,
+      "unit": "kWh",
+      "sign": "monotono non decrescente",
+      "confidence": "high",
+      "evidence": "(33,34) = (14782,0) -> 1478.2 kWh, identico al portale.",
+      "publish": "energy.total.battery_charge_kwh"
+    },
+    "bms_charge_max_current_a": {
+      "reg": 36,
+      "type": "u16",
+      "scale": 0.1,
+      "unit": "A",
+      "sign": "sempre positivo",
+      "confidence": "medium",
+      "evidence": "0 A con SOC al 99%: il BMS chiude la carica. Coerente con reg 162 (potenza max di carica) a 0 W nella stessa lettura.",
+      "publish": "measured.bms_charge_max_current_a"
+    },
+    "bms_discharge_max_current_a": {
+      "reg": 37,
+      "type": "u16",
+      "scale": 0.1,
+      "unit": "A",
+      "sign": "sempre positivo",
+      "confidence": "high",
+      "evidence": "30.0 A. A 421 V di pacco sono 12.6 kW, coerente con reg 164 = 7000 W come limite dell'inverter.",
+      "publish": "measured.bms_discharge_max_current_a"
+    },
+    "battery_nominal_capacity_wh": {
+      "reg": 38,
+      "type": "u32",
+      "scale": 1,
+      "unit": "Wh",
+      "sign": "costante",
+      "confidence": "high",
+      "evidence": "(38,39) = (12288,0) -> 12288 Wh di targa BMS, contro 12 kWh dichiarati in config.json. NON e' un flag 0x3000 e NON e' il carico di casa: la mappa v1 lo leggeva x0.1 come home_load = 1228.8 W, cioe' una costante travestita da misura.",
+      "publish": "measured.battery_nominal_capacity_wh"
+    },
+    "grid_feedin_power_w": {
+      "reg": 70,
+      "type": "s32",
+      "scale": 1,
+      "unit": "W",
+      "sign": "GREZZO: positivo = immissione in rete (export), negativo = prelievo (import). L'API pubblica derived.grid_flow_w con il segno OPPOSTO (positivo = import).",
+      "confidence": "high",
+      "evidence": "Osservato dal vivo alle 18:33:50: casa 1149 W = inverter 1092 W + 57 W dalla rete, con reg70 = -57 -> negativo = PRELIEVO, positivo = IMMISSIONE. evcc lo usa come potenza di rete con scale -1 (la convenzione evcc e' positivo = import), coerente.",
+      "publish": "measured.grid_feedin_power_w"
+    },
+    "grid_export_total_kwh": {
+      "reg": 72,
+      "type": "u32",
+      "scale": 0.01,
+      "unit": "kWh",
+      "sign": "monotono non decrescente",
+      "confidence": "high",
+      "evidence": "(72,73) = (15992,3) -> 212600 x 0.01 = 2126.00 kWh. Bilancio totale: 4569.6 - 2126.00 + 242.30 + 87.1 = 2773.0 kWh contro 2770.18 del portale (0.1%).",
+      "publish": "energy.total.grid_export_kwh"
+    },
+    "grid_import_total_kwh": {
+      "reg": 74,
+      "type": "u32",
+      "scale": 0.01,
+      "unit": "kWh",
+      "sign": "monotono non decrescente",
+      "confidence": "high",
+      "evidence": "(74,75) x0.01 = 242.30 kWh. NON e' il consumo di casa (2770 kWh a portale): e' l'energia prelevata dalla rete. Il reg 75 a zero e' la word alta, non una misura mancante - era uno dei due registri che la mappa v1 leggeva come corrente PV.",
+      "publish": "energy.total.grid_import_kwh"
+    },
+    "yield_today_kwh": {
+      "reg": 80,
+      "type": "u32",
+      "scale": 0.1,
+      "unit": "kWh",
+      "sign": "azzerato a mezzanotte",
+      "confidence": "high",
+      "evidence": "(80,81) = (380,0) -> 38.0 kWh di resa AC oggi, contro 38 kWh del portale Q.CELLS allo stesso istante. La mappa v1 usava questo registro come grid_flow, la grandezza principale della dashboard: era il motivo per cui il flusso di rete sembrava costante fra letture a un minuto di distanza.",
+      "publish": "energy.today.yield_kwh"
+    },
+    "yield_total_kwh": {
+      "reg": 82,
+      "type": "u32",
+      "scale": 0.1,
+      "unit": "kWh",
+      "sign": "monotono non decrescente",
+      "confidence": "high",
+      "evidence": "(82,83) -> 4569.4 kWh di resa AC totale, identico al portale. La mappa v1 lo pubblicava come daily_energy_kwh: da qui i '4568.6 kWh oggi'.",
+      "publish": "energy.total.yield_kwh"
+    },
+    "bus_voltage_v": {
+      "reg": 102,
+      "type": "u16",
+      "scale": 0.1,
+      "unit": "V",
+      "sign": "sempre positivo",
+      "confidence": "medium",
+      "evidence": "4515 -> 451.5 V di bus DC, sopra la tensione di pacco (421.1 V) e sopra le stringhe PV (251.4/250.1 V), come atteso da un boost. Varia fra i campioni, quindi e' una misura e non una costante.",
+      "publish": "measured.bus_voltage_v"
+    },
+    "eps_yield_total_kwh": {
+      "reg": 142,
+      "type": "u32",
+      "scale": 0.1,
+      "unit": "kWh",
+      "sign": "monotono non decrescente",
+      "confidence": "medium",
+      "evidence": "(142,143) -> 87.1 kWh erogati in EPS, identico al portale.",
+      "publish": "energy.total.eps_kwh"
+    },
+    "eps_yield_today_kwh": {
+      "reg": 144,
+      "type": "u16",
+      "scale": 0.1,
+      "unit": "kWh",
+      "sign": "azzerato a mezzanotte",
+      "confidence": "medium",
+      "evidence": "0 kWh oggi, identico al portale.",
+      "publish": "energy.today.eps_kwh"
+    },
+    "solar_total_kwh": {
+      "reg": 148,
+      "type": "u32",
+      "scale": 0.1,
+      "unit": "kWh",
+      "sign": "monotono non decrescente",
+      "confidence": "high",
+      "evidence": "(148,149) -> 5096.7 kWh di produzione DC totale, identico al portale su 3 campioni.",
+      "publish": "energy.total.solar_kwh"
+    },
+    "solar_today_kwh": {
+      "reg": 150,
+      "type": "u32",
+      "scale": 0.1,
+      "unit": "kWh",
+      "sign": "azzerato a mezzanotte",
+      "confidence": "high",
+      "evidence": "(150,151) = (445,0) -> 44.5 kWh prodotti oggi (DC), identico al 'Daily PV Yield' del portale su 3 campioni accoppiati. E' il contatore confrontabile con l'integrale di reg10+reg11 (invariante I6).",
+      "publish": "energy.today.solar_kwh"
+    },
+    "grid_export_today_kwh": {
+      "reg": 152,
+      "type": "u32",
+      "scale": 0.01,
+      "unit": "kWh",
+      "sign": "azzerato a mezzanotte",
+      "confidence": "high",
+      "evidence": "(152,153) = (1670,0) x0.01 = 16.70 kWh immessi oggi. La scala 0.01 (non 0.1) e' fissata dal bilancio del portale: 38.0 - 16.7 + 0.1 + 0 = 21.4 kWh = 'Daily consumption'.",
+      "publish": "energy.today.grid_export_kwh"
+    },
+    "grid_import_today_kwh": {
+      "reg": 154,
+      "type": "u32",
+      "scale": 0.01,
+      "unit": "kWh",
+      "sign": "azzerato a mezzanotte",
+      "confidence": "high",
+      "evidence": "(154,155) x0.01 = 0.10 -> 0.20 kWh prelevati oggi, uguale al portale. Vedi grid_export_today_kwh per la scala.",
+      "publish": "energy.today.grid_import_kwh"
+    },
+    "battery_max_charge_power_w": {
+      "reg": 162,
+      "type": "u32",
+      "scale": 1,
+      "unit": "W",
+      "sign": "sempre positivo",
+      "confidence": "high",
+      "evidence": "0 W con SOC 99%: il limite crolla a zero a batteria piena, in accordo con reg 36 = 0 A.",
+      "publish": "measured.battery_max_charge_power_w"
+    },
+    "battery_max_discharge_power_w": {
+      "reg": 164,
+      "type": "u32",
+      "scale": 1,
+      "unit": "W",
+      "sign": "sempre positivo",
+      "confidence": "high",
+      "evidence": "(164,165) = (7000,0) -> 7000 W di targa.",
+      "publish": "measured.battery_max_discharge_power_w"
+    },
+    "battery_temp_high_c": {
+      "reg": 186,
+      "type": "s16",
+      "scale": 0.1,
+      "unit": "C",
+      "sign": "negativo possibile",
+      "confidence": "high",
+      "evidence": "35.8 C: temperatura massima di CELLA letta dal BMS, non dell'inverter (quella e' reg 8). Ordinata con reg 24 (33 C, media pacco) e reg 187 (30.9 C, minima).",
+      "publish": "measured.battery_temp_high_c"
+    },
+    "battery_temp_low_c": {
+      "reg": 187,
+      "type": "s16",
+      "scale": 0.1,
+      "unit": "C",
+      "sign": "negativo possibile",
+      "confidence": "high",
+      "evidence": "30.9 C: temperatura minima di cella. Vedi battery_temp_high_c.",
+      "publish": "measured.battery_temp_low_c"
+    },
+    "battery_cell_voltage_max_v": {
+      "reg": 188,
+      "type": "u16",
+      "scale": 0.001,
+      "unit": "V",
+      "sign": "sempre positivo",
+      "confidence": "high",
+      "evidence": "3377 -> 3.377 V, dominio LFP (2.5-3.65 V). I5: pacco 421.1 V / 3.356 V medi = 125.5 celle in serie.",
+      "publish": "measured.battery_cell_voltage_max_v"
+    },
+    "battery_cell_voltage_min_v": {
+      "reg": 189,
+      "type": "u16",
+      "scale": 0.001,
+      "unit": "V",
+      "sign": "sempre positivo",
+      "confidence": "high",
+      "evidence": "3335 -> 3.335 V; delta cella 42 mV, spread normale.",
+      "publish": "measured.battery_cell_voltage_min_v"
+    },
+    "battery_soh_pct": {
+      "reg": 191,
+      "type": "u16",
+      "scale": 1,
+      "unit": "%",
+      "sign": "0-100",
+      "confidence": "high",
+      "evidence": "98% su un pacco con 1478.2 kWh di carica cumulata (~120 cicli equivalenti): degrado coerente.",
+      "publish": "measured.battery_soh_pct"
+    },
+    "_unknown_reg_12": {
+      "reg": 12,
+      "type": "u16",
+      "scale": 1,
+      "unit": "",
+      "sign": "ignoto",
+      "confidence": "unknown",
+      "evidence": "Vale 56, costante su tutte le letture. Nessun sensore SolaX documentato a questo indirizzo. Escluso dall'API.",
+      "publish": ""
+    },
+    "_unknown_reg_13": {
+      "reg": 13,
+      "type": "u16",
+      "scale": 1,
+      "unit": "",
+      "sign": "ignoto",
+      "confidence": "unknown",
+      "evidence": "Vale 2655, costante. Se fosse x0.1 sarebbe 265.5 V: compatibile con una soglia di protezione di sovratensione, ma non confermabile senza documentazione. Escluso dall'API.",
+      "publish": ""
+    },
+    "_unknown_reg_14": {
+      "reg": 14,
+      "type": "u16",
+      "scale": 1,
+      "unit": "",
+      "sign": "ignoto",
+      "confidence": "unknown",
+      "evidence": "Vale 2698, costante. Vedi _unknown_reg_13. Escluso dall'API.",
+      "publish": ""
+    },
+    "_unknown_reg_15": {
+      "reg": 15,
+      "type": "u16",
+      "scale": 1,
+      "unit": "",
+      "sign": "ignoto",
+      "confidence": "unknown",
+      "evidence": "Vale 7, costante. Escluso dall'API.",
+      "publish": ""
+    },
+    "_unknown_reg_16": {
+      "reg": 16,
+      "type": "u16",
+      "scale": 1,
+      "unit": "",
+      "sign": "ignoto",
+      "confidence": "unknown",
+      "evidence": "Vale 2544: sembra una tensione di rete x0.1 (254.4 V), vicina ma non uguale a reg 0 (243.0 V). Non e' nella mappa SolaX GEN4 e non e' distinguibile da una soglia. Escluso dall'API.",
+      "publish": ""
+    },
+    "_unknown_reg_17": {
+      "reg": 17,
+      "type": "u16",
+      "scale": 1,
+      "unit": "",
+      "sign": "ignoto",
+      "confidence": "unknown",
+      "evidence": "Vale 5001: sembra una frequenza x0.01 (50.01 Hz), vicina ma non uguale a reg 7 (49.95 Hz). Escluso dall'API.",
+      "publish": ""
+    },
+    "_unknown_reg_105": {
+      "reg": 105,
+      "type": "u16",
+      "scale": 1,
+      "unit": "",
+      "sign": "ignoto",
+      "confidence": "unknown",
+      "evidence": "Vale 4207. HA lo chiama 'battery_volt_fault_val' x0.1 (420.7 V), ma coincide quasi esattamente con la tensione di pacco (421.1 V) e non con una soglia di guasto: la semantica non regge. Escluso dall'API.",
+      "publish": ""
+    },
+    "_unknown_reg_146": {
+      "reg": 146,
+      "type": "u32",
+      "scale": 1,
+      "unit": "",
+      "sign": "ignoto",
+      "confidence": "unknown",
+      "evidence": "(146,147) = (12,0). HA lo mappa come 'e_charge_total' x0.1 = 1.2 kWh, incompatibile con i 1478.2 kWh di carica totale letti su (33,34). Escluso dall'API.",
+      "publish": ""
+    },
+    "_unknown_reg_288": {
+      "reg": 288,
+      "type": "u16",
+      "scale": 1,
+      "unit": "",
+      "sign": "ignoto",
+      "confidence": "unknown",
+      "evidence": "Vale 4, costante. Nessun sensore GEN4 documentato. Escluso dall'API.",
+      "publish": ""
+    },
+    "_unknown_reg_290": {
+      "reg": 290,
+      "type": "u16",
+      "scale": 1,
+      "unit": "",
+      "sign": "ignoto",
+      "confidence": "unknown",
+      "evidence": "Vale 1, costante. Nella mappa HA 290 e' pv_voltage_3 ma solo per GEN5/GEN6 e con reg 27 (mppt_count) = 2 la terza stringa non esiste. Escluso dall'API.",
+      "publish": ""
+    },
+    "_unavailable_grid_meter_voltage_v": {
+      "reg": 201,
+      "type": "u16",
+      "scale": 0.1,
+      "unit": "V",
+      "sign": "sempre positivo",
+      "confidence": "unknown",
+      "evidence": "Mappato da HA come tensione di rete lato contatore per GEN4, ma su questo impianto l'intero blocco 200-208 (frequenza, tensioni e correnti di fase del contatore) legge zero: il contatore collegato non popola quei registri. Escluso dall'API finche' non produce valori.",
+      "publish": ""
+    },
+    "_unavailable_pv_power_total_w": {
+      "reg": 50,
+      "type": "u32",
+      "scale": 1,
+      "unit": "W",
+      "sign": "sempre positivo",
+      "confidence": "unknown",
+      "evidence": "HA lo documenta per GEN4 come somma DC delle stringhe: sarebbe un controllo indipendente su reg10+reg11, ma legge zero su questo firmware. Escluso dall'API.",
+      "publish": ""
+    },
+    "_unavailable_ongrid_power_total_w": {
+      "reg": 52,
+      "type": "s32",
+      "scale": 1,
+      "unit": "W",
+      "sign": "positivo = uscita AC",
+      "confidence": "unknown",
+      "evidence": "HA lo documenta per GEN4 come potenza AC totale: sarebbe un controllo indipendente su reg 2, ma legge zero su questo firmware. Escluso dall'API.",
+      "publish": ""
+    },
+    "_unavailable_eps_power_total_w": {
+      "reg": 58,
+      "type": "u16",
+      "scale": 1,
+      "unit": "W",
+      "publish": false,
+      "confidence": "unknown",
+      "evidence": "Documentato da HA per GEN4 come potenza EPS totale. Su questo impianto legge sempre zero, coerentemente con reg 76/77/78 (tensione/corrente/potenza EPS) anch'essi a zero: l'uscita di backup non e' in uso. Escluso dall'API; diventerebbe verificabile solo durante un blackout reale."
+    },
+    "_unknown_reg_23": {
+      "reg": 23,
+      "type": "u16",
+      "scale": 1,
+      "unit": "",
+      "sign": "enum (0 = disconnesso, 1 = connesso)",
+      "confidence": "unknown",
+      "evidence": "Vale 1 costante. HA lo mappa come stato di connessione BMS ma il portale non espone nulla di confrontabile: senza una disconnessione osservata non e' distinguibile da un flag qualsiasi. Escluso dall'API.",
+      "publish": ""
+    },
+    "_unknown_reg_25": {
+      "reg": 25,
+      "type": "u16",
+      "scale": 1,
+      "unit": "",
+      "sign": "enum",
+      "confidence": "unknown",
+      "evidence": "Vale 2 costante. Nessun riscontro sul portale. Escluso dall'API.",
+      "publish": ""
+    },
+    "_unknown_reg_280": {
+      "reg": 280,
+      "type": "u32",
+      "scale": 1,
+      "unit": "Wh",
+      "sign": "sempre positivo",
+      "confidence": "unknown",
+      "evidence": "(280,281) = (120,0) e (282,283) = (11880,0): 120 + 11880 = 12000 Wh e 11880/12000 = 99% = reg 28. L'aritmetica torna, ma TUTTI i campioni disponibili sono a SOC 99%: con un solo punto la coincidenza non e' distinguibile dal caso, e la mappa HA colloca questi due valori a 278 e 280 (due registri prima). Servirebbe un campione a SOC diverso - es. le 3 di notte dopo una scarica - per scioglierlo. Escluso dall'API.",
+      "publish": ""
+    },
+    "_unknown_reg_282": {
+      "reg": 282,
+      "type": "u32",
+      "scale": 1,
+      "unit": "Wh",
+      "sign": "sempre positivo",
+      "confidence": "unknown",
+      "evidence": "Vedi battery_chargeable_wh: stessa evidenza, stesso limite (un solo SOC osservato). Escluso dall'API.",
+      "publish": ""
+    },
+    "_unknown_reg_19": {
+      "reg": 19,
+      "type": "u16",
+      "scale": 1,
+      "unit": "",
+      "sign": "ignoto",
+      "confidence": "unknown",
+      "evidence": "Vale 1, costante. HA lo chiama 'time_count_down' x0.001; nessun riscontro sul portale. Escluso dall'API.",
+      "publish": ""
+    },
+    "_unknown_reg_84": {
+      "reg": 84,
+      "type": "u16",
+      "scale": 1,
+      "unit": "",
+      "sign": "ignoto",
+      "confidence": "unknown",
+      "evidence": "Vale 2, costante. HA lo chiama 'lock_state'; non confermabile. Escluso dall'API.",
+      "publish": ""
+    },
+    "_unknown_reg_138": {
+      "reg": 138,
+      "type": "u32",
+      "scale": 0.1,
+      "unit": "",
+      "sign": "ignoto",
+      "confidence": "unknown",
+      "evidence": "(138,139) = (2420,0). HA lo chiama 'eps_mode_runtime' x0.1 = 242 ore in EPS, ma con 87.1 kWh erogati in EPS totali farebbe 360 W medi per 242 ore: possibile, non verificabile. Escluso dall'API.",
+      "publish": ""
+    },
+    "_unknown_reg_145": {
+      "reg": 145,
+      "type": "u16",
+      "scale": 1,
+      "unit": "",
+      "sign": "ignoto",
+      "confidence": "unknown",
+      "evidence": "Vale 0. HA lo chiama 'e_charge_today'; sarebbe pero' un doppione di reg 35 (8.4 kWh) e vale zero, quindi non e' quello. Escluso dall'API.",
+      "publish": ""
+    },
+    "grid_mode_runtime_h": {
+      "reg": 136,
+      "type": "u32",
+      "scale": 0.1,
+      "unit": "h",
+      "sign": "monotono non decrescente",
+      "confidence": "high",
+      "evidence": "(136,137) = (50679,0) -> 5067.9 ore in modalita' on-grid, e cresce di 1 unita' ogni ~6 minuti fra i campioni: e' un contatore di tempo, non una costante.",
+      "publish": "measured.grid_mode_runtime_h"
+    },
+    "eps_voltage_v": {
+      "reg": 76,
+      "type": "u16",
+      "scale": 0.1,
+      "unit": "V",
+      "sign": "sempre positivo",
+      "confidence": "medium",
+      "evidence": "0 su tutti i campioni, come il portale: l'uscita EPS e' inattiva finche' la rete c'e'. Scala presa dalla mappa HA, verificabile solo durante un blackout.",
+      "publish": "measured.eps_voltage_v"
+    },
+    "eps_current_a": {
+      "reg": 77,
+      "type": "u16",
+      "scale": 0.1,
+      "unit": "A",
+      "sign": "sempre positivo",
+      "confidence": "medium",
+      "evidence": "0 su tutti i campioni, come il portale: l'uscita EPS e' inattiva finche' la rete c'e'. Scala presa dalla mappa HA, verificabile solo durante un blackout.",
+      "publish": "measured.eps_current_a"
+    },
+    "eps_power_w": {
+      "reg": 78,
+      "type": "u16",
+      "scale": 1,
+      "unit": "W",
+      "sign": "sempre positivo",
+      "confidence": "medium",
+      "evidence": "0 su tutti i campioni, come il portale: l'uscita EPS e' inattiva finche' la rete c'e'. Scala presa dalla mappa HA, verificabile solo durante un blackout.",
+      "publish": "measured.eps_power_w"
     }
+  },
+  "run_mode_labels": {
+    "0": "Waiting",
+    "1": "Checking",
+    "2": "Normal",
+    "3": "Fault",
+    "4": "Permanent Fault",
+    "5": "Update",
+    "6": "Off-Grid Waiting",
+    "7": "Off-Grid",
+    "8": "Self Test",
+    "9": "Idle",
+    "10": "Standby",
+    "20": "Normal (R)",
+    "21": "TOU Self Use",
+    "22": "TOU Charging",
+    "23": "TOU Discharging",
+    "24": "TOU Battery Hold",
+    "25": "TOU Peak Shaving",
+    "26": "Normal (Gen)",
+    "27": "Waiting Charge",
+    "28": "Normal SS"
+  },
+  "plausibility": {
+    "battery_voltage_v": [
+      40,
+      600
+    ],
+    "daily_energy_kwh": [
+      0,
+      200
+    ],
+    "battery_percent": [
+      0,
+      100
+    ],
+    "grid_voltage_v": [
+      180,
+      270
+    ],
+    "inverter_voltage_v": [
+      180,
+      270
+    ],
+    "grid_frequency_hz": [
+      47,
+      53
+    ],
+    "inverter_temp_c": [
+      -20,
+      90
+    ],
+    "battery_soh_pct": [
+      50,
+      100
+    ],
+    "battery_temp_c": [
+      -30,
+      70
+    ],
+    "battery_temp_high_c": [
+      -30,
+      70
+    ],
+    "battery_temp_low_c": [
+      -30,
+      70
+    ],
+    "battery_cell_voltage_max_v": [
+      2.0,
+      4.0
+    ],
+    "battery_cell_voltage_min_v": [
+      2.0,
+      4.0
+    ],
+    "pv1_voltage_v": [
+      0,
+      600
+    ],
+    "pv2_voltage_v": [
+      0,
+      600
+    ],
+    "pv1_current_a": [
+      0,
+      40
+    ],
+    "pv2_current_a": [
+      0,
+      40
+    ],
+    "inverter_current_a": [
+      -100,
+      100
+    ],
+    "battery_current_a": [
+      -100,
+      100
+    ],
+    "bus_voltage_v": [
+      0,
+      900
+    ],
+    "solar_power_w": [
+      0,
+      30000
+    ],
+    "home_load_w": [
+      0,
+      30000
+    ],
+    "grid_flow_w": [
+      -30000,
+      30000
+    ],
+    "battery_power_w": [
+      -30000,
+      30000
+    ],
+    "inverter_power_w": [
+      0,
+      30000
+    ],
+    "inverter_power_signed_w": [
+      -30000,
+      30000
+    ],
+    "grid_feedin_power_w": [
+      -30000,
+      30000
+    ],
+    "pv1_power_w": [
+      0,
+      30000
+    ],
+    "pv2_power_w": [
+      0,
+      30000
+    ],
+    "battery_nominal_capacity_wh": [
+      1000,
+      100000
+    ],
+    "daily_consumption_kwh": [
+      0,
+      300
+    ],
+    "grid_mode_runtime_h": [
+      0,
+      200000
+    ]
+  },
+  "invariants": {
+    "i1_home_balance_w": 30,
+    "i1_home_balance_pct": 0.03,
+    "i2_efficiency_range": [
+      0.9,
+      0.99
+    ],
+    "i2_min_pv_w": 500,
+    "i3_tolerance_pct": 0.03,
+    "i3_min_power_w": 200,
+    "i5_tolerance_pct": 0.02,
+    "i5_cell_count_range": [
+      60,
+      200
+    ],
+    "i6_tolerance_pct": 0.05,
+    "i6_min_delta_kwh": 0.3,
+    "i6_counter_resolution_kwh": 0.1,
+    "i9_night_hours": [
+      23,
+      4
+    ],
+    "i9_max_pv_w": 20,
+    "i10_deadband_w": 100,
+    "i4_daily_efficiency_range": [
+      0.85,
+      1.0
+    ],
+    "i4_min_dc_kwh": 1.0,
+    "i11_consumption_range_kwh": [
+      0,
+      300
+    ],
+    "i12_total_ratio_range": [
+      0.1,
+      5.0
+    ],
+    "i2_efficiency_range_battery_active": [
+      0.8,
+      1.2
+    ],
+    "i2_battery_deadband_w": 50,
+    "i3_ac_pf_range": [
+      0.9,
+      1.05
+    ],
+    "_note_i2": "Con la batteria ferma il rendimento misurato su 34 campioni sta fra 0.913 e 0.924: la banda stretta [0.90, 0.99] regge e ha valore diagnostico. Con la batteria attiva reg 2 e reg 22 non sono campionati nello stesso istante, e in rampa il rapporto sfonda l'unita': 1.015 su una rampa lenta, 1.052 misurato su una rampa serale ripida. Da qui la banda larga [0.80, 1.20] quando |batteria| > 50 W. Non e' una resa: con una scala sbagliata di 10x il rapporto va a 0.17 o a 10, quindi il potere discriminante sugli errori di mappa resta intero. Cio' che si perde e' la capacita' di vedere scostamenti del 5%, che con due registri non simultanei non era comunque misurabile.",
+    "_note_i3": "Le correnti sono TRONCATE, non arrotondate: su 34 campioni V x I risulta sistematicamente piu' bassa di P (mediana -2.8% su PV1, -2.4% su PV2, minimo -6.5%), esattamente il segno e l'ampiezza attesi se la corrente vera sta in [I, I+0.1). Il test quindi non confronta V x I con P, ma verifica che P cada nella FASCIA [V*I, V*(I+LSB)] allargata della tolleranza. Sul lato AC il confronto e' diverso ancora: V x I e' potenza apparente e P attiva, quindi il rapporto e' il fattore di potenza (misurato 0.979-1.005).",
+    "i2_strikes_before_degraded": 2,
+    "_note_degraded": "Un invariante che fallisce su UN campione non porta /health a degraded: servono i2_strikes_before_degraded poll consecutivi. I valori fuori dominio fisico (watchdog di plausibilita') restano invece immediati, perche' li' non c'e' rumore di campionamento: 452 kWh prodotti in un giorno sono sbagliati subito."
+  }
 }

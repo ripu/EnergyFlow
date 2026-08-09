@@ -17,5 +17,9 @@
     },
     "server": {
         "port": 8003
+    },
+    "history": {
+        "enabled": true,
+        "retention_days": 90
     }
 }
