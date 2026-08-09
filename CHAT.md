@@ -6073,3 +6073,936 @@ The file /Users/ripu/Desktop/Antigravity/live-home/SODE.md has been updated succ
 ```
 The file /Users/ripu/Desktop/Antigravity/live-home/SODE.md has been updated successfully. (file state is current in your context — no need to Read it back)
 ```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home`
+
+### 👤 User
+
+```
+OK CHAT.md sovrascritto — 293606 char, 255 user / 482 assistant
+=== controllo che il tailnet non sia finito in CHAT.md ===
+  nome tailnet           ✅ assente
+  IP tailnet 100.x       ✅ assente
+  link login tailscale   ✅ assente
+✅ committato e pushato
+```
+
+### 🤖 claude-opus-5
+
+Fatto tutto. Riepilogo di questo giro.
+
+**Monitor.** A 90° usciva capovolto, quindi è tornato a 270° — ma la scoperta vera è un'altra: prima della mia modifica il monitor era su `normal`, cioè **orizzontale**, pur avendo un autostart che diceva 270. Il comando di rotazione partiva prima che l'uscita HDMI fosse pronta e falliva in silenzio. Ora l'autostart aspetta che l'uscita compaia, ruota, e **rilegge per confermare**, riprovando fino a 30 secondi. Verificato riavviando davvero la sessione: si mette da sola a 270.
+
+**Tailscale.** Hai completato il login: il Raspberry è di nuovo sul tailnet, e `tailscale serve` era già configurato — inoltra `/` verso `127.0.0.1:8003`, solo tailnet. Quindi l'opzione B è **completa sul lato Pi**. Per usarla ti manca solo installare Tailscale su Mac e telefono; l'indirizzo è `https://[REDACTED_DENYLIST].<tuo-tailnet>.ts.net`, e il nome esatto lo leggi con `tailscale status` (non lo scrivo qui, finirebbe su GitHub).
+
+**Il pannello a muro sta mostrando la dashboard nuova**: 264 punti al minuto di oggi e 229 giorni di archivio, letti dai suoi log.
+
+Ho anche irrobustito il sanitizzatore condiviso: ora redige i **nomi tailnet** e i **link di arruolamento Tailscale**, che comparivano in chiaro negli output di diagnostica. Verificato che nessuno dei tre sia finito in `CHAT.md`.
+
+Nel frattempo il tunnel SSH resta aperto, quindi **http://localhost:8003/** dal Mac funziona anche adesso, senza aspettare Tailscale.
+
+---
+
+**In sospeso:**
+
+1. Installa Tailscale su Mac e telefono quando puoi — è l'ultimo passo per l'opzione B
+2. Un agent sta ancora scaricando il dettaglio a 5 minuti degli ultimi 90 giorni
+3. Domani correggo il riepilogo del 9 agosto, che stanotte verrà scritto parziale
+4. Il ticket a GitHub Support per le viste in cache resta da aprire a te
+
+### 👤 User
+
+1 già c'è
+4 non importa
+
+### 🤖 claude-opus-5
+
+Se Tailscale c'è già sul Mac, allora la strada dovrebbe essere aperta — prima il comando `tailscale` non era nel PATH, ma l'app di macOS lo tiene dentro il bundle, quindi il mio controllo era fuorviante. Verifico davvero.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `TS="/Applications/Tailscale.app/Contents/MacOS/Tailscale"`
+
+### 👤 User
+
+```
+CLI trovata nel bundle dell'app
+[REDACTED_IP]    macbook-air-di-riccardo  [REDACTED_DENYLIST]@  macOS    -                                                        
+[REDACTED_IP]   airtag                   [REDACTED_DENYLIST]@  linux    -                                                        
+=== la dashboard risponde via tailnet? ===
+  https://<host-tailnet>/health -> 200
+  health: ok v2.0.0 · poller True
+```
+
+### 🤖 claude-opus-5
+
+Confermato: la dashboard risponde **via tailnet in HTTPS**, v2.0.0. Quindi il tunnel SSH non serve più, lo chiudo.
+
+Ed è passata mezzanotte: il rollup che avevo previsto è scattato. Controllo com'è venuto il 9 agosto.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `pkill -f "ssh -f -N -L 8003" 2>/dev/null; sleep 1`
+
+### 👤 User
+
+```
+✅ tunnel chiuso (ora si passa dal tailnet)
+=== rollup di stanotte sul Pi ===
+  ultime righe di daily.csv:
+    2026-08-06,41.9,24,0.4,18.3,7.4,8.6,,
+    2026-08-07,46.7,25.9,0.4,15.6,11.1,6.6,,
+    2026-08-08,46.8,20.8,0.3,22.5,7.7,5.4,,
+  file al minuto presenti:
+    2026-08-09.csv
+    daily.csv
+  righe nel file di ieri: 269
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `ssh [REDACTED_DENYLIST] 'date "+  ora sul Pi: %H:%M:%S del %d/%m"; echo "  primo/ultimo minuto di ieri: $(head -2 ~/EnergyFlow/log/`
+
+### 🤖 claude-opus-5
+
+> 🔧 **ListAgents** {}
+
+### 👤 User
+
+```
+ora sul Pi: 00:00:41 del 10/08
+  primo/ultimo minuto di ieri: 19:25 → 23:59
+=== agent del dettaglio 5 minuti ===
+```
+
+### 👤 User
+
+```
+Subagents (1):
+  a4de97695187ba65c  ·  general-purpose  ·  running  ·  started 19m ago
+
+Peer sessions (1):
+  insta-14 [312052]  ·  interactive  ·  started 16s ago
+```
+
+### 🤖 claude-opus-5
+
+Tempismo stretto: sul Pi sono le **00:00:41**, e il rollup scatta alle 00:05. Il file di ieri copre 19:25→23:59, cioè **269 minuti su 1440** — mancano le prime 19 ore, quelle in cui il sistema nuovo non era ancora installato.
+
+Fra quattro minuti verrà quindi scritta in `daily.csv` una riga per il 9 agosto con la produzione giusta (viene dal contatore dell'inverter, 45,4 kWh) ma consumi e scambi calcolati solo sulla serata. E `daily.csv` non si cancella mai.
+
+Non provo a batterlo sul tempo: l'agent che sta scaricando il dettaglio dal portale ha proprio il 9 agosto come priorità, e il portale ha la giornata intera. Appena consegna, sostituisco quella singola riga con i valori veri e te lo dico. È una correzione mirata su una riga, non un rifacimento.
+
+Nel frattempo, con Tailscale già installato: **il tunnel SSH l'ho chiuso**, la dashboard risponde in HTTPS via tailnet (verificato, 200 e v2.0.0). Dal Mac e dal telefono ora ci arrivi direttamente, anche fuori casa.
+
+---
+
+**In sospeso:**
+
+1. Correzione della riga del 9 agosto — appena l'agent consegna i dati del portale
+2. L'agent sta ancora scaricando il dettaglio a 5 minuti degli ultimi 90 giorni
+
+### 👤 User
+
+l'app energy bar che abbiamo fatto come .app non funzionerà più
+
+### 🤖 claude-opus-5
+
+Vero, e ci sono **due** motivi, non uno. Il primo lo sapevo: `/data` ora richiede il token, e il sorgente Swift l'ho aggiornato ma il `.app` compilato sul tuo Mac è ancora quello vecchio. Il secondo me l'hai fatto notare tu adesso: puntava a `127.0.0.1:8003`, che era il mio server di prova — l'ho spento, e il tunnel l'ho chiuso. Quindi oggi non ha nemmeno un interlocutore.
+
+Lo sistemo: token, e indirizzo configurabile così può parlare col Raspberry via tailnet.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home/macos-widget`
+
+### 👤 User
+
+```
+=== toolchain ===
+swift-driver version: [REDACTED_IP] Apple Swift version 6.2.1 (swiftlang-[REDACTED_IP].8 clang-1700.4.4.1)
+=== app presente sul disco? ===
+drwxr-xr-x@ 6 ripu  staff     192 Jan  7  2026 ..
+-rwxr-xr-x@ 1 ripu  staff  191848 Jan 16  2026 EnergyBar
+=== gira adesso? ===
+=== come costruisce l'URL oggi ===
+5:let API_URL = "http://127.0.0.1:8003/data"
+200:        guard let url = URL(string: API_URL) else { return }
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Edit** `/Users/ripu/Desktop/Antigravity/live-home/macos-widget/EnergyBar.swift` — `// MARK: - Config let API_URL = "http://127.0.0.1:8003/data"…`
+
+### 👤 User
+
+```
+The file /Users/ripu/Desktop/Antigravity/live-home/macos-widget/EnergyBar.swift has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `mkdir -p ~/.config/energyflow && chmod 700 ~/.config/energyflow`
+
+### 👤 User
+
+```
+✅ token salvato in ~/.config/energyflow/token (44 byte)
+✅ url salvato in ~/.config/energyflow/url (host tailnet, non stampato)
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home/macos-widget`
+
+### 👤 User
+
+```
+binario vecchio salvato in /tmp
+✅ compilato: 135K
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home/macos-widget`
+
+### 👤 User
+
+```
+=== il binario nuovo raggiunge il Raspberry? (prova la stessa strada che usa lui) ===
+  ✅ https://<host-tailnet>/data risponde
+     solare 6W · casa 490W · batteria 46%
+=== avvio l'app ===
+✅ EnergyBar in esecuzione (guarda la barra dei menu)
+```
+
+### 🤖 claude-opus-5
+
+L'app è ripartita e legge dal Raspberry via tailnet: **solare 6 W, casa 490 W, batteria 46%**. Guarda la barra dei menu.
+
+Allineo anche il widget Übersicht, che ha lo stesso problema.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Edit** `/Users/ripu/Desktop/Antigravity/live-home/macos-widget/EnergyFlow.widget/index.jsx` — `export const command =   "T=$(cat ~/.config/energyflow/token…`
+
+### 👤 User
+
+```
+The file /Users/ripu/Desktop/Antigravity/live-home/macos-widget/EnergyFlow.widget/index.jsx has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home`
+
+### 👤 User
+
+```
+EnergyFlowWidget.swift: indirizzo reso configurabile
+✅ committato e pushato
+```
+
+### 🤖 claude-opus-5
+
+Report importante, e dentro c'è **un bug vero** che vale più dei dati: il rollup conta l'energia **per riga** assumendo una riga = un minuto, ma il poller ne scrive circa due al minuto. Ogni giornata raccolta dal vivo verrebbe contata quasi il doppio. Verifico sul Pi e sul codice.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `ssh [REDACTED_DENYLIST] 'date "+  ora: %H:%M"; cd ~/EnergyFlow`
+
+### 👤 User
+
+```
+ora: 00:29
+  righe daily.csv: 231
+  ultima riga: 2026-08-09,45.4,3.98,0.01,0.01,0.0,3.8,89,48
+  file di ieri: 269 righe
+  minuti distinti in quel file: 268
+  servizio: active
+```
+
+### 🤖 claude-opus-5
+
+Il rollup parziale è stato scritto: `2026-08-09` con **3,98 kWh** di consumo, quando la giornata vera ne fa ~21. Da correggere.
+
+Ma sul bug del doppio conteggio i conti non tornano: il file del Pi ha **269 righe su 268 minuti distinti**, cioè una riga al minuto. Verifico l'aritmetica invece di credere a uno dei due.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `ssh [REDACTED_DENYLIST] 'cd ~/EnergyFlow && ./venv/bin/python3 - <<PY`
+
+### 👤 User
+
+```
+righe: 268 · minuti distinti: 268 · minuti duplicati: 0
+  home integrata PER RIGA   : 3.98 kWh   <- e quanto ha scritto il rollup
+  home integrata PER MINUTO : 3.98 kWh
+  scarto: 0.0%
+```
+
+### 🤖 claude-opus-5
+
+Verificato, e **il bug non c'è in produzione**: sul Raspberry zero minuti duplicati, e l'integrale per riga coincide esattamente con quello per minuto (3,98 kWh entrambi). Il doppio conteggio che l'agent ha visto era un artefatto delle nostre prove — due server che scrivevano lo stesso file. Resta però una fragilità reale, e la chiudo con una riga.
+
+Rispondo intanto alla tua domanda: **sì, EnergyBar funziona anche fuori casa.** L'ho configurata sull'indirizzo tailnet in HTTPS, non su un IP locale. L'unica condizione è che **Tailscale sia connesso sul Mac** — non serve essere sulla stessa wifi, ma se disattivi Tailscale l'app non ha più modo di raggiungere il Raspberry.
+
+Ora applico i 90 giorni di dettaglio e correggo il 9 agosto.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `ssh [REDACTED_DENYLIST] 'cp -a ~/EnergyFlow/log/energy /tmp/energy-backup-$(date +%s) && echo "  ✅ backup log/energy sul Pi"'`
+
+### 👤 User
+
+```
+✅ backup log/energy sul Pi
+  ✅ backup log/energy sul Mac
+=== prova a vuoto ===
+nuovi da inserire       : 1
+gia' importati, aggiorn.: 89
+TENUTO LOCALE (vince)   : 0 
+peak_pv_w / min_soc     : valorizzati su 90 giorni (quelli con i campioni a 5 min), vuoti sugli altri 140
+file al minuto          : 89 da scrivere, 1 tenuti locali
+
+DRY-RUN: non ho scritto niente. Rilancia con --apply.
+Shell cwd was reset to /Users/ripu/Desktop/Antigravity/live-home
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /private/tmp/claude-501/-Users-ripu-Desktop-Antigravity-live-home/25b3c59a-5b70-4ef1-9b01-9af43330c131/scratchpad/sto`
+
+### 👤 User
+
+```
+scritto /Users/ripu/Desktop/Antigravity/live-home/log/energy/daily.csv (230 giorni)
+scritti 89 file al minuto
+aggiornata provenienza in /Users/ripu/Desktop/Antigravity/live-home/log/energy/.portal-import.json
+  ✅ 2026-08-09 sostituito con la versione cucita
+=== esito sul Mac ===
+  file al minuto: 90
+  daily.csv:      231 righe
+  riga del 9 agosto: 2026-08-09,45.4,27.3,0.2,16.8,8.4,8,5885,38
+  minuti nel 9 agosto:     1437
+  occupazione: 3.8M
+Shell cwd was reset to /Users/ripu/Desktop/Antigravity/live-home
+```
+
+### 🤖 claude-opus-5
+
+La riga del 9 agosto ora dice **27,3 kWh** di consumo invece di 3,98, con export 16,8 e import 0,2 — che coincidono esattamente con quanto l'inverter stesso riportava ieri sera. Sincronizzo sul Raspberry, escludendo il file di oggi che è in scrittura.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home`
+
+### 👤 User
+
+```
+✅ sincronizzato
+  file al minuto sul Pi: 91
+  daily.csv: 231 righe
+  9 agosto: 2026-08-09,45.4,27.3,0.2,16.8,8.4,8,5885,38
+  oggi (in scrittura): 31 righe
+  occupazione: 3.8M
+```
+
+### 🤖 claude-opus-5
+
+Sincronizzato: 91 file al minuto sul Pi, `daily.csv` con la riga corretta, e il file di oggi intatto. Ora chiudo la fragilità del rollup.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home`
+
+### 👤 User
+
+```
+1552:def history_rollup_day(day: date, force: bool = False) -> Optional[Dict]:
+1553-    """
+1554-    Comprime un giorno di righe al minuto in una riga di daily.csv.
+1555-
+1556-    L'integrazione è una somma semplice perché ogni riga È GIÀ la media del suo
+1557-    minuto: energia = media_W × (1/60) h. I minuti mancanti (Raspberry spento,
+1558-    inverter irraggiungibile) semplicemente non contribuiscono — non si
+1559-    interpola sopra un buco, perché l'energia consumata mentre il sistema era
+1560-    spento non la sa nessuno e inventarla renderebbe il bilancio una bugia
+1561-    plausibile.
+1562-
+1563-    pv_kwh fa eccezione: è il contatore dell'inverter, quindi si prende il suo
+1564-    valore massimo del giorno (esatto) e si ripiega sull'integrazione solo se
+1565-    la colonna manca.
+1566-    """
+1567-    rows = _history_read_minutes(day)
+1568-    if not rows:
+1569-        return None
+1570-
+1571-    existing = _history_read_daily()
+1572-    key = day.isoformat()
+1573-    if key in existing and not force:
+1574-        return existing[key]
+1575-
+1576-    home_wh = imp_wh = exp_wh = chg_wh = dis_wh = pv_wh = 0.0
+1577-    peak_pv = 0.0
+1578-    min_soc = None
+1579-    pv_counter = None
+1580-    for p in rows:
+1581-        pv_wh += p["pv"] / 60.0
+1582-        home_wh += p["home"] / 60.0
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home`
+
+### 👤 User
+
+```
+1450:def _history_read_minutes(day: date) -> List[Dict]:
+1451-    """
+1452-    Legge un file al minuto. Le righe malformate si SALTANO invece di far
+1453-    fallire la richiesta: uno stacco di corrente a metà append lascia in coda
+1454-    una riga tronca, e un giorno intero di storico non deve sparire per gli
+1455-    ultimi 12 byte.
+1456-    """
+1457-    path = _history_day_path(day)
+1458-    out: List[Dict] = []
+1459-    try:
+1460-        with open(path, "r", encoding="utf-8", newline="") as f:
+1461-            for row in csv.reader(f):
+1462-                if not row or row[0] == "ts":
+1463-                    continue
+1464-                try:
+1465-                    hh, mm = row[0].split(":")
+1466-                    point = {
+1467-                        "t": int(hh) * 60 + int(mm),
+1468-                        "pv": float(row[1]),
+1469-                        "home": float(row[2]),
+1470-                        "grid": float(row[3]),
+1471-                        "batt": float(row[4]),
+1472-                        "soc": float(row[5]),
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home; sed -n '1472,1500p' invert.py`
+
+### 👤 User
+
+```
+"soc": float(row[5]),
+                    }
+                    point["pv_kwh"] = float(row[6]) if len(row) > 6 and row[6] != "" else None
+                except (ValueError, IndexError):
+                    continue
+                out.append(point)
+    except FileNotFoundError:
+        return []
+    except OSError as exc:
+        log(f"⚠️ Storico: lettura di {os.path.basename(path)} fallita: {exc}")
+        return []
+
+    # Un minuto, una riga. Il duplicato non è teorico: basta una seconda
+    # istanza avviata a mano sulla stessa cartella (un `--port 8010` di prova
+    # accanto al service) perché due processi appendano lo stesso minuto. Senza
+    # questo collasso il grafico raddoppierebbe i punti e — molto peggio — il
+    # rollup conterebbe due volte l'energia di quei minuti. Vince l'ultima
+    # riga scritta, che è quella del processo che sta ancora girando.
+    unici: Dict[int, Dict] = {}
+    for point in out:
+        unici[point["t"]] = point
+    return [unici[t] for t in sorted(unici)]
+
+
+def _history_downsample(points: List[Dict], max_points: int = HISTORY_MAX_POINTS) -> Tuple[List[Dict], int]:
+    """
+    Media a blocchi fino a scendere sotto `max_points`. Media e non
+    decimazione: buttare via 4 punti su 5 farebbe sparire i picchi, mentre qui
+    il picco resta dentro la media del blocco. Il fattore usato viene dichiarato
+```
+
+### 🤖 claude-opus-5
+
+Verificato leggendo il codice invece di fidarmi del report: **il bug non esiste.** La deduplicazione per minuto c'è già, una funzione più su — `history_rollup_day` legge tramite `_history_read_minutes`, che collassa i minuti duplicati proprio con questa motivazione scritta nel commento. L'agent ha guardato il file grezzo, non il percorso del codice.
+
+Verifica finale sul pannello.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home`
+
+### 👤 User
+
+```
+=== git ===
+  (vuoto = pulito)
+=== storico servito dal Pi ===
+  giorni aggregati: 230
+  produzione totale archiviata: 5099 kWh
+  giorni con picco e SOC minimo: 90
+  --- un giorno di maggio, dettaglio al minuto ---
+  2026-06-15: 288 punti (da 1436 righe, fattore 5)
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **TodoWrite** {"todos": [{"content": "Sicurezza backend: auth, loopback, allow-list, CSP severa", "status": "completed", "activeForm": "Mettendo in sicurezza"}, {"content": "Mappa registri verificata contro il port
+
+### 👤 User
+
+```
+Todos have been modified successfully. Ensure that you continue to use the todo list to track your progress. Please proceed with the current tasks if applicable
+```
+
+### 🤖 claude-opus-5
+
+**Sì, EnergyBar funziona fuori casa.** Punta all'indirizzo tailnet in HTTPS, non a un IP locale, quindi legge dal Raspberry ovunque tu sia. L'unica condizione è che **Tailscale sia connesso sul Mac**: non serve la stessa wifi, ma se lo disattivi l'app non ha più strada. Vale anche per il widget Übersicht, che ho allineato.
+
+Lo storico è completo e chiude il cerchio:
+
+| | |
+|---|---|
+| giorni archiviati | **230** |
+| produzione totale | **5099 kWh** — il portale dichiara 5099,47 |
+| giorni con dettaglio al minuto | **90** (il resto degli 8 mesi sta come riepilogo) |
+| 9 agosto | corretto: **27,3 kWh** di consumo invece dei 3,98 del rollup parziale |
+
+Il 9 agosto è "cucito": i minuti veri raccolti dal vivo dalle 19:25, e la mattina riempita dal portale. Export 16,8 e import 0,2 coincidono con quanto l'inverter stesso riportava ieri sera — due fonti indipendenti che tornano.
+
+Una cosa che vale la pena raccontare, perché è il secondo caso oggi. L'agent ha segnalato un bug grave: il rollup conterebbe l'energia **per riga** mentre il poller ne scrive due al minuto, quindi ogni giornata risulterebbe quasi doppia. Ho verificato prima di correre a correggere, e **il bug non c'è**: la deduplicazione per minuto esiste già una funzione più su, con tanto di commento che spiega esattamente questo scenario. L'agent aveva guardato il file grezzo, non il percorso del codice. Il doppio conteggio che vedeva era un artefatto delle nostre prove — due server che scrivevano lo stesso file.
+
+Ho controllato l'aritmetica sul Raspberry: zero minuti duplicati, integrale per riga e per minuto identici al centesimo.
+
+Working tree pulito, tutto committato e pushato. Il download nativo in `.xlsx` si è rivelato la scelta giusta: 90 giorni su 90, zero fallimenti, contro il 13% di righe perse dello scraping.
+
+### 👤 User
+
+nello storico con la visuale a giorno non si può vedere la batteria?
+
+### 👤 User
+
+[Image: original 3420x1790, displayed at 2000x1047. Multiply coordinates by 1.71 to map to original image.]
+
+### 🤖 claude-opus-5
+
+Giusto: «Andamento di oggi» ha la striscia della carica batteria sotto il grafico, lo Storico in vista Giorno no — pur avendo il dato `soc` in ogni riga dei file al minuto. Guardo come sono disegnati i due.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home`
+
+### 👤 User
+
+```
+=== chi disegna la striscia SOC ===
+--- funzioni esportate da charts.js ---
+1042:    EF.charts = {
+--- chi le chiama in app.js ---
+914:        EF.charts.renderDay(EF.el("dayChart"), S.samples, { emptyDetail: detail });
+1602:            EF.charts.renderDay(el.chart, pts);
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home`
+
+### 👤 User
+
+```
+EF.charts = {
+        renderDay: renderDay,
+        renderSoc: renderSoc,
+        renderEnergy: renderEnergy,
+        renderMeters: renderMeters,
+        renderColumns: renderColumns,
+        renderFlows: renderFlows,
+        empty: empty
+    };
+})();
+=== firma di renderDay ===
+112:    function renderDay(host, points, opts) {
+1043:        renderDay: renderDay,
+=== dove nasce la striscia SOC ===
+static/charts.js:366:        lbl.textContent = "Carica batteria";
+```
+
+### 🤖 claude-opus-5
+
+Due cose. Parto da quella che si vede sul muro: è la barra di traduzione di Chromium: il flag nell'autostart usa il nome vecchio della funzionalità.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `ssh [REDACTED_DENYLIST] 'chromium --version 2>/dev/null; echo "  lingua sistema: $LANG"; pgrep -a chromium | head -1 | tr " " "\n" `
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home; sed -n '905,920p' static/app.js; echo "--- storico ---"; sed -n '1594,1612`
+
+### 👤 User
+
+```
+Chromium 142.0.7444.175 built on Debian GNU/Linux 13 (trixie)
+  lingua sistema: en_GB.UTF-8
+  --disable-features=TranslateUI
+```
+
+### 👤 User
+
+```
+consolidare. Due situazioni diverse, due attese diverse. */
+        var detail = null;
+        if (S.samples.length < 2) {
+            detail = S.historyAvailable
+                ? "Il server tiene un punto al minuto: la prima riga del giorno arriva entro un minuto."
+                : "La curva si costruisce mentre la pagina resta aperta: un punto al minuto.";
+        }
+
+        var today = todayEnergyModel();
+        EF.charts.renderDay(EF.el("dayChart"), S.samples, { emptyDetail: detail });
+        EF.charts.renderSoc(EF.el("socChart"), S.samples);
+        EF.charts.renderEnergy(EF.el("energyBars"), today);
+        EF.charts.renderMeters(EF.el("meters"), today ? today.indices : null);
+        renderHistory(force === true);
+    }
+
+--- storico ---
+        histSig = sig;
+
+        // 1. Dettaglio al minuto: la curva, come sempre.
+        if (pts.length > 1) {
+            setLegend([
+                { label: "Solare", role: "solar", line: true },
+                { label: "Casa", role: "home", line: true }
+            ]);
+            EF.charts.renderDay(el.chart, pts);
+            show(el.flows, false);
+            show(el.summary, false);
+            show(el.facts, false);
+            setNote(el.note, "Dettaglio al minuto" +
+                (S.histResolutionS > 60 ? " (medie a " + Math.round(S.histResolutionS / 60) + " minuti)" : "") +
+                " · " + pts.length + " punti registrati dal pannello di casa.");
+            describeCurve(iso, pts);
+            return;
+       
+…[troncato, +2 char]
+```
+
+### 🤖 claude-opus-5
+
+Chromium 142 (il flag `TranslateUI` è il nome vecchio) e sistema in `en_GB`, quindi vede una pagina italiana e propone di tradurla. Correggo entrambe le cause.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Edit** `/Users/ripu/Desktop/Antigravity/live-home/deploy/labwc-autostart` — `( sleep 3; exec chromium \     --kiosk \     --password-stor…`
+
+### 👤 User
+
+```
+The file /Users/ripu/Desktop/Antigravity/live-home/deploy/labwc-autostart has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home`
+
+### 👤 User
+
+```
+=== struttura del pannello storico in index.html ===
+2:302-                    <button class="tab" type="button" role="tab" id="histTabWeek" data-period="week"
+4:304-                    <button class="tab" type="button" role="tab" id="histTabMonth" data-period="month"
+6:306-                    <button class="tab" type="button" role="tab" id="histTabYear" data-period="year"
+8:308-                </div>
+16:316-                    <button class="btn" id="histPrev" type="button">
+18:318-                        <span class="hist-nav__word" id="histPrevLabel">Settimana</span>
+22:322-                    <span class="metric__label tnum" id="histDate">—</span>
+23:323-                    <button class="btn" id="histNext" type="button">
+24:324-                        <span class="hist-nav__word" id="histNextLabel">Settimana</span>
+27:332:            <div class="hist-panel" id="histPanel" role="tabpanel" aria-labelledby="histTabWeek">
+30:335-                <div class="chart-wrap" id="historyChart"></div>
+35:340-                <div class="chart-wrap" id="historyFlows" hidden></div>
+37:342-                <p class="hist-note" id="histNote" hidden></p>
+42:347-                <div class="hist-summary" id="histSummary" hidden>
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home; sed -n '333,343p' index.html; echo "--- come è fatto il socChart di 'oggi'`
+
+### 👤 User
+
+```
+<!-- Riquadro principale: curva al minuto (vista giorno) oppure
+                     colonne per giorno/mese (settimana, mese, anno). -->
+                <div class="chart-wrap" id="historyChart"></div>
+
+                <!-- Striscia separata per gli scambi, STESSO asse x e stessa
+                     scala di kWh del riquadro sopra. Mai un secondo asse y
+                     nello stesso riquadro. -->
+                <div class="chart-wrap" id="historyFlows" hidden></div>
+
+                <p class="hist-note" id="histNote" hidden></p>
+
+--- come è fatto il socChart di 'oggi' ---
+245-                 sullo stesso riquadro: l'allineamento fra due scale è
+246-                 arbitrario e inventa correlazioni che nei dati non ci sono. -->
+247:            <div class="chart-wrap" id="socChart"></div>
+248-        </section>
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Edit** `/Users/ripu/Desktop/Antigravity/live-home/index.html` — `                <!-- Striscia separata per gli scambi, STESS…`
+
+### 👤 User
+
+```
+The file /Users/ripu/Desktop/Antigravity/live-home/index.html has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home`
+
+### 👤 User
+
+```
+=== come app.js raccoglie gli elementi del pannello storico ===
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home`
+
+### 👤 User
+
+```
+1471:            chart: EF.el("historyChart"),
+1472:            flows: EF.el("historyFlows"),
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home; sed -n '1465,1482p' static/app.js`
+
+### 👤 User
+
+```
+RESA DELLA SEZIONE
+       ================================================================== */
+    var histSig = null;   // firma dell'ultima resa: evita il ridisegno inutile
+
+    function histEls() {
+        return {
+            chart: EF.el("historyChart"),
+            flows: EF.el("historyFlows"),
+            note: EF.el("histNote"),
+            summary: EF.el("histSummary"),
+            bars: EF.el("histBars"),
+            meters: EF.el("histMeters"),
+            facts: EF.el("histFacts"),
+            legend: EF.el("histLegend")
+        };
+    }
+
+    function renderHistory(force) {
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Edit** `/Users/ripu/Desktop/Antigravity/live-home/static/app.js` — `            chart: EF.el("historyChart"),             flows:…`
+
+### 👤 User
+
+```
+The file /Users/ripu/Desktop/Antigravity/live-home/static/app.js has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Edit** `/Users/ripu/Desktop/Antigravity/live-home/static/app.js` — `            EF.charts.renderDay(el.chart, pts);             …`
+
+### 👤 User
+
+```
+The file /Users/ripu/Desktop/Antigravity/live-home/static/app.js has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+### 🤖 claude-opus-5
+
+Ora devo nasconderla nelle altre viste, altrimenti resterebbe appesa passando a Settimana o Mese.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home; grep -n "show(el.flows" static/app.js`
+
+### 👤 User
+
+```
+1612:            show(el.flows, false);
+1632:            show(el.flows, false);
+1649:        show(el.flows, false);
+1725:        show(el.flows, true);
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home`
+
+### 👤 User
+
+```
+--- riga 1632 ---
+            ]);
+            EF.charts.empty(el.chart, "Riepilogo del " + iso,
+                detailMissingReason(iso, isToday), "info");
+            show(el.flows, false);
+            EF.charts.renderEnergy(el.bars, model);
+--- riga 1649 ---
+
+        // 3. Qui davvero non c'è niente — ed è l'unico caso in cui si dice.
+        setLegend([]);
+        show(el.flows, false);
+        show(el.summary, false);
+--- riga 1725 ---
+        EF.charts.renderFlows(el.flows, bands, {
+            ariaLabel: "Energia presa e data, per " + unit + " — " + rangeLabel(period, range)
+        });
+        show(el.flows, true);
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home`
+
+### 👤 User
+
+```
+3/3 rami aggiornati
+  ✅ app.js sintatticamente valido
+  chiamate a show(el.soc): 4 (attese 4)
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home`
+
+### 👤 User
+
+```
+✅ frontend aggiornato sul Pi
+  ✅ autostart aggiornato
+  sessione kiosk riavviata, attendo chromium...
+  rotazione: Transform: 270
+  chromium: 9 processi
+  flag: --lang=it-IT
+  flag: --disable-translate
+  flag: --disable-features=Translate,TranslateUI
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /private/tmp/claude-501/-Users-ripu-Desktop-Antigravity-live-home/25b3c59a-5b70-4ef1-9b01-9af43330c131/scratchpad/pw`
+
+### 👤 User
+
+```
+giorno  striscia batteria visibile=true · svg=1
+  mese    striscia batteria visibile=false · svg=0
+  errori JS: nessuno
+Shell cwd was reset to /Users/ripu/Desktop/Antigravity/live-home
+```
+
+### 🤖 claude-opus-5
+
+La striscia della batteria ora c'è nella vista Giorno e sparisce in Mese, senza errori. Torno alla traduzione: i flag non bastano su Chromium 142, serve la via che non dipende dai flag — una **policy di sistema**.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `ssh [REDACTED_DENYLIST] 'set -e`
+
+### 👤 User
+
+```
+policy scritta:
+{
+  "TranslateEnabled": false,
+  "SpellcheckEnabled": false,
+  profilo chromium: /home/pi/.config/chromium/Default
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `ssh [REDACTED_DENYLIST] 'set -e`
+
+### 👤 User
+
+```
+sessione riavviata, attendo chromium...
+  chromium: 0 processi
+  translate.enabled: None
+  accept_languages : None
+```
+
+### 🤖 claude-opus-5
+
+Due cose non tornano: chromium risulta a zero processi e le preferenze non sono state scritte. Guardo davvero cosa è successo invece di ritentare alla cieca.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `sleep 20; ssh [REDACTED_DENYLIST] 'echo "  chromium: $(pgrep -c chromium) processi"`
+
+### 👤 User
+
+```
+chromium: 0 processi
+  lightdm: active · labwc: 1
+=== il profilo esiste? ===
+   25279 byte, Aug 10 00:39
+=== la policy viene letta? ===
+  total 4
+  -rw-r--r-- 1 root root 208 Aug 10 00:39 energyflow.json
+=== errori nel journal della sessione ===
+  Aug 10 00:39:11 [REDACTED_DENYLIST] sudo[19088]:       pi : PWD=/home/pi ; USER=root ; COMMAND=/usr/bin/mkdir -p /etc/chromium/policies/managed
+  Aug 10 00:39:11 [REDACTED_DENYLIST] sudo[19091]:       pi : PWD=/home/pi ; USER=root ; COMMAND=/usr/bin/tee /etc/chromium/policies/managed/energyflow.j
+  Aug 10 00:39:11 [REDACTED_DENYLIST] sudo[19094]:       pi : PWD=/home/pi ; USER=root ; COMMAND=/usr/bin/cat /etc/chromium/policies/managed/energyflow.j
+  Aug 10 00:39:27 [REDACTED_DENYLIST] systemd[1170]: app-org.chromium.Chromium-18760.scope: Consumed 11.593s CPU time.
+```
+
+### 🤖 claude-opus-5
+
+Ecco cos'è successo: lo script si è interrotto a metà (`set -e` più un heredoc annidato dentro ssh che è fallito), quindi ho ucciso chromium e **il riavvio della sessione non è mai partito**. Il pannello è rimasto senza browser per colpa mia. Rimedio subito.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `ssh [REDACTED_DENYLIST] 'sudo systemctl restart lightdm; echo "  sessione riavviata"'`
+
+### 👤 User
+
+```
+sessione riavviata
+  chromium: 9 processi
+  rotazione: Transform: 270
+  la dashboard risponde: 200
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `ssh [REDACTED_DENYLIST] 'python3 - <<PY`
+
+### 👤 User
+
+```
+translate.enabled : None
+  accept_languages  : None
+  policy applicata  : n/d nel profilo
+=== la policy è valida per chromium? ===
+  JSON valido: True
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home`

@@ -334,6 +334,13 @@
                      colonne per giorno/mese (settimana, mese, anno). -->
                 <div class="chart-wrap" id="historyChart"></div>
 
+                <!-- Carica batteria del giorno mostrato: stessa striscia che
+                     accompagna «Andamento di oggi», stesso asse x del riquadro
+                     sopra. Visibile solo in vista Giorno, dove esiste il dato al
+                     minuto; nelle viste aggregate il SOC di un intero mese non
+                     avrebbe un asse temporale comune. -->
+                <div class="chart-wrap" id="historySoc" hidden></div>
+
                 <!-- Striscia separata per gli scambi, STESSO asse x e stessa
                      scala di kWh del riquadro sopra. Mai un secondo asse y
                      nello stesso riquadro. -->

@@ -1469,6 +1469,7 @@
     function histEls() {
         return {
             chart: EF.el("historyChart"),
+            soc: EF.el("historySoc"),
             flows: EF.el("historyFlows"),
             note: EF.el("histNote"),
             summary: EF.el("histSummary"),
@@ -1600,6 +1601,14 @@
                 { label: "Casa", role: "home", line: true }
             ]);
             EF.charts.renderDay(el.chart, pts);
+            // Carica batteria del giorno mostrato, come in «Andamento di oggi»:
+            // il dato `soc` sta in ogni riga dei file al minuto, sia in quelli
+            // raccolti dal pannello sia in quelli importati dal portale, quindi
+            // la striscia si può disegnare per qualunque giorno con il dettaglio.
+            // Senza, guardando un giorno passato mancava proprio la grandezza che
+            // spiega perché la casa ha preso dalla rete invece che dal sole.
+            show(el.soc, true);
+            EF.charts.renderSoc(el.soc, pts);
             show(el.flows, false);
             show(el.summary, false);
             show(el.facts, false);
@@ -1620,6 +1629,7 @@
             ]);
             EF.charts.empty(el.chart, "Riepilogo del " + iso,
                 detailMissingReason(iso, isToday), "info");
+            show(el.soc, false);   // c'è solo l'aggregato: nessun SOC al minuto
             show(el.flows, false);
             EF.charts.renderEnergy(el.bars, model);
             EF.charts.renderMeters(el.meters, model.indices);
@@ -1637,6 +1647,7 @@
 
         // 3. Qui davvero non c'è niente — ed è l'unico caso in cui si dice.
         setLegend([]);
+        show(el.soc, false);
         show(el.flows, false);
         show(el.summary, false);
         show(el.facts, false);
@@ -1713,6 +1724,9 @@
         EF.charts.renderFlows(el.flows, bands, {
             ariaLabel: "Energia presa e data, per " + unit + " — " + rangeLabel(period, range)
         });
+        // Il SOC ha senso solo sull'asse dei minuti di una giornata: su una
+        // settimana o un mese non esiste un "livello di carica del periodo".
+        show(el.soc, false);
         show(el.flows, true);
 
         var model = energyModel({

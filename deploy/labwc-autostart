@@ -32,13 +32,21 @@ done
 #    URL locale: il pannello non dipende ne' dalla rete di casa ne' dal tailnet.
 #    --password-store=basic e' obbligatorio: senza, chromium chiede "Choose password
 #    for new keyring" (gnome-keyring) e non arriva mai a caricare la pagina.
+#    Traduzione: il sistema è in en_GB, la dashboard è in italiano, e chromium
+#    propone di tradurla con un riquadro in alto a destra — su un pannello a muro
+#    resta lì per sempre perché nessuno lo chiude. `TranslateUI` da solo non basta
+#    più: è il nome vecchio della funzionalità, da Chromium 120 circa si chiama
+#    `Translate`. Si passano entrambi, e si dichiara la lingua dell'interfaccia
+#    così il browser non considera la pagina "straniera".
 ( sleep 3; exec chromium \
     --kiosk \
     --password-store=basic \
     --app=http://localhost:8003/ \
+    --lang=it-IT \
     --noerrdialogs \
     --disable-infobars \
     --disable-session-crashed-bubble \
-    --disable-features=TranslateUI \
+    --disable-translate \
+    --disable-features=Translate,TranslateUI \
     --ozone-platform=wayland \
     --check-for-update-interval=31536000 ) &
