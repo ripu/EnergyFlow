@@ -1,13 +1,37 @@
 #!/bin/sh
 # --- EnergyFlow kiosk autostart (labwc/Wayland) ---
-# Deploy: copiare in ~/.config/labwc/autostart sul RPi (utente pi), chmod +x.
-# Compositor: labwc sotto lightdm, autologin pi. Monitor: HDMI-A-1 (1920x1080).
+# Deploy: copiare in ~/.config/labwc/autostart sul Raspberry, chmod +x.
+# Compositor: labwc sotto lightdm, autologin. Monitor: HDMI-A-1 (1920x1080).
 
-# 1) Monitor in verticale (270°)
-wlr-randr --output HDMI-A-1 --transform 270
+OUTPUT=HDMI-A-1
+TRANSFORM=270         # verticale, verso corretto per QUESTO montaggio a muro.
+                      # Provato 90 il 2026-08-09: l'immagine esce capovolta. I due
+                      # valori ruotano in versi opposti e quale sia giusto dipende da
+                      # come il monitor e' appeso, non dal software: verificarlo
+                      # guardando il pannello, non deducendolo.
 
-# 2) Dashboard a tutto schermo in kiosk (URL locale: nessuna dipendenza rete)
-#    --password-store=basic: evita il prompt gnome-keyring di chromium su Linux.
+# 1) Monitor in verticale — con attesa, non a fiducia.
+#    La versione precedente lanciava wlr-randr subito: all'avvio della sessione
+#    l'uscita HDMI spesso non e' ancora pronta, il comando falliva in silenzio e
+#    il pannello restava orizzontale. Trovato dal vivo il 2026-08-09, con
+#    l'autostart che diceva 270 e il monitor che era su "normal".
+i=0
+while [ $i -lt 30 ]; do
+    if wlr-randr 2>/dev/null | grep -q "^$OUTPUT"; then
+        wlr-randr --output "$OUTPUT" --transform "$TRANSFORM" 2>/dev/null
+        # verifica: se non ha attecchito, riprova al giro dopo
+        if wlr-randr 2>/dev/null | grep -A20 "^$OUTPUT" | grep -qi "Transform: $TRANSFORM"; then
+            break
+        fi
+    fi
+    i=$((i + 1))
+    sleep 1
+done
+
+# 2) Dashboard a tutto schermo in kiosk.
+#    URL locale: il pannello non dipende ne' dalla rete di casa ne' dal tailnet.
+#    --password-store=basic e' obbligatorio: senza, chromium chiede "Choose password
+#    for new keyring" (gnome-keyring) e non arriva mai a caricare la pagina.
 ( sleep 3; exec chromium \
     --kiosk \
     --password-store=basic \

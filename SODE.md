@@ -659,6 +659,8 @@ Un `503 degraded` subito dopo un deploy è quasi sempre una mappa registri disal
 | **Esposizione** | **Nessuna porta aperta su internet.** Il server binda `127.0.0.1` |
 | **Accesso LAN** | **Nessuno.** Il server binda `127.0.0.1`, quindi dalla rete di casa — telefono compreso — la dashboard **non è raggiungibile**: si passa dal tailnet. Scelta confermata dall'utente il 2026‑08‑09: riaprire alla LAN esporrebbe la telemetria di casa a ospiti e dispositivi IoT sulla stessa rete, e il perimetro domestico non è un confine di fiducia. Sul Pi la pagina resta su `http://localhost:8003/`, che è ciò che usa il kiosk |
 | **Accesso remoto** | Tailnet HTTPS via `tailscale serve --bg http://127.0.0.1:8003` → certificato Let's Encrypt gestito da Tailscale, **tailnet‑only**. Disattivazione: `sudo tailscale serve --https=443 off` |
+| **Stato del tailnet** | **Operativo dal 2026‑08‑09.** Il nodo del Pi era finito `Logged out` e nessuno se n'era accorto finché il bind su loopback non ha reso la dashboard irraggiungibile: le due cose insieme la spengono, e vanno controllate insieme. `tailscale serve` è attivo e inoltra `/` verso `127.0.0.1:8003`, tailnet‑only. Verifica: `sudo tailscale status` (il nodo deve comparire) e `sudo tailscale serve status` |
+| **Via di riserva** | Se il tailnet non è disponibile, tunnel SSH: `ssh -f -N -L 8003:127.0.0.1:8003 <rpi-host>` → `http://localhost:8003/`. Funziona da qualunque macchina che abbia già accesso SSH al Pi, senza toccare la configurazione |
 | **Prerequisito** | Client Tailscale connesso sulla macchina che accede. mDNS `.local` **non** passa sul tailnet: da remoto si usa l'hostname del tailnet |
 | **DNS pubblico** | Nessuno. Il progetto non ha un sottodominio `archimede.world`: è un sistema domestico, l'esposizione pubblica sarebbe un rischio senza contropartita |
 | **Porta** | 8003 (§13.3) |
@@ -673,8 +675,19 @@ Un `503 degraded` subito dopo un deploy è quasi sempre una mappa registri disal
 - **Monitor**: output `HDMI-A-1`, pannello 1920×1080 **ruotato 270°** → 1080×1920
   verticale.
 - **Autostart**: `~/.config/labwc/autostart`, copia tracciata in `deploy/labwc-autostart`:
-  1. `wlr-randr --output HDMI-A-1 --transform 270`
+  1. rotazione a 270° **con attesa e verifica** dell'uscita HDMI
   2. `chromium --kiosk --password-store=basic --app=http://localhost:8003/`
+- **La rotazione va attesa, non lanciata e basta.** La versione precedente eseguiva
+  `wlr-randr` subito all'avvio della sessione: l'uscita HDMI spesso non è ancora
+  pronta, il comando fallisce **in silenzio** e il pannello resta orizzontale. Scoperto
+  il 2026‑08‑09 trovando l'autostart che diceva 270 e il monitor su `normal`. Ora
+  l'autostart aspetta che l'uscita compaia, applica la trasformazione e **rilegge** per
+  confermare, riprovando fino a 30 secondi.
+- **Perché 270 e non 90**: dipende da come il monitor è appeso, non dal software. A 90°
+  l'immagine esce capovolta su questo montaggio — provato. Va verificato guardando il
+  pannello, non dedotto.
+- **Chromium impiega più di 30 secondi** a comparire dopo un `restart lightdm`: un
+  controllo troppo precoce fa credere che il kiosk non sia partito.
 - **`--password-store=basic` è obbligatorio**: senza, chromium chiede «Choose password
   for new keyring» (gnome‑keyring) e la pagina non si apre mai.
 - L'URL del kiosk è **locale**: il pannello non dipende da rete o tailnet per accendersi.

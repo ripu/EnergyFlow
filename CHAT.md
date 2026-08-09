@@ -5614,3 +5614,462 @@ The file /Users/ripu/Desktop/Antigravity/live-home/SODE.md has been updated succ
 ```
 (Bash completed with no output)
 ```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home`
+
+### 👤 User
+
+```
+OK CHAT.md sovrascritto — 274211 char, 231 user / 431 assistant
+✅ push eseguito
+c5f1b80 DOCS: corregge l'accesso LAN nel SODE dopo il go-live
+e4037ab FIX: ripristina l'IP di esempio in config.example.json
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **TodoWrite** {"todos": [{"content": "Sicurezza backend: auth, loopback, allow-list, CSP severa", "status": "completed", "activeForm": "Mettendo in sicurezza"}, {"content": "Mappa registri verificata contro il port
+
+### 👤 User
+
+```
+Todos have been modified successfully. Ensure that you continue to use the todo list to track your progress. Please proceed with the current tasks if applicable
+```
+
+### 🤖 claude-opus-5
+
+Ultimo pezzo: il dettaglio a 5 minuti. Con un vincolo che cambia lo scopo — la retention cancella i file al minuto oltre i 90 giorni, quindi importarne 230 significherebbe buttarne 140 alla prima manutenzione.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Agent** {"subagent_type": "general-purpose", "description": "Dettaglio 5 minuti dal portale", "run_in_background": true, "prompt": "OBIETTIVO: scaricare dal portale del costruttore il **dettaglio a 5 minuti**
+
+### 👤 User
+
+```
+Async agent launched successfully. (This tool result is internal metadata — never quote or paste any part of it, including the agentId below, into a user-facing reply.)
+agentId: a4de97695187ba65c (internal ID - do not mention to user. Use SendMessage with to: 'a4de97695187ba65c', summary: '<5-10 word recap>' to continue this agent.)
+The agent is working in the background. You will be notified automatically when it completes. You know nothing about its results until that notification arrives — do not report, assume, or predict them; continue other work or respond to the user in the meantime.
+Do not duplicate this agent's work — avoid working with the same files or topics it is using.
+output_file: /private/tmp/claude-501/-Users-ripu-Desktop-Antigravity-live-home/25b3c59a-5b70-4ef1-9b01-9af43330c131/tasks/a4de97695187ba65c.output
+Do NOT Read or tail this file via the shell tool — it is the full subagent JSONL transcript and reading it will overflow your context. If the user asks for progress, say the agent is still running; you'll get a completion notification.
+```
+
+### 🤖 claude-opus-5
+
+Fatto tutto. Riepilogo di dove siamo.
+
+**La history pubblica è pulita.** Verificato non fidandomi del comando ma **riclonando da GitHub**: 46 commit, un solo autore, e nessuna traccia di coordinate, IP reali, MAC, hostname o email personale. `frontend.log`, `find_pi.py` e `test_inverter.py` non esistono più in nessun commit.
+
+**Il Raspberry gira la v2.0.0.** Prima aveva ancora il codice di luglio. Verificato in produzione:
+
+| | esito |
+|---|---|
+| dati | casa 502 W, batteria 411,6 V al 50%, 45,4 kWh oggi — tutti coerenti fra loro |
+| storico | 229 giorni serviti |
+| bind | solo `127.0.0.1` |
+| `config.json`, `.env`, `.git/config`, `registers.json` | **404** |
+| `/data` senza token | **401** |
+| kiosk | ricaricato, zero 401, i log del browser arrivano nel file giornaliero |
+
+Il momento più istruttivo del deploy: subito dopo il restart il log mostrava un `401 GET /data` ogni 5 secondi. Non era un bug — era il kiosk che continuava a mostrare la pagina vecchia, che chiede i dati senza token. Un riavvio della sessione grafica e sono spariti.
+
+Ho anche corretto una riga del SODE che era diventata falsa nel momento stesso del go-live: prometteva l'accesso via mDNS dalla rete di casa, che con il bind su loopback non esiste più.
+
+---
+
+**Due cose che restano, una tua e una mia:**
+
+**Tua** — il ticket a GitHub Support per purgare le viste in cache dei commit vecchi: serve il tuo account, io non posso aprirlo. E vale la pena ripeterlo: la riscrittura alza il costo di trovare quei dati, non lo azzera. Fork e mirror esistenti restano.
+
+**Mia, domani** — il rollup di stanotte alle 00:05 scriverà per il 9 agosto un riepilogo **parziale**, perché la raccolta locale è partita alle 19:25 e mancano le prime 19 ore. La produzione sarà giusta (viene dal contatore dell'inverter), consumi e scambi no. Il portale ha la giornata intera: l'agent che sta lavorando adesso la sta scaricando insieme al dettaglio a 5 minuti degli ultimi 90 giorni — oltre non ha senso, la retention li cancellerebbe. Appena finisce, correggo quel giorno.
+
+### 👤 User
+
+su http://[REDACTED_DENYLIST].local:8003/ non vedo più nulla
+
+### 🤖 claude-opus-5
+
+È il bind su loopback: la dashboard non ascolta più sulla rete di casa, quindi `[REDACTED_DENYLIST].local:8003` non risponde più a nessuno. È la scelta che avevi confermato al punto 3 — funziona come previsto, ma capisco che così non la vedi.
+
+Ti do subito una via che funziona adesso. Prima spengo il server di prova sul Mac, che ormai crea solo confusione.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home`
+
+### 👤 User
+
+```
+✅ 8003 libera sul Mac
+✅ tunnel attivo
+=== prova dal Mac ===
+  http://localhost:8003/        -> 200
+  health: ok v2.0.0 · poller True
+```
+
+### 🤖 claude-opus-5
+
+**Apri ora → http://localhost:8003/**
+
+Ti sto tunnelando la dashboard del Raspberry sul tuo Mac via SSH. Risponde già: v2.0.0, poller attivo. Il tunnel resta aperto finché non lo chiudi o non riavvii il Mac; per riaprirlo in futuro basta:
+
+```
+ssh -f -N -L 8003:127.0.0.1:8003 [REDACTED_DENYLIST]
+```
+
+Nota che ora `localhost:8003` sul Mac è **il Raspberry**, non più il server di prova locale: quello l'ho spento, aveva finito il suo lavoro e stava scrivendo storico in parallelo alla produzione.
+
+Sul perché non funziona più `[REDACTED_DENYLIST].local:8003`: è la conseguenza diretta della scelta A. Prima il server ascoltava su tutte le interfacce, quindi *chiunque* fosse sulla rete di casa — ospiti sul wifi, un dispositivo IoT compromesso, una pagina web aperta in un browser sulla stessa LAN — poteva leggere la telemetria di casa senza password. Ora ascolta solo su sé stesso.
+
+Hai tre modi per raggiungerla, in ordine di comodità:
+
+**A: tunnel SSH** — quello appena aperto. Zero modifiche, funziona da subito, ma solo da macchine con l'accesso SSH al Pi. Sul telefono non è pratico.
+
+**B: Tailscale** — è il disegno previsto. Installi Tailscale sul telefono e sul Mac, e la dashboard è raggiungibile ovunque, anche fuori casa, in HTTPS. È la strada migliore se la vuoi sul telefono.
+
+**C: riapro alla LAN** — torno ad ascoltare su tutte le interfacce, mantenendo il token. `[REDACTED_DENYLIST].local:8003` torna a funzionare per tutti in casa; chi non ha il token prende 401, ma la superficie si riallarga a tutta la rete.
+
+Quale preferisci? (A/B/C) — se dici C lo faccio in due minuti, è una riga nel service.
+
+### 👤 User
+
+ma ti sei collegato in ssh al rpi? non c'è connesso su tailscale
+
+### 🤖 claude-opus-5
+
+Sì, sono collegato via SSH — ma **non** attraverso Tailscale: sulla rete locale. Verifico e te lo mostro, invece di dirtelo e basta.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `echo "=== come risolve '[REDACTED_DENYLIST]' ==="`
+
+### 👤 User
+
+```
+=== come risolve '[REDACTED_DENYLIST]' ===
+Host [REDACTED_DENYLIST]
+  HostName <mascherato>
+  User pi
+  IdentityFile ~/.ssh/id_ed25519
+user pi
+hostname <mascherato>
+port 22
+identityfile ~/.ssh/id_ed25519
+=== l'indirizzo è di rete locale o tailnet? ===
+  tipo: RETE LOCALE (privata)
+=== tailscale è installato sul Mac? ===
+  no, il comando 'tailscale' non esiste su questo Mac
+=== e sul Raspberry? ===
+Logged out.
+Log in at: [REDACTED_DENYLIST]
+```
+
+### 🤖 claude-opus-5
+
+Trovata una cosa importante, e cambia il quadro: **Tailscale sul Raspberry è disconnesso** (`Logged out`). Quindi l'accesso remoto che il SODE documenta come "la strada da usare" in questo momento **non funziona**. Quando ti ho consigliato l'opzione A davo per buono che il tailnet coprisse il caso: non era vero, e me ne accorgo solo adesso guardando.
+
+Prima una cosa urgente: l'output conteneva un link di arruolamento Tailscale, che finirebbe in `CHAT.md` e quindi su un repo pubblico. Lo blocco.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity`
+
+### 👤 User
+
+```
+denylist: 2 valori aggiunti (link di arruolamento tailscale)
+aggiunta regola generica al sanitizzatore condiviso
+prova: Log in at: https://login.tailscale.com/[REDACTED_TAILSCALE_LOGIN]
+Shell cwd was reset to /Users/ripu/Desktop/Antigravity/live-home
+```
+
+### 🤖 claude-opus-5
+
+Sì, sono collegato in SSH — e la verifica dice **come**: nel tuo `~/.ssh/config` c'è una voce `[REDACTED_DENYLIST]` che punta a un indirizzo **privato della rete locale**, non a un indirizzo tailnet. Quindi passo dalla LAN. SSH (porta 22) non l'ho toccato: ho spostato su loopback solo la dashboard sulla 8003.
+
+E hai ragione a sospettare: **Tailscale sul Raspberry risulta `Logged out`**, e sul Mac non è nemmeno installato. Il che significa che quando ti ho consigliato l'opzione A dicendo «tanto c'è Tailscale», **davo per buono qualcosa che non avevo verificato**. Non era vero: in questo momento l'unica via d'accesso oltre al Pi stesso è il tunnel SSH.
+
+Correggo intanto il SODE, che promette un accesso remoto che oggi non esiste.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Edit** `/Users/ripu/Desktop/Antigravity/live-home/SODE.md` — `| **Accesso remoto** | Tailnet HTTPS via `tailscale serve --…`
+
+### 👤 User
+
+```
+The file /Users/ripu/Desktop/Antigravity/live-home/SODE.md has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+### 🤖 claude-opus-5
+
+Ora la scelta, con una precisazione che prima non ti avevo dato bene.
+
+**L'opzione C non è un ritorno a com'era.** Prima la dashboard era raggiungibile da tutta la rete di casa **senza alcuna password**: chiunque fosse sul wifi leggeva consumi, produzione e stato batteria, e persino `config.json` con le coordinate. Riaprendo alla LAN adesso, il token resta obbligatorio: chi non ce l'ha prende **401**. È una cosa molto diversa, e ammetto di avertela dipinta più nera di quanto sia.
+
+Quindi:
+
+**A: lascio così** — accesso solo dal Pi e via tunnel SSH. Massima chiusura, ma dal telefono non la vedi, e il tunnel te lo devi riaprire ogni volta.
+
+**B: rimetti in piedi Tailscale** — devi fare il login sul Pi da browser (il link te lo do sul terminale, non lo scrivo qui perché finirebbe nel transcript e poi su GitHub) e installare l'app sul telefono. È la soluzione migliore: funziona anche fuori casa, in HTTPS, senza aprire nulla sulla rete locale.
+
+**C: riapro alla LAN, col token obbligatorio** — `[REDACTED_DENYLIST].local:8003` torna a funzionare da Mac e telefono. Due minuti di lavoro. La superficie si allarga alla rete di casa, ma protetta da autenticazione, cosa che prima non c'era.
+
+Se vuoi il risultato subito e senza passaggi manuali, **C**. Se vuoi la soluzione giusta a lungo termine, **B** — e posso preparartelo io lasciandoti solo il login da fare.
+
+---
+
+**In sospeso:**
+
+1. **Accesso alla dashboard** — A / B / C?
+2. Nel frattempo hai già il tunnel aperto: **http://localhost:8003/** funziona adesso dal Mac
+3. Un agent sta ancora scaricando il dettaglio a 5 minuti dello storico
+4. Domani correggo il riepilogo del 9 agosto, che stanotte verrà scritto parziale
+
+### 👤 User
+
+1b
+
+### 🤖 claude-opus-5
+
+Perfetto, la scelta giusta. Faccio partire il login sul Raspberry e ti apro direttamente la pagina di autenticazione nel browser — così non devo scrivere il link in chat, dove finirebbe nel transcript e poi su GitHub.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `D="/private/tmp/claude-501/-Users-ripu-Desktop-Antigravity-live-home/25b3c59a-5b70-4ef1-9b01-9af43330c131/scratchpad"`
+
+### 👤 User
+
+```
+✅ pagina di login Tailscale aperta nel tuo browser
+   (link non stampato qui di proposito: finirebbe in CHAT.md e su GitHub)
+```
+
+### 🤖 claude-opus-5
+
+Vado subito con la rotazione, poi torno al login Tailscale.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `ssh [REDACTED_DENYLIST] 'export XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0`
+
+### 👤 User
+
+```
+=== prima ===
+HDMI-A-1 "NEC Corporation E326 0x01010101 (HDMI-A-1)"
+  Enabled: yes
+  Transform: normal
+=== dopo ===
+HDMI-A-1 "NEC Corporation E326 0x01010101 (HDMI-A-1)"
+  Transform: 90
+```
+
+### 🤖 claude-opus-5
+
+Nota utile: prima della rotazione il monitor risultava `Transform: normal`, **non 270** — quindi la rotazione dell'autostart non stava venendo applicata affatto. Ora è a 90°. La rendo persistente.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `ssh [REDACTED_DENYLIST] 'echo "=== autostart attuale sul Pi ==="; cat ~/.config/labwc/autostart 2>/dev/null | head -20 || echo "  f`
+
+### 👤 User
+
+```
+=== autostart attuale sul Pi ===
+#!/bin/sh
+# --- EnergyFlow kiosk autostart (labwc/Wayland) ---
+# 1) Monitor in verticale (270°)
+wlr-randr --output HDMI-A-1 --transform 270
+
+# 2) Dashboard a tutto schermo in kiosk (URL locale: nessuna dipendenza rete)
+( sleep 3; exec chromium \
+    --kiosk \
+    --password-store=basic \
+    --app=http://localhost:8003/ \
+    --noerrdialogs \
+    --disable-infobars \
+    --disable-session-crashed-bubble \
+    --disable-features=TranslateUI \
+    --ozone-platform=wayland \
+    --check-for-update-interval=31536000 ) &
+```
+
+### 🤖 claude-opus-5
+
+Ecco perché non ruotava: `wlr-randr` parte prima che l'uscita HDMI sia pronta e **fallisce in silenzio**. Riscrivo l'autostart con la rotazione a 90° e un'attesa che verifica invece di sperare.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Write** `/Users/ripu/Desktop/Antigravity/live-home/deploy/labwc-autostart`
+
+### 👤 User
+
+```
+The file /Users/ripu/Desktop/Antigravity/live-home/deploy/labwc-autostart has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+### 🤖 claude-opus-5
+
+Allora per il tuo montaggio il verso giusto è 270°, non 90 — l'avevo previsto nel commento, applico.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `ssh [REDACTED_DENYLIST] 'export XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0`
+
+### 👤 User
+
+```
+HDMI-A-1 "NEC Corporation E326 0x01010101 (HDMI-A-1)"
+  Transform: 270
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Edit** `/Users/ripu/Desktop/Antigravity/live-home/deploy/labwc-autostart` — `TRANSFORM=90          # verticale. 90 e 270 ruotano in versi…`
+
+### 👤 User
+
+```
+The file /Users/ripu/Desktop/Antigravity/live-home/deploy/labwc-autostart has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home`
+
+### 👤 User
+
+```
+autostart aggiornato sul Pi
+=== prova reale: riavvio la sessione e verifico che ruoti da sola ===
+  transform dopo il riavvio sessione: Transform: 270
+  chromium: 0
+0 processi
+```
+
+### 🤖 claude-opus-5
+
+Rotazione ora automatica: dopo il riavvio della sessione il monitor si mette da solo a 270°. Ma **chromium non è partito** — il pannello sarebbe nero. Indago.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `sleep 15; ssh [REDACTED_DENYLIST] 'echo "=== processi ==="; pgrep -a chromium 2>/dev/null | head -2 | cut -c1-90 || echo "  nessun `
+
+### 👤 User
+
+```
+=== processi ===
+16938 /usr/lib/chromium/chromium --force-renderer-accessibility --enable-remote-extensions
+16960 /usr/lib/chromium/chromium --type=zygote --no-zygote-sandbox --crashpad-handler-pid=
+=== sessione grafica ===
+active
+16400 /usr/bin/labwc -m
+=== autostart eseguibile? ===
+   -rwxrwxr-x /home/pi/.config/labwc/autostart
+=== chromium esiste? ===
+/usr/bin/chromium
+```
+
+### 🤖 claude-opus-5
+
+Falso allarme: chromium era solo più lento di me — ora è attivo (l'avevo controllato a 30 secondi, ci mette di più). Verifico che stia davvero mostrando la dashboard, e come sta andando il login Tailscale.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `ssh [REDACTED_DENYLIST] 'echo "=== il kiosk sta caricando la dashboard? ==="`
+
+### 👤 User
+
+```
+Aug 09 23:56:41 [REDACTED_DENYLIST] python3[15008]: [BROWSER:LOG] [storico] endpoint attivo — 264 punti per oggi (risoluzione 60s, retention 90 giorni) @ /
+Aug 09 23:56:41 [REDACTED_DENYLIST] python3[15008]: [BROWSER:LOG] [storico] aggregati 2025-08-09 → 2026-08-09: 229 giorni (archivio dal 2025-12-23) @ /
+=== stato tailscale ===
+[REDACTED_IP]  [REDACTED_DENYLIST]                 [REDACTED_DENYLIST]@  linux    -                                                       
+[REDACTED_IP]   airtag                   [REDACTED_DENYLIST]@  linux    -                                                       
+[REDACTED_IP]   archimedenas             [REDACTED_DENYLIST]@  linux    -                                                       
+=== tailscale serve configurato? ===
+https://[REDACTED_DENYLIST].[REDACTED_DENYLIST] (tailnet only)
+|-- / proxy http://127.0.0.1:8003
+```
+
+### 🤖 claude-opus-5
+
+Tre cose risolte insieme. Prima metto in sicurezza il nome del tuo tailnet, che è appena passato nell'output.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity`
+
+### 👤 User
+
+```
+denylist: 2 valori aggiunti (nome del tailnet)
+aggiunta regola generica per i nomi tailnet
+prova: https://mio-host.[REDACTED_TAILNET].ts.net/ e [REDACTED_IP]
+Shell cwd was reset to /Users/ripu/Desktop/Antigravity/live-home
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Edit** `/Users/ripu/Desktop/Antigravity/live-home/SODE.md` — `| ⚠️ **Stato reale del tailnet** | **Non operativo al 2026‑0…`
+
+### 👤 User
+
+```
+The file /Users/ripu/Desktop/Antigravity/live-home/SODE.md has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home`
+
+### 👤 User
+
+```
+6:> locale autenticata, dashboard web e pannello a muro in kiosk verticale.
+18:il pannello a muro (kiosk verticale su Raspberry Pi) e i widget nativi macOS.
+36:| **Dashboard** | `index.html` + `static/` | Vista compatta (desktop/mobile) e vista kiosk verticale |
+420:Lo stesso HTML rende sia il **kiosk verticale 1080×1920** sia la vista
+519:Verifica ai viewport **360 / 768 / 1440** più il **1080×1920 verticale** del kiosk, in
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home; sed -n '/^### 15.1/,/^---/p' SODE.md | head -18`
+
+### 👤 User
+
+```
+### 15.1 Kiosk (pannello a muro)
+
+- **Compositor**: labwc (Wayland) sotto lightdm, autologin dell'utente di sistema.
+- **Monitor**: output `HDMI-A-1`, pannello 1920×1080 **ruotato 270°** → 1080×1920
+  verticale.
+- **Autostart**: `~/.config/labwc/autostart`, copia tracciata in `deploy/labwc-autostart`:
+  1. `wlr-randr --output HDMI-A-1 --transform 270`
+  2. `chromium --kiosk --password-store=basic --app=http://localhost:8003/`
+- **`--password-store=basic` è obbligatorio**: senza, chromium chiede «Choose password
+  for new keyring» (gnome‑keyring) e la pagina non si apre mai.
+- L'URL del kiosk è **locale**: il pannello non dipende da rete o tailnet per accendersi.
+- Applicare modifiche all'autostart senza reboot: `sudo systemctl restart lightdm`
+  (riavvia la sessione labwc; il service `energyflow` resta su). Un chromium lanciato
+  detached via SSH **non** sopravvive alla sessione: va usato l'autostart.
+- Rotazione live: `wlr-randr --output HDMI-A-1 --transform <0|90|180|270>` con
+  `XDG_RUNTIME_DIR=/run/user/<uid>` e `WAYLAND_DISPLAY=wayland-0`.
+
+---
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Edit** `/Users/ripu/Desktop/Antigravity/live-home/SODE.md` — `- **Autostart**: `~/.config/labwc/autostart`, copia tracciat…`
+
+### 👤 User
+
+```
+The file /Users/ripu/Desktop/Antigravity/live-home/SODE.md has been updated successfully. (file state is current in your context — no need to Read it back)
+```
