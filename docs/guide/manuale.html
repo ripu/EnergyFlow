@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EnergyFlow — Guida operativa</title>
+<meta name="description" content="Come si apre EnergyFlow, come si legge la dashboard, come si capisce se qualcosa non va, e cosa fare quando succede.">
+<meta name="color-scheme" content="light dark">
+<style>
+/* ==========================================================================
+   EnergyFlow — guida operativa.
+   Nessuna dipendenza esterna: CSS qui dentro, immagini locali e relative.
+   I colori sono gli stessi token dell'app (static/tokens.css), così la guida
+   e il prodotto sembrano la stessa cosa.
+   ========================================================================== */
+:root {
+  --bg: #e9eef5;
+  --surface: #ffffff;
+  --surface-2: #f4f7fb;
+  --border: #ccd6e3;
+  --text: #0f1720;
+  --muted: #414e61;
+  --faint: #74849b;
+  --solar: #eb6834;
+  --grid: #2a78d6;
+  --battery: #1baf7a;
+  --ok: #0b573a;
+  --warn: #6d4600;
+  --warn-bg: #fdf4e3;
+  --error: #991c15;
+  --error-bg: #fdeceb;
+  --code-bg: #f4f7fb;
+  --shadow: 0 2px 8px rgba(13,17,23,.08), 0 1px 2px rgba(13,17,23,.05);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --surface: #161d27;
+    --surface-2: #1f2836;
+    --border: #33404f;
+    --text: #e8edf4;
+    --muted: #adbdd1;
+    --faint: #7a8ca3;
+    --solar: #d95926;
+    --grid: #3987e5;
+    --battery: #199e70;
+    --ok: #3ecf8e;
+    --warn: #e0a72e;
+    --warn-bg: #2e2109;
+    --error: #ff8a83;
+    --error-bg: #3a1512;
+    --code-bg: #0a0e14;
+    --shadow: 0 2px 10px rgba(0,0,0,.4);
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 84px; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+.wrap { max-width: 960px; margin: 0 auto; padding: 0 20px 96px; }
+
+/* --- barra superiore --- */
+.topbar {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+  padding: 10px 20px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(8px);
+}
+.topbar__brand { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+.topbar__brand svg { width: 26px; height: 26px; display: block; }
+.topbar__spacer { flex: 1 1 auto; }
+.langs { display: flex; gap: 4px; align-items: center; font-size: 14px; }
+.langs a, .langs span {
+  padding: 4px 10px; border-radius: 999px; text-decoration: none; color: var(--muted);
+}
+.langs [aria-current="true"] { background: var(--surface-2); color: var(--text); font-weight: 700; }
+.topbar a.pill {
+  font-size: 14px; text-decoration: none; color: var(--text);
+  border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px; background: var(--surface);
+}
+.topbar a.pill:hover { border-color: var(--faint); }
+
+/* --- testata --- */
+header.hero { padding: 44px 0 8px; }
+header.hero h1 { font-size: clamp(30px, 5vw, 42px); line-height: 1.15; margin: 0 0 8px; letter-spacing: -.02em; }
+header.hero p.lead { font-size: 19px; color: var(--muted); margin: 0 0 8px; max-width: 62ch; }
+.meta { font-size: 14px; color: var(--faint); }
+
+/* --- indice --- */
+nav.toc {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  padding: 18px 22px; margin: 28px 0 12px; box-shadow: var(--shadow);
+}
+nav.toc h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--faint); margin: 0 0 10px; }
+nav.toc ol { margin: 0; padding-left: 20px; columns: 2; column-gap: 32px; }
+nav.toc li { margin: 0 0 6px; break-inside: avoid; }
+nav.toc a { color: var(--text); text-decoration: none; border-bottom: 1px solid var(--border); }
+nav.toc a:hover { border-color: var(--grid); }
+
+/* --- sezioni --- */
+section { margin: 44px 0 0; }
+h2 {
+  font-size: 26px; line-height: 1.25; margin: 0 0 14px; letter-spacing: -.01em;
+  padding-top: 10px; border-top: 2px solid var(--border);
+}
+h3 { font-size: 19px; margin: 28px 0 8px; }
+h4 { font-size: 16px; margin: 20px 0 6px; }
+p { margin: 0 0 14px; max-width: 74ch; }
+ul, ol { max-width: 74ch; padding-left: 22px; }
+li { margin: 0 0 6px; }
+a { color: var(--grid); }
+strong { font-weight: 700; }
+
+/* --- riquadri --- */
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+  padding: 16px 20px; margin: 18px 0; box-shadow: var(--shadow);
+}
+.note, .warn {
+  border-left: 4px solid var(--grid); background: var(--surface-2);
+  border-radius: 0 10px 10px 0; padding: 12px 18px; margin: 18px 0;
+}
+.note p:last-child, .warn p:last-child, .card p:last-child { margin-bottom: 0; }
+.warn { border-left-color: var(--warn); background: var(--warn-bg); }
+.warn strong { color: var(--warn); }
+
+/* --- tabelle --- */
+.tablewrap { overflow-x: auto; margin: 18px 0; -webkit-overflow-scrolling: touch; }
+table { border-collapse: collapse; width: 100%; min-width: 480px; background: var(--surface); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow); }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; font-size: 15px; }
+th { background: var(--surface-2); font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+tr:last-child td { border-bottom: 0; }
+td.key { white-space: nowrap; }
+
+/* --- codice --- */
+code {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: .9em; background: var(--code-bg); border: 1px solid var(--border);
+  border-radius: 5px; padding: 1px 5px;
+}
+pre {
+  background: var(--code-bg); border: 1px solid var(--border); border-radius: 12px;
+  padding: 14px 16px; overflow-x: auto; margin: 14px 0; font-size: 14px; line-height: 1.55;
+}
+pre code { background: none; border: 0; padding: 0; font-size: inherit; }
+
+kbd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-bottom-width: 2px; border-radius: 6px;
+  padding: 2px 8px; font-size: 14px; white-space: nowrap;
+}
+
+/* --- figure e immagini --- */
+figure { margin: 22px 0; }
+figure img {
+  display: block; max-width: 100%; height: auto;
+  border-radius: 12px; background: var(--surface); border: 1px solid var(--border);
+}
+figure.plain img { border: 0; background: none; }
+figcaption { font-size: 14px; color: var(--muted); margin-top: 8px; }
+.shots { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start; margin: 22px 0; }
+.shots figure { flex: 1 1 260px; margin: 0; }
+.shots img { box-shadow: var(--shadow); }
+
+/* --- pastiglie di stato --- */
+.chip {
+  display: inline-flex; align-items: center; gap: 7px; white-space: nowrap;
+  border: 1px solid var(--border); border-radius: 999px; padding: 2px 12px;
+  font-size: 14px; font-weight: 700; background: var(--surface);
+}
+.chip::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--faint); }
+.chip.ok { color: var(--ok); border-color: var(--ok); }
+.chip.ok::before { background: var(--ok); }
+.chip.warn { color: var(--warn); border-color: var(--warn); }
+.chip.warn::before { background: var(--warn); }
+.chip.err { color: var(--error); border-color: var(--error); }
+.chip.err::before { background: var(--error); }
+.sus { text-decoration: line-through; text-decoration-color: var(--error); color: var(--muted); }
+
+/* --- dettagli --- */
+details {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  padding: 4px 18px; margin: 12px 0; box-shadow: var(--shadow);
+}
+details[open] { padding-bottom: 14px; }
+summary { cursor: pointer; font-weight: 700; padding: 12px 0; list-style-position: outside; }
+summary::marker { color: var(--faint); }
+
+footer.end {
+  margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--border);
+  font-size: 14px; color: var(--muted);
+}
+
+@media (max-width: 640px) {
+  nav.toc ol { columns: 1; }
+  h2 { font-size: 22px; }
+  header.hero p.lead { font-size: 17px; }
+}
+@media print {
+  .topbar { position: static; }
+  details { break-inside: avoid; }
+  details > summary { list-style: none; }
+  details:not([open]) > *:not(summary) { display: revert; }
+}
+</style>
+</head>
+
+<body>
+
+<div class="topbar">
+  <span class="topbar__brand">
+    <svg viewBox="0 0 256 256" aria-hidden="true">
+      <defs>
+        <linearGradient id="ef-bolt" x1="0" y1="0" x2="0.35" y2="1">
+          <stop offset="0" stop-color="#22D3EE"/><stop offset="1" stop-color="#10B981"/>
+        </linearGradient>
+      </defs>
+      <path fill="none" stroke="url(#ef-bolt)" stroke-width="13" stroke-linecap="round" d="M196 196a96 96 0 1 0-14 12"/>
+      <path fill="none" stroke="url(#ef-bolt)" stroke-width="13" stroke-linejoin="round" stroke-linecap="round" d="M141 60 84 137h44l-13 63 57-77h-44z"/>
+    </svg>
+    EnergyFlow
+  </span>
+  <span class="topbar__spacer"></span>
+  <a class="pill" href="../slides/presentazione.html">🎞️ Presentazione</a>
+  <span class="langs">
+    <span aria-current="true">IT</span>
+    <a href="manuale_en.html" hreflang="en">EN</a>
+  </span>
+</div>
+
+<div class="wrap">
+
+<header class="hero">
+  <h1>Guida operativa</h1>
+  <p class="lead">Come si apre EnergyFlow, come si legge quello che mostra, come ci si accorge
+     quando qualcosa non va, e cosa fare quando succede.</p>
+  <p class="meta">Versione v2.0.0 · 9 agosto 2026 · mappa registri v2.1</p>
+</header>
+
+<nav class="toc" aria-label="Indice">
+  <h2>In questa guida</h2>
+  <ol>
+    <li><a href="#intro">Cos'è e a cosa serve</a></li>
+    <li><a href="#accesso">Come si apre</a></li>
+    <li><a href="#leggere">Come si legge la dashboard</a></li>
+    <li><a href="#stato">Capire se qualcosa non va</a></li>
+    <li><a href="#scorciatoie">Scorciatoie da tastiera</a></li>
+    <li><a href="#servizio">Servizio, log e token</a></li>
+    <li><a href="#troubleshooting">Se qualcosa si rompe</a></li>
+    <li><a href="#faq">Domande frequenti</a></li>
+  </ol>
+</nav>
+
+<!-- ==================================================================== -->
+<section id="intro">
+<h2>1. Cos'è e a cosa serve</h2>
+
+<p>EnergyFlow legge l'inverter fotovoltaico di casa direttamente, sulla rete locale, e mostra su
+   uno schermo che cosa sta succedendo all'energia in questo momento: quanto producono i pannelli,
+   quanto consuma la casa, cosa entra e cosa esce dalla batteria, cosa si scambia con la rete
+   elettrica.</p>
+
+<p>Serve a rispondere a colpo d'occhio a una domanda sola — <em>adesso sto usando il mio sole o
+   sto comprando corrente?</em> — senza aprire il portale del costruttore, senza aspettare il
+   cloud e senza che i dati di casa escano di casa.</p>
+
+<figure>
+  <img src="assets/architettura.svg" alt="Schema: l'inverter parla Modbus TCP sulla porta 502; un Raspberry Pi lo interroga ogni 5 secondi e serve la pagina web sulla porta 8003, solo sul proprio loopback; il pannello a muro, il telefono e il Mac leggono da lì.">
+  <figcaption>Tutto sta in casa: l'inverter, il Raspberry che lo interroga e gli schermi che
+     leggono. Non c'è nessun servizio esterno nel mezzo.</figcaption>
+</figure>
+</section>
+
+<!-- ==================================================================== -->
+<section id="accesso">
+<h2>2. Come si apre</h2>
+
+<h3>Dal pannello a muro</h3>
+<p><strong>Non c'è niente da fare.</strong> Il monitor da 32" verticale in corridoio è pilotato dal
+   Raspberry Pi: quando il Pi si accende, parte da solo il browser a schermo intero sulla dashboard.
+   Non ha tastiera né mouse, non si tocca e non si aggiorna a mano — è un cartello che si aggiorna
+   ogni cinque secondi. Se lo schermo è nero o bianco, vai a
+   <a href="#troubleshooting">«Se qualcosa si rompe»</a>.</p>
+
+<h3>Da telefono e da Mac</h3>
+<p>La stessa pagina si apre da qualunque dispositivo iscritto al tailnet di casa, all'indirizzo:</p>
+<pre><code>https://&lt;rpi-host&gt;.&lt;tailnet&gt;.ts.net/</code></pre>
+<p>Funziona <strong>sia dentro casa sia fuori</strong>, purché il client Tailscale sul telefono o sul
+   Mac sia acceso e collegato. Non c'è nessuna password da digitare: la pagina si autorizza da sola
+   al primo caricamento.</p>
+
+<div class="note">
+  <p><strong>Perché non c'è un indirizzo di rete locale.</strong> Il server ascolta solo sul
+     Raspberry stesso, non sulla rete di casa. Esporlo sul wifi vorrebbe dire rendere leggibile
+     la telemetria di casa a chiunque sia connesso — ospiti, televisori, lampadine intelligenti,
+     chiunque conosca la password del wifi. Tailscale ottiene lo stesso risultato senza aprire
+     nulla a nessuno, quindi lo si usa anche quando si è in salotto.</p>
+</div>
+
+<h3>Dal Mac, senza aprire il browser</h3>
+<p>Sul Mac ci sono anche tre modi di tenere d'occhio i numeri senza una scheda aperta:</p>
+<ul>
+  <li><strong>EnergyBar</strong> — un'icona nella barra dei menu con rete, casa, solare e batteria.</li>
+  <li><strong>Widget di sistema</strong> — nel Centro Notifiche o sulla Scrivania.</li>
+  <li><strong>Übersicht</strong> — una barra fissa sullo sfondo della Scrivania.</li>
+</ul>
+<p>Tutti e tre leggono da <code>127.0.0.1:8003</code>, cioè si aspettano di trovare il server
+   <em>sul Mac</em>. Serve quindi un tunnel verso il Raspberry, aperto una volta e lasciato lì:</p>
+<pre><code>ssh -N -L 8003:127.0.0.1:8003 &lt;rpi-host&gt;</code></pre>
+<p>e il token nel file che i widget si aspettano — vedi <a href="#servizio">«Servizio, log e token»</a>.</p>
+</section>
+
+<!-- ==================================================================== -->
+<section id="leggere">
+<h2>3. Come si legge la dashboard</h2>
+
+<figure>
+  <img src="../screenshots/desktop-chiaro.png" alt="La dashboard su schermo largo: barra di stato in alto, i due numeri principali, il diagramma di flusso, la scheda batteria, l'energia di oggi.">
+  <figcaption>La stessa pagina su un Mac. Sul pannello verticale gli elementi sono gli stessi,
+     impilati e molto più grandi.</figcaption>
+</figure>
+
+<h3>La barra in alto</h3>
+<p>Ora e data, meteo del posto, orario di alba e tramonto, e a destra la
+   <strong>pastiglia di freschezza</strong>: è l'unico elemento che distingue «dati di adesso» da
+   «numeri congelati sullo schermo». Quando è verde e dice <span class="chip ok">in diretta</span>
+   quello che vedi è successo meno di quindici secondi fa.</p>
+
+<h3>Solare adesso</h3>
+<p>La potenza che i pannelli stanno producendo <em>in questo istante</em>, in W o kW. Sotto, in
+   piccolo, la ripartizione fra le due stringhe (<code>stringhe 2,38 + 1,80 kW</code>): se una delle
+   due è ferma a zero in pieno sole, c'è qualcosa da guardare sul tetto.</p>
+
+<h3>Casa adesso</h3>
+<p>Quanto sta assorbendo la casa in questo istante. La frase sotto risponde alla domanda che uno si
+   fa davvero: <em>lo sto pagando?</em> — «tutta dall'impianto», «coperta al 60% dall'impianto»,
+   «tutta dalla rete».</p>
+
+<h3>Il diagramma di flusso</h3>
+<p>Cinque nodi — Fotovoltaico, Inverter, Batteria, Casa, Rete — collegati da archi. Quello che conta
+   è il <strong>verso</strong>: i puntini corrono lungo l'arco nella direzione in cui l'energia sta
+   andando. Un nodo a riposo (sotto 20 W) resta al suo posto ma si smorza, così l'occhio non lo
+   cerca.</p>
+<ul>
+  <li><strong>Batteria</strong> → «in carica», «in scarica» o «a riposo».</li>
+  <li><strong>Rete</strong> → «preleva dalla rete», «immette in rete» o «in equilibrio».</li>
+  <li><strong>Inverter</strong> → la potenza che passa dall'apparecchio, e il modo di funzionamento.</li>
+</ul>
+<p>I numeri sui nodi sono sempre <strong>senza segno</strong>: la direzione la dicono la frase e i
+   puntini, non un meno davanti al numero.</p>
+
+<h3>Batteria</h3>
+<ul>
+  <li><strong>Carica</strong> — la percentuale. La tacca sulla barra è la soglia minima
+      configurata: sotto quella l'inverter non scende.</li>
+  <li><strong>Autonomia stimata</strong> — per quanto la batteria regge il consumo attuale. Ha
+      senso solo mentre si scarica; in carica dice «in carica». Il marcatore <em>alba</em> sulla
+      barra risponde alla domanda vera: <em>ci arrivo, a domattina?</em> Se il riempimento supera
+      il marcatore, sì.</li>
+  <li><strong>Salute (SOH)</strong> — quanta capacità le resta rispetto a quando era nuova. Cala di
+      pochissimo all'anno; se scendesse di colpo, sarebbe una notizia.</li>
+  <li><strong>Temperatura</strong> — della batteria e (su schermo grande) dell'inverter.</li>
+</ul>
+
+<h3>Andamento di oggi</h3>
+<p>Due curve, solare e casa, con sotto la striscia della carica batteria sullo stesso asse dei tempi.
+   <strong>La curva arriva dal Raspberry, non dal browser</strong>: sopravvive al riavvio del Pi e
+   al ricaricamento della pagina, quindi il pannello si accende con la giornata già disegnata invece
+   di ripartire da zero.</p>
+<p>Ogni punto è un minuto, ed è la <strong>media</strong> dei dodici campioni letti in quel minuto —
+   non l'ultimo valore, che sarebbe un colpo di fortuna. Se il server non risponde, il browser fa da
+   rete di sicurezza con la curva che ha accumulato lui: meglio una curva parziale di una card
+   vuota.</p>
+
+<h3 id="storico">Storico</h3>
+<p>Sotto l'andamento c'è la sezione <strong>Storico</strong>, con «◂ Giorno prec.» e «Giorno succ. ▸»
+   per muoversi nei giorni passati. Il pulsante «giorno successivo» si spegne su oggi, invece di
+   restare cliccabile senza portare da nessuna parte.</p>
+<p>Un giorno si può anche aprire direttamente, e il link si può salvare o mandare a qualcuno:</p>
+<pre><code>https://&lt;rpi-host&gt;.&lt;tailnet&gt;.ts.net/?day=2026-08-08</code></pre>
+<p>Un giorno senza dati non viene disegnato come una linea piatta a zero — sarebbe indistinguibile
+   da una casa senza consumi. Dice invece che non c'è, e perché: «o il sistema era spento, o il
+   giorno è più vecchio della retention».</p>
+
+<div class="warn">
+  <p><strong>Cosa è esatto e cosa è ricostruito.</strong> Nel riepilogo giornaliero, la sola
+     <strong>produzione fotovoltaica</strong> viene dal contatore dell'inverter ed è esatta.
+     Prelievo, immissione, carica e scarica sono invece <strong>ricostruiti</strong> integrando le
+     medie al minuto, perché a mezzanotte i contatori giornalieri dell'apparecchio si azzerano e
+     quel numero non si può più chiedere. Sono buoni per confrontare due giorni fra loro, non per
+     contestare una bolletta.</p>
+</div>
+
+<h3>Energia di oggi</h3>
+<p>Due barre, e sono <strong>due totali veri</strong>, non una somma di cose diverse.</p>
+<ul>
+  <li><strong>Prodotta</strong> — l'energia uscita dall'inverter da mezzanotte, divisa in
+      «autoconsumata» ed «esportata». La nota sotto riporta la resa dei pannelli in continua.</li>
+  <li><strong>Consumata</strong> — quella entrata in casa, divisa in «dall'impianto» e «dalla rete».
+      La nota riporta a parte quanto è entrato e uscito dalla batteria: sono flussi interni, non
+      un terzo pezzo da impilare accanto agli altri due.</li>
+</ul>
+
+<h3>Indici di oggi</h3>
+<ul>
+  <li><strong>Autosufficienza</strong> — quanta parte del consumo di oggi <em>non</em> è arrivata
+      dalla rete.</li>
+  <li><strong>Autoconsumo del prodotto</strong> — quanta parte di ciò che hai prodotto è rimasta
+      in casa invece di essere venduta.</li>
+</ul>
+
+<h3 id="dc-ac">DC e AC: due numeri diversi per lo stesso sole</h3>
+<p>È il punto in cui tutti si confondono, ed è normale: sono due misure della <em>stessa</em>
+   energia prese in due punti diversi dell'impianto.</p>
+<ul>
+  <li><strong>Resa dei pannelli (DC)</strong> — quanto hanno prodotto i pannelli in corrente
+      continua, prima dell'inverter.</li>
+  <li><strong>Prodotta (AC)</strong> — quanto è uscito dall'inverter in corrente alternata,
+      pronto per la casa o per la rete.</li>
+</ul>
+<p>L'AC è sempre un po' più basso del DC, perché la conversione ha le sue perdite. <strong>Non si
+   sommano mai</strong>: sarebbe contare due volte lo stesso sole.</p>
+
+<figure>
+  <img src="assets/misure.svg" alt="Schema: i pannelli producono in continua (misura 1, «dai pannelli DC»), l'inverter converte in alternata (misura 2, «Prodotta»), e da lì l'energia va alla casa o alla rete. Sotto, la convenzione dei segni: rete positiva uguale prelievo, negativa uguale immissione; batteria positiva uguale carica, negativa uguale scarica.">
+  <figcaption>I due punti di misura e la convenzione dei segni.</figcaption>
+</figure>
+
+<h3>La convenzione dei segni</h3>
+<p>Sullo schermo i numeri sono senza segno e accompagnati da una frase, quindi questa regola serve
+   soprattutto a chi guarda i dati grezzi (il pannello registri, i widget, l'API):</p>
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Valore</th><th>Positivo</th><th>Negativo</th></tr></thead>
+  <tbody>
+    <tr><td class="key"><strong>Rete</strong></td><td><strong>prelievo</strong> — stai comprando</td><td>immissione — stai vendendo</td></tr>
+    <tr><td class="key"><strong>Batteria</strong></td><td><strong>carica</strong> — sta accumulando</td><td>scarica — sta alimentando la casa</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>Le stesse cose sul pannello a muro e sul telefono</h3>
+<div class="shots">
+  <figure>
+    <img src="../screenshots/kiosk-verticale.png" alt="La dashboard sul pannello verticale a muro: numeri molto grandi, diagramma di flusso al centro, batteria e andamento sotto.">
+    <figcaption>Pannello a muro (1080×1920). Tutto è dimensionato per essere letto da tre metri.</figcaption>
+  </figure>
+  <figure>
+    <img src="../screenshots/mobile.png" alt="La dashboard su telefono: gli stessi elementi in colonna singola.">
+    <figcaption>Telefono. Stessi elementi, una colonna sola.</figcaption>
+  </figure>
+</div>
+</section>
+
+<!-- ==================================================================== -->
+<section id="stato">
+<h2>4. Capire se qualcosa non va</h2>
+
+<p>La dashboard non finge mai. Se i numeri non sono attendibili lo dice, e lo dice in modo diverso a
+   seconda di <em>cosa</em> è rotto: sono guasti diversi e mandano a cercare in posti diversi.</p>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Cosa vedi</th><th>Cosa vuol dire</th><th>Cosa fare</th></tr></thead>
+  <tbody>
+    <tr>
+      <td class="key"><span class="chip ok">in diretta</span></td>
+      <td>Tutto a posto: l'ultimo dato ha meno di 15 secondi.</td>
+      <td>Niente.</td>
+    </tr>
+    <tr>
+      <td class="key"><span class="chip warn">aggiornati 20 s fa</span></td>
+      <td>Un ritardo passeggero, fra 15 e 60 secondi. Compare anche un banner ambra.</td>
+      <td>Aspetta. Se torna verde da solo entro un minuto non è successo niente.</td>
+    </tr>
+    <tr>
+      <td class="key"><span class="chip err">fermi da 4 min</span></td>
+      <td>Il Raspberry risponde, ma i numeri sono congelati: <strong>è l'inverter che non risponde
+          più</strong>, non il server. I valori restano visibili ma sbiaditi.</td>
+      <td>Vedi <a href="#ts-fermi">«I numeri sono fermi»</a>.</td>
+    </tr>
+    <tr>
+      <td class="key"><span class="chip err">nessun dato</span> + <strong>BACKEND OFFLINE</strong></td>
+      <td>Il Raspberry non risponde più da oltre un minuto. I numeri <strong>spariscono</strong>:
+          lasciarli sarebbe peggio, continuerebbero a sembrare veri.</td>
+      <td>Vedi <a href="#ts-offline">«BACKEND OFFLINE»</a>.</td>
+    </tr>
+    <tr>
+      <td class="key">Banner rosso con un testo tecnico</td>
+      <td>L'ultimo errore riportato dal lettore, per esempio
+          <code>timeout Modbus sul registro 80</code>.</td>
+      <td>È l'indizio da riportare nei log. Di solito accompagna uno dei due casi sopra.</td>
+    </tr>
+    <tr>
+      <td class="key">Un numero <span class="sus">barrato</span></td>
+      <td>Il valore è arrivato, ma il sistema lo giudica <strong>non attendibile</strong>: fuori dal
+          campo fisicamente possibile, o un contatore che è andato all'indietro.</td>
+      <td>Guardalo, non fidartene. Vedi <a href="#ts-suspect">«Un numero è barrato»</a>.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="shots">
+  <figure>
+    <img src="../screenshots/stato-stale.png" alt="Pannello con la pastiglia rossa «fermi da 4 min», il banner ambra «Dati fermi da 4 min: il backend risponde ma non li aggiorna» e i numeri sbiaditi.">
+    <figcaption>Dati fermi: il server c'è, l'inverter no.</figcaption>
+  </figure>
+  <figure>
+    <img src="../screenshots/stato-offline.png" alt="Pannello con la scritta BACKEND OFFLINE in grande su fondo rosso e tutti i valori sostituiti da trattini.">
+    <figcaption>Backend offline: i numeri spariscono del tutto.</figcaption>
+  </figure>
+</div>
+
+<div class="note">
+  <p><strong>Perché due stati e non uno.</strong> Un server vivo che serve un dato fermo da quattro
+     minuti non è «offline»: risponde benissimo, è il lettore dell'inverter che si è piantato.
+     Chiamarli allo stesso modo manderebbe a cercare il guasto nel posto sbagliato.</p>
+</div>
+</section>
+
+<!-- ==================================================================== -->
+<section id="scorciatoie">
+<h2>5. Scorciatoie da tastiera</h2>
+
+<p>Servono sulla vista da computer e per la manutenzione (una tastiera attaccata al Raspberry).
+   Il pannello a muro non ha tastiera. Premi <kbd>?</kbd> in qualsiasi momento per rivederle a
+   schermo.</p>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Tasto</th><th>Cosa fa</th></tr></thead>
+  <tbody>
+    <tr><td class="key"><kbd>?</kbd></td><td>Apre e chiude l'aiuto con l'elenco delle scorciatoie</td></tr>
+    <tr><td class="key"><kbd>r</kbd></td><td>Aggiorna i dati adesso, senza aspettare il ciclo</td></tr>
+    <tr><td class="key"><kbd>a</kbd></td><td>Aggiornamento automatico acceso / spento</td></tr>
+    <tr><td class="key"><kbd>t</kbd></td><td>Tema: automatico → chiaro → scuro → automatico</td></tr>
+    <tr><td class="key"><kbd>k</kbd></td><td>Passa fra modalità kiosk (numeri giganti) e compatta</td></tr>
+    <tr><td class="key"><kbd>1</kbd></td><td>Vai alla vista del flusso</td></tr>
+    <tr><td class="key"><kbd>2</kbd></td><td>Vai allo storico</td></tr>
+    <tr><td class="key"><kbd>3</kbd></td><td>Apre e chiude la vista 3D dell'impianto</td></tr>
+    <tr><td class="key"><kbd>d</kbd></td><td>Mostra o nasconde il pannello dei registri</td></tr>
+    <tr><td class="key"><kbd>f</kbd></td><td>Schermo intero</td></tr>
+    <tr><td class="key"><kbd>Esc</kbd></td><td>Chiude l'aiuto</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>In <strong>automatico</strong> il tema segue alba e tramonto del posto: chiaro di giorno, scuro
+   di notte. La scelta fatta con <kbd>t</kbd> resta memorizzata sul dispositivo finché non si
+   ritorna su «automatico».</p>
+
+<p>La <strong>vista 3D</strong> si apre col tasto <kbd>3</kbd> o col pulsante «3D» fra i controlli,
+   e si chiude allo stesso modo (o con <kbd>Esc</kbd>). È l'unica parte pesante del progetto, e per
+   questo si carica <em>solo quando la si apre</em>: il pannello a muro, dove nessuno la guarda, non
+   paga il costo di una libreria grafica che non userà mai. Quando si esce, il disegno si ferma
+   davvero — e si ferma anche quando la finestra passa in secondo piano. I numeri che mostra sono
+   gli stessi della vista 2D, non un calcolo a parte.</p>
+</section>
+
+<!-- ==================================================================== -->
+<section id="servizio">
+<h2>6. Servizio, log e token</h2>
+
+<h3>Avviare e riavviare</h3>
+<p>Sul Raspberry EnergyFlow gira come servizio di sistema e riparte da solo a ogni avvio e dopo
+   ogni errore.</p>
+<pre><code>sudo systemctl status energyflow      # come sta
+sudo systemctl restart energyflow     # riavvia
+journalctl -u energyflow -f           # guarda cosa dice, in diretta</code></pre>
+
+<p>A mano, per una prova (dalla cartella del progetto):</p>
+<pre><code>python3 invert.py --serve              # porta 8003, solo loopback
+python3 invert.py --serve --debug      # + dump dei registri a ogni lettura</code></pre>
+
+<div class="warn">
+  <p><strong>La porta è una sola: 8003.</strong> Se è occupata il server <em>non</em> parte e lo dice,
+     invece di spostarsi silenziosamente su un'altra: un pannello che punta alla porta sbagliata
+     resta bianco senza spiegazioni.</p>
+</div>
+
+<h3>Il pannello a muro</h3>
+<pre><code># riavvia la sessione grafica (il servizio dati resta su)
+sudo systemctl restart lightdm
+
+# ruota il monitor senza riavviare
+XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 \
+  wlr-randr --output HDMI-A-1 --transform 270</code></pre>
+
+<h3>Dove sono i log</h3>
+<p>Un file al giorno, nella cartella <code>log/</code> del progetto, accanto al SODE:</p>
+<pre><code>log/2026-08-09.txt</code></pre>
+<p>Dentro ci sono le letture, i tempi in millisecondi, gli errori del lettore Modbus e anche
+   <strong>i messaggi del browser</strong>, che la pagina rimanda al server: così si può capire cosa
+   è successo sul pannello a muro senza avere il pannello davanti.</p>
+
+<h3 id="storico-disco">Lo storico su disco</h3>
+<p>Accanto ai log del giorno, in <code>log/energy/</code>, ci sono i dati che tengono in piedi la
+   sezione <a href="#storico">Storico</a>:</p>
+<pre><code>log/energy/2026-08-09.csv   dettaglio al minuto, tenuto 90 giorni
+log/energy/daily.csv        un rigo per giorno, non si cancella mai</code></pre>
+<ul>
+  <li><strong>Una scrittura al minuto</strong>, non una a ogni lettura: dodici volte meno scritture
+      sulla microSD, che è la parte del Raspberry che si consuma per prima.</li>
+  <li><strong>Quanto occupa</strong>, misurato e non stimato: <strong>42 kB</strong> per una
+      giornata piena, <strong>3,69 MB</strong> quando la retention è al massimo.</li>
+  <li><strong>Il consolidamento del giorno</strong> avviene alle <strong>00:05</strong>. Se a
+      quell'ora il Pi era spento, il giorno viene consolidato appena si riaccende invece di andare
+      perso.</li>
+  <li><strong>Ogni cancellazione</strong> dovuta alla retention finisce nel log del giorno: i file
+      non spariscono in silenzio.</li>
+</ul>
+<p>Per spegnere del tutto lo storico, in <code>config.json</code>:</p>
+<pre><code>"history": { "enabled": false }</code></pre>
+<p>Con lo storico spento la sezione Storico non compare affatto — vedi
+   <a href="#ts-storico">il troubleshooting</a>.</p>
+
+<h3>Lo stato di salute</h3>
+<pre><code>curl -s http://localhost:8003/health</code></pre>
+<p>Risponde <code>200</code> con <code>"status": "ok"</code> se il lettore gira e i valori stanno nel
+   campo del possibile; <code>503</code> con <code>"status": "degraded"</code> e l'elenco dei motivi
+   se no. È una sonda vera, non un «il processo è vivo».</p>
+
+<h3>Il token</h3>
+<p>Nel browser non serve fare niente: la pagina riceve il token da sola al primo caricamento. Serve
+   invece ai widget del Mac e a qualunque richiesta fatta a mano.</p>
+<pre><code># leggerlo (lo genera al primo avvio se manca)
+python3 invert.py --print-token
+
+# consegnarlo ai widget macOS
+mkdir -p ~/.config/energyflow
+python3 invert.py --print-token &gt; ~/.config/energyflow/token
+chmod 600 ~/.config/energyflow/token</code></pre>
+<p>Il token vive nel file <code>.env</code> del progetto sul Raspberry, con permessi <code>600</code>,
+   e <strong>non è nel repository</strong>. Se lo si rigenera, i widget vanno riconfigurati.</p>
+
+<h3>Verificare che i numeri siano quelli giusti</h3>
+<pre><code>python3 invert.py --validate</code></pre>
+<p>Controlla dodici invarianti fisiche sui dati veri — per esempio che l'energia prodotta oggi sia
+   compatibile con la potenza istantanea integrata nel tempo, o che i contatori totali non vadano
+   all'indietro. È il controllo che dice se la mappa dei registri sta ancora leggendo le cose giuste.</p>
+<pre><code># registrare qualche minuto di dati e ricontrollarli con calma
+python3 invert.py --capture giornata.json --duration 300 --interval 5
+python3 invert.py --validate --from giornata.json</code></pre>
+</section>
+
+<!-- ==================================================================== -->
+<section id="troubleshooting">
+<h2>7. Se qualcosa si rompe</h2>
+
+<details id="ts-bianco">
+<summary>Il pannello a muro è bianco, nero o mostra un errore del browser</summary>
+<p>In ordine, dal più probabile:</p>
+<ol>
+  <li>Il servizio dati non è su → <code>sudo systemctl status energyflow</code>. Se è fermo,
+      <code>sudo systemctl restart energyflow</code> e guarda <code>journalctl -u energyflow -n 50</code>.</li>
+  <li>Il servizio c'è ma il browser non è partito → <code>sudo systemctl restart lightdm</code>
+      riavvia la sessione grafica; il servizio dati non viene toccato.</li>
+  <li>Il browser si è fermato su una richiesta di password del portachiavi. Succede se manca
+      l'opzione <code>--password-store=basic</code> nell'avvio automatico: senza, chiede
+      «Choose password for new keyring» e la pagina non si apre mai.</li>
+  <li>Lo schermo è in standby o il cavo si è mosso. Banale, e capita.</li>
+</ol>
+</details>
+
+<details id="ts-fermi">
+<summary>I numeri sono fermi — «fermi da N min»</summary>
+<p>Il Raspberry sta rispondendo: quello che non risponde è l'inverter. Le cause abituali:</p>
+<ul>
+  <li><strong>L'inverter ha cambiato indirizzo.</strong> È la causa più frequente, e il sistema se
+      ne difende da solo: dopo cinque letture fallite (circa 40 secondi) cerca l'inverter su tutta
+      la rete di casa, lo riconosce dalla firma dei suoi registri per non scambiarlo con un altro
+      apparecchio, e riprende. In genere non serve fare niente e i numeri tornano da soli.
+      <br>La soluzione definitiva, però, è un'altra: <strong>riservare l'indirizzo dell'inverter
+      sul router</strong> (DHCP reservation), così non cambia più. Finché non la si fa, il problema
+      si ripresenta a ogni rinnovo del contratto di rete.</li>
+  <li><strong>L'inverter è spento o si sta riavviando.</strong> Di notte alcuni modelli riducono
+      l'attività: qualche timeout isolato non è un guasto.</li>
+  <li><strong>Wi-Fi o powerline instabili</strong> fra inverter e router. Nei log si vedono
+      timeout ripetuti sempre sugli stessi registri.</li>
+</ul>
+<p>Cosa guardare: <code>journalctl -u energyflow -n 100</code> e le righe con <code>Poll error</code>
+   o <code>Discovery</code> nel file del giorno in <code>log/</code>.</p>
+</details>
+
+<details id="ts-offline">
+<summary>BACKEND OFFLINE</summary>
+<p>Il server non risponde più a chi guarda la pagina. Dal Raspberry:</p>
+<pre><code>sudo systemctl restart energyflow
+curl -s http://localhost:8003/health</code></pre>
+<p>Se il servizio non riparte, il messaggio di errore nei log dice quasi sempre perché. I due casi
+   ricorrenti sono la porta 8003 già occupata da un altro processo (il server lo scrive nel log e
+   si ferma di proposito) e la scheda SD piena o passata in sola lettura.</p>
+<p>Se il pannello a muro va e invece il telefono no, il problema non è il server ma il collegamento:
+   controlla che Tailscale sia connesso sul telefono.</p>
+</details>
+
+<details id="ts-suspect">
+<summary>Un numero è barrato</summary>
+<p>Il sistema ha ricevuto quel valore ma lo considera non attendibile: sta fuori dal campo
+   fisicamente possibile (una tensione di batteria a quattro cifre, per esempio) oppure è un
+   contatore che è andato all'indietro.</p>
+<p>Non è un guasto della dashboard, è la dashboard che <em>fa il suo lavoro</em>: preferisce
+   segnalare un dubbio che mostrare un numero pulito e falso.</p>
+<pre><code>curl -s http://localhost:8003/health     # elenca i campi sospetti e gli invarianti falliti
+python3 invert.py --validate             # controllo completo sui dati veri</code></pre>
+<p>Se il campo resta sospetto a lungo, la mappa dei registri va rivista per quel campo: è
+   esattamente il segnale per cui esiste.</p>
+</details>
+
+<details id="ts-meteo">
+<summary>Il meteo dice «non disponibile»</summary>
+<p>Il meteo lo chiede il Raspberry, non il browser, e lo tiene in cache per un quarto d'ora. Se
+   manca:</p>
+<ul>
+  <li>mancano le coordinate in <code>config.json</code> (sezione <code>location</code>);</li>
+  <li>il Raspberry non ha connessione a internet in quel momento.</li>
+</ul>
+<p>Non è un guasto grave: senza meteo il resto della dashboard continua a funzionare, ma il tema
+   automatico giorno/notte e il marcatore dell'alba perdono il loro riferimento.</p>
+</details>
+
+<details id="ts-widget">
+<summary>I widget del Mac non si aggiornano</summary>
+<p>Nell'ordine:</p>
+<ol>
+  <li><strong>Manca il tunnel.</strong> I widget cercano il server sul Mac stesso. Riapri
+      <code>ssh -N -L 8003:127.0.0.1:8003 &lt;rpi-host&gt;</code>.</li>
+  <li><strong>Manca o è scaduto il token.</strong> Il file <code>~/.config/energyflow/token</code>
+      deve contenere il token corrente; se il server ne ha generato uno nuovo, va riscritto
+      (vedi <a href="#servizio">sopra</a>). Senza, il server risponde <code>401</code> e il widget
+      resta vuoto invece di fingere.</li>
+  <li>Verifica a mano che il giro funzioni:
+      <pre><code>curl -s -H "Authorization: Bearer $(cat ~/.config/energyflow/token)" \
+     http://127.0.0.1:8003/data | head -c 200</code></pre></li>
+</ol>
+</details>
+
+<details id="ts-storico">
+<summary>Il grafico dello storico è vuoto (o la sezione non c'è proprio)</summary>
+<p>Il riquadro dice sempre <em>quale</em> dei casi è, e il testo cambia di conseguenza:</p>
+<ul>
+  <li><strong>«Nessun dato per questo giorno»</strong> — quel giorno il sistema era spento, oppure
+      è più vecchio della retention (90 giorni di dettaglio al minuto).</li>
+  <li><strong>«Giornata appena iniziata»</strong> — nessun minuto ancora consolidato. Normale nel
+      primo minuto dopo un avvio.</li>
+  <li><strong>«Storico non raggiungibile»</strong> — il backend non ha risposto affatto: è lo stesso
+      problema di <a href="#ts-offline">BACKEND OFFLINE</a>, guardato da un'altra finestra.</li>
+  <li><strong>«Storico non disponibile»</strong> con un codice — il backend ha risposto ma ha detto
+      di no. Il codice sta nel messaggio e nei log del giorno.</li>
+</ul>
+<p><strong>Se la sezione Storico manca del tutto</strong>, lo storico è spento in
+   <code>config.json</code> (<code>"history": {"enabled": false}</code>): l'endpoint risponde 404 e
+   la pagina nasconde la sezione invece di mostrare due pulsanti che non portano da nessuna parte.
+   Riaccendendolo e riavviando il servizio, la sezione ricompare da sola.</p>
+<p>Se invece i file ci sono ma non crescono, guarda in <code>log/</code> le righe di scrittura dello
+   storico: microSD piena o passata in sola lettura è la causa abituale.</p>
+</details>
+</section>
+
+<!-- ==================================================================== -->
+<section id="faq">
+<h2>8. Domande frequenti</h2>
+
+<h4>I dati escono di casa?</h4>
+<p>No. L'unica cosa che il Raspberry chiede fuori è la previsione meteo, e la chiede lui con le
+   coordinate del posto: dal browser non parte nessuna richiesta verso l'esterno.</p>
+
+<h4>Perché «Solare adesso» è a zero anche se c'è il sole?</h4>
+<p>Guarda prima la pastiglia di freschezza: se dice «fermi da…», il numero non è aggiornato, non è
+   zero. Se invece è «in diretta» e c'è davvero zero, o l'inverter è in una fase di riavvio o la
+   produzione è sotto la soglia di misura (all'alba e al tramonto succede).</p>
+
+<h4>Perché l'energia «Prodotta» è minore della «resa dai pannelli»?</h4>
+<p>Perché sono due punti di misura diversi e la conversione da continua ad alternata ha le sue
+   perdite. Vedi <a href="#dc-ac">DC e AC</a>.</p>
+
+<h4>Se riavvio il Raspberry perdo la curva della giornata?</h4>
+<p>No, non più: la curva vive su disco sul Pi, non nel browser. Dopo un riavvio la pagina si riapre
+   con la giornata già disegnata, e i giorni passati restano consultabili nella sezione
+   <a href="#storico">Storico</a>.</p>
+
+<h4>Per quanto tempo si tengono i dati?</h4>
+<p>Il dettaglio al minuto per <strong>90 giorni</strong>; il riepilogo di ogni giornata
+   <strong>per sempre</strong>, perché occupa una manciata di byte. Tenere il minuto per sempre
+   costerebbe scritture continue sulla microSD senza che nessuno vada mai a guardare un minuto di
+   due anni fa.</p>
+
+<h4>Posso lasciare il pannello acceso tutta la notte?</h4>
+<p>Sì, è pensato per quello: di notte passa da solo al tema scuro, e le animazioni sono leggere.</p>
+
+<h4>Quanto sono aggiornati i numeri?</h4>
+<p>Il Raspberry interroga l'inverter ogni cinque secondi e la pagina rilegge con la stessa cadenza.
+   Oltre i quindici secondi la pastiglia diventa ambra; oltre il minuto i numeri spariscono.</p>
+
+<h4>Ci sono valori che il sistema non mostra?</h4>
+<p>Sì, e di proposito. Della mappa dei registri sono pubblicati i campi verificati; quelli non
+   identificati con certezza restano esclusi invece di essere indovinati. Un numero plausibile ma
+   sbagliato è peggio di un numero assente.</p>
+
+<h4>Chi può vedere la dashboard?</h4>
+<p>Chi è fisicamente davanti al pannello, e chi è iscritto al tailnet di casa. Non c'è nessuna porta
+   aperta su internet.</p>
+</section>
+
+<footer class="end">
+  <p>EnergyFlow v2.0.0 — guida operativa. Lo stato tecnico del progetto sta in <code>SODE.md</code>;
+     l'avvio e lo stack in <code>README.md</code>; il perché del progetto nella
+     <a href="../slides/presentazione.html">presentazione</a>.</p>
+  <p>Nessun indirizzo, token o credenziale compare in questa pagina: dove serve un valore reale,
+     c'è un segnaposto e il valore vive nel gestore di password.</p>
+</footer>
+
+</div>
+</body>
+</html>

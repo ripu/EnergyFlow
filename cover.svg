@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630" role="img" aria-label="EnergyFlow — il flusso di energia di casa, in tempo reale">
+  <title>EnergyFlow</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f172a"/>
+      <stop offset="1" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="brand" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0" stop-color="#22D3EE"/>
+      <stop offset="1" stop-color="#10B981"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#22D3EE" stop-opacity="0.20"/>
+      <stop offset="1" stop-color="#22D3EE" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <circle cx="300" cy="300" r="290" fill="url(#glow)"/>
+
+  <!-- Emblema -->
+  <g transform="translate(108,187) scale(1.0)">
+    <path fill="none" stroke="url(#brand)" stroke-width="13" stroke-linecap="round"
+          d="M196 196a96 96 0 1 0-14 12"/>
+    <path fill="none" stroke="url(#brand)" stroke-width="13"
+          stroke-linejoin="round" stroke-linecap="round"
+          d="M141 60 84 137h44l-13 63 57-77h-44z"/>
+  </g>
+
+  <g font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+    <!-- Titolo -->
+    <text x="420" y="290" font-size="92" font-weight="800" letter-spacing="-2">
+      <tspan fill="#22D3EE">Energy</tspan><tspan fill="#F1F5F9">Flow</tspan>
+    </text>
+
+    <!-- Tagline -->
+    <text x="424" y="344" font-size="27" font-weight="500" fill="#94A3B8">
+      Il flusso di energia di casa, in tempo reale.
+    </text>
+
+    <!-- Chip feature -->
+    <g>
+      <rect x="422" y="386" width="222" height="46" rx="23" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+      <text x="446" y="415" font-size="20" font-weight="600" fill="#CBD5E1">☀️<tspan dx="10">Solare e batteria</tspan></text>
+
+      <rect x="658" y="386" width="186" height="46" rx="23" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+      <text x="682" y="415" font-size="20" font-weight="600" fill="#CBD5E1">⚡<tspan dx="10">Modbus TCP</tspan></text>
+
+      <rect x="858" y="386" width="160" height="46" rx="23" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+      <text x="882" y="415" font-size="20" font-weight="600" fill="#CBD5E1">🖥️<tspan dx="10">Kiosk RPi</tspan></text>
+    </g>
+  </g>
+
+  <!-- Footer -->
+  <line x1="108" y1="536" x2="1092" y2="536" stroke="#334155" stroke-width="1.5"/>
+  <g font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="21" font-weight="600">
+    <text x="108" y="578" fill="#64748B">Dashboard locale · nessun cloud</text>
+    <text x="1092" y="578" fill="#64748B" text-anchor="end">archimede.world</text>
+  </g>
+</svg>

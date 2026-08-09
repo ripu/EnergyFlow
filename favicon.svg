@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="EnergyFlow">
+  <title>EnergyFlow</title>
+  <defs>
+    <linearGradient id="ef-bolt" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0" stop-color="#22D3EE"/>
+      <stop offset="1" stop-color="#10B981"/>
+    </linearGradient>
+  </defs>
+  <!-- Anello: il ciclo dell'energia. Aperto in basso a destra, dove il fulmine "esce". -->
+  <path fill="none" stroke="url(#ef-bolt)" stroke-width="13" stroke-linecap="round"
+        d="M196 196a96 96 0 1 0-14 12"/>
+  <!-- Fulmine: produzione istantanea -->
+  <path fill="none" stroke="url(#ef-bolt)" stroke-width="13"
+        stroke-linejoin="round" stroke-linecap="round"
+        d="M141 60 84 137h44l-13 63 57-77h-44z"/>
+</svg>

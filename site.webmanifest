@@ -1,0 +1,17 @@
+{
+  "name": "EnergyFlow — flusso di energia di casa",
+  "short_name": "EnergyFlow",
+  "description": "Monitoraggio in tempo reale di solare, batteria, rete e consumi, letto direttamente dall'inverter via Modbus TCP.",
+  "lang": "it",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#0f172a",
+  "background_color": "#0f172a",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

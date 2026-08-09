@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 430" width="980" height="430"
+     role="img" aria-labelledby="t1en d1en">
+  <title id="t1en">How the data travels from the inverter to the screen</title>
+  <desc id="d1en">The home inverter speaks Modbus TCP on port 502. A Raspberry Pi polls it every 5
+    seconds, keeps the values in memory and serves them over HTTP on port 8003, bound to its own
+    loopback only. The wall panel, the phone and the Mac read from there. No data leaves the house.</desc>
+
+  <style>
+    .surface { fill: #ffffff; stroke: #ccd6e3; }
+    .inner   { fill: #f4f7fb; stroke: #dbe3ed; }
+    .frame   { fill: none; stroke: #b0bccd; stroke-dasharray: 7 6; }
+    .t       { fill: #0f1720; font-family: "Sora", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    .m       { fill: #414e61; font-family: "Sora", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    .wire    { stroke: #74849b; fill: none; stroke-width: 2.5; }
+    .b       { font-weight: 700; }
+    .solar   { fill: #eb6834; }
+
+    @media (prefers-color-scheme: dark) {
+      .surface { fill: #161d27; stroke: #33404f; }
+      .inner   { fill: #1f2836; stroke: #33404f; }
+      .frame   { stroke: #5a6b81; }
+      .t       { fill: #e8edf4; }
+      .m       { fill: #adbdd1; }
+      .wire    { stroke: #73879f; }
+      .solar   { fill: #d95926; }
+    }
+  </style>
+
+  <defs>
+    <marker id="arrow-en" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#74849b"/>
+    </marker>
+  </defs>
+
+  <rect class="frame" x="10" y="10" width="960" height="360" rx="18"/>
+  <text class="m b" x="30" y="38" font-size="14">INSIDE THE HOUSE</text>
+
+  <rect class="surface" x="34" y="150" width="206" height="128" rx="14" stroke-width="1.5"/>
+  <rect class="solar" x="34" y="150" width="6" height="128" rx="3"/>
+  <text class="t b" x="137" y="192" font-size="19" text-anchor="middle">Inverter</text>
+  <text class="m"   x="137" y="217" font-size="14" text-anchor="middle">solar + battery</text>
+  <text class="m"   x="137" y="240" font-size="13" text-anchor="middle">SolaX X1-Hybrid G4</text>
+  <text class="m"   x="137" y="259" font-size="13" text-anchor="middle">(Q.CELLS Q.HOME ESS)</text>
+
+  <path class="wire" d="M 246 214 L 322 214" marker-end="url(#arrow-en)"/>
+  <text class="t b" x="284" y="196" font-size="14" text-anchor="middle">Modbus TCP</text>
+  <text class="m"   x="284" y="236" font-size="13" text-anchor="middle">port 502</text>
+  <text class="m"   x="284" y="254" font-size="13" text-anchor="middle">every 5 s</text>
+
+  <rect class="surface" x="332" y="104" width="286" height="220" rx="14" stroke-width="1.5"/>
+  <text class="t b" x="475" y="134" font-size="19" text-anchor="middle">Raspberry Pi</text>
+
+  <rect class="inner" x="352" y="150" width="246" height="70" rx="10" stroke-width="1.5"/>
+  <text class="t b" x="475" y="177" font-size="15" text-anchor="middle">Register reader</text>
+  <text class="m"   x="475" y="200" font-size="13" text-anchor="middle">reads, checks, keeps in memory</text>
+
+  <rect class="inner" x="352" y="232" width="246" height="70" rx="10" stroke-width="1.5"/>
+  <text class="t b" x="475" y="259" font-size="15" text-anchor="middle">Web page · port 8003</text>
+  <text class="m"   x="475" y="282" font-size="13" text-anchor="middle">loopback only · token protected</text>
+
+  <path class="wire" d="M 624 214 L 686 214"/>
+  <text class="t b" x="655" y="196" font-size="14" text-anchor="middle">HTTP</text>
+  <path class="wire" d="M 686 152 L 686 276"/>
+  <path class="wire" d="M 686 152 L 726 152" marker-end="url(#arrow-en)"/>
+  <path class="wire" d="M 686 214 L 726 214" marker-end="url(#arrow-en)"/>
+  <path class="wire" d="M 686 276 L 726 276" marker-end="url(#arrow-en)"/>
+
+  <rect class="surface" x="734" y="122" width="220" height="62" rx="12" stroke-width="1.5"/>
+  <text class="t b" x="844" y="148" font-size="15" text-anchor="middle">32" wall panel</text>
+  <text class="m"   x="844" y="169" font-size="13" text-anchor="middle">portrait, always on</text>
+
+  <rect class="surface" x="734" y="184" width="220" height="62" rx="12" stroke-width="1.5"/>
+  <text class="t b" x="844" y="210" font-size="15" text-anchor="middle">Phone</text>
+  <text class="m"   x="844" y="231" font-size="13" text-anchor="middle">over Tailscale</text>
+
+  <rect class="surface" x="734" y="246" width="220" height="62" rx="12" stroke-width="1.5"/>
+  <text class="t b" x="844" y="272" font-size="15" text-anchor="middle">Mac</text>
+  <text class="m"   x="844" y="293" font-size="13" text-anchor="middle">page + three widgets</text>
+
+  <text class="m" x="490" y="404" font-size="15" text-anchor="middle">
+    No cloud and no account: the data never leaves the home network.
+  </text>
+</svg>

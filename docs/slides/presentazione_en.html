@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>EnergyFlow — Slide deck</title>
+<meta name="description" content="What EnergyFlow is and why it exists: the home energy flow read straight from the inverter, in real time and without a cloud.">
+<meta name="color-scheme" content="light dark">
+<style>
+/* ==========================================================================
+   EnergyFlow — slide deck (rule #31.3).
+   One file, no external dependencies, opens from file://.
+   Body text ≥24px on a projector, AA contrast in both themes,
+   one slide per viewport, nothing overlapping anything else.
+   ========================================================================== */
+:root {
+  --bg: #e9eef5;
+  --surface: #ffffff;
+  --surface-2: #f4f7fb;
+  --border: #ccd6e3;
+  --text: #0f1720;
+  --muted: #414e61;
+  --faint: #74849b;
+  --solar: #eb6834;
+  --grid: #2a78d6;
+  --battery: #1baf7a;
+  --ok: #0b573a;
+  --error: #991c15;
+  --shadow: 0 8px 28px rgba(13,17,23,.12), 0 2px 6px rgba(13,17,23,.06);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --surface: #161d27;
+    --surface-2: #1f2836;
+    --border: #33404f;
+    --text: #e8edf4;
+    --muted: #adbdd1;
+    --faint: #7a8ca3;
+    --solar: #d95926;
+    --grid: #3987e5;
+    --battery: #199e70;
+    --ok: #3ecf8e;
+    --error: #ff8a83;
+    --shadow: 0 8px 30px rgba(0,0,0,.55);
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 400 20px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+.slide {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100vh;
+  padding: clamp(24px, 4vh, 56px) clamp(20px, 5vw, 80px) clamp(88px, 10vh, 104px);
+  max-width: 1280px;
+  margin: 0 auto;
+}
+/* Without JavaScript every slide stays visible and stacked: the deck still
+   reads by scrolling instead of disappearing. */
+body.deck .slide { display: none; }
+body.deck .slide.is-current { display: flex; }
+
+.kicker {
+  font-size: clamp(14px, 1.5vw, 18px);
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--faint);
+  font-weight: 700;
+  margin: 0 0 clamp(10px, 2vh, 20px);
+}
+h1 {
+  font-size: clamp(40px, 8vw, 92px);
+  line-height: 1.02;
+  letter-spacing: -.03em;
+  margin: 0 0 clamp(12px, 2vh, 20px);
+}
+h2 {
+  font-size: clamp(30px, 4.6vw, 58px);
+  line-height: 1.1;
+  letter-spacing: -.02em;
+  margin: 0 0 clamp(14px, 2.4vh, 26px);
+  max-width: 22ch;
+}
+p, li { font-size: clamp(19px, 1.9vw, 27px); }
+p { margin: 0 0 clamp(12px, 2vh, 20px); max-width: 40ch; }
+p.lead { font-size: clamp(21px, 2.4vw, 32px); color: var(--muted); max-width: 34ch; }
+.big { font-size: clamp(22px, 2.4vw, 32px); font-weight: 700; max-width: 44ch; }
+strong { font-weight: 700; }
+em { font-style: italic; }
+
+ul { margin: 0; padding: 0; list-style: none; max-width: 46ch; }
+ul.points > li {
+  position: relative;
+  padding-left: 1.5em;
+  margin: 0 0 clamp(12px, 2vh, 20px);
+  line-height: 1.42;
+}
+ul.points > li::before {
+  content: "";
+  position: absolute; left: 0; top: .52em;
+  width: .62em; height: .62em; border-radius: 3px;
+  background: var(--grid);
+}
+ul.points > li:nth-child(1)::before { background: var(--solar); }
+ul.points > li:nth-child(2)::before { background: var(--battery); }
+ul.points > li:nth-child(3)::before { background: var(--grid); }
+ul.points > li:nth-child(4)::before { background: var(--faint); }
+li b { display: block; }
+li span { color: var(--muted); font-size: .88em; }
+
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: clamp(20px, 4vw, 48px);
+  align-items: center;
+}
+@media (min-width: 900px) { .split.two { grid-template-columns: 1fr 1fr; } }
+
+.cards { display: grid; gap: clamp(12px, 2vw, 20px); grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 760px) { .cards.two { grid-template-columns: 1fr 1fr; } }
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 16px; padding: clamp(16px, 2.4vw, 26px); box-shadow: var(--shadow);
+}
+.card h3 { margin: 0 0 10px; font-size: clamp(19px, 2vw, 26px); }
+.card p { margin: 0; font-size: clamp(17px, 1.7vw, 23px); color: var(--muted); max-width: none; }
+.card.has { border-left: 6px solid var(--battery); }
+.card.hasnt { border-left: 6px solid var(--solar); }
+
+.wrongs { display: grid; gap: clamp(8px, 1.2vh, 14px); max-width: 100%; }
+.wrong {
+  display: grid; gap: 4px 18px; align-items: baseline;
+  grid-template-columns: minmax(0, 1fr);
+  background: var(--surface); border: 1px solid var(--border);
+  border-left: 6px solid var(--error);
+  border-radius: 12px; padding: clamp(10px, 1.3vw, 15px) clamp(14px, 2vw, 22px);
+}
+@media (min-width: 820px) { .wrong { grid-template-columns: minmax(0, 17em) minmax(0, 1fr); } }
+.wrong b { font-size: clamp(18px, 1.7vw, 24px); }
+.wrong span { color: var(--muted); font-size: clamp(16px, 1.5vw, 21px); }
+
+figure { margin: 0; }
+figure img {
+  display: block; max-width: 100%; max-height: 56vh; height: auto;
+  margin: 0 auto; border-radius: 14px;
+}
+figure.framed img { border: 1px solid var(--border); background: var(--surface); box-shadow: var(--shadow); }
+figcaption {
+  font-size: clamp(15px, 1.4vw, 19px); color: var(--muted);
+  margin-top: 12px; text-align: center;
+}
+.shots { display: flex; flex-wrap: wrap; gap: clamp(14px, 2.5vw, 32px); justify-content: center; align-items: center; }
+.shots figure { flex: 1 1 240px; max-width: 440px; }
+.shots img { max-height: 50vh; }
+
+.cover-art { max-width: min(760px, 100%); border-radius: 18px; box-shadow: var(--shadow); display: block; }
+
+pre {
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px;
+  padding: clamp(12px, 1.6vw, 18px) clamp(14px, 2vw, 20px);
+  overflow-x: auto; margin: 0 0 14px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: clamp(15px, 1.5vw, 21px); line-height: 1.5;
+}
+code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+.meta { color: var(--faint); font-size: clamp(15px, 1.5vw, 20px); margin: 0; }
+
+.nav {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px clamp(14px, 3vw, 28px);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  border-top: 1px solid var(--border);
+  backdrop-filter: blur(8px);
+}
+body:not(.deck) .nav { position: static; }
+.nav__brand { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 17px; }
+.nav__brand svg { width: 24px; height: 24px; display: block; }
+.nav__spacer { flex: 1 1 auto; }
+.nav button, .nav a.pill {
+  font: inherit; font-size: 16px;
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--border); border-radius: 999px;
+  padding: 7px 16px; cursor: pointer; text-decoration: none; line-height: 1;
+}
+.nav button:hover, .nav a.pill:hover { border-color: var(--faint); }
+.nav button:disabled { opacity: .4; cursor: default; }
+.nav button:focus-visible, .nav a:focus-visible { outline: 3px solid var(--grid); outline-offset: 2px; }
+.counter {
+  font-variant-numeric: tabular-nums; font-weight: 700; font-size: 17px;
+  color: var(--muted); min-width: 4.5em; text-align: center;
+}
+.langs { display: flex; gap: 2px; align-items: center; font-size: 15px; }
+.langs a, .langs span { padding: 4px 9px; border-radius: 999px; text-decoration: none; color: var(--muted); }
+.langs [aria-current="true"] { background: var(--surface-2); color: var(--text); font-weight: 700; }
+.hint { font-size: 15px; color: var(--faint); }
+/* The bar sheds items instead of widening the page: if it does not fit, the
+   body grows past the viewport and EVERY slide starts scrolling sideways. */
+@media (max-width: 760px) { .hint, .nav__brand span { display: none; } }
+@media (max-width: 520px) {
+  .nav { gap: 8px; padding: 8px 12px; }
+  .nav a.pill, .langs { display: none; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  body.deck .slide.is-current { animation: in .28s cubic-bezier(.22,.8,.3,1) both; }
+  @keyframes in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+}
+</style>
+</head>
+
+<body>
+
+<!-- ============================= 1 — COVER ============================ -->
+<section class="slide" id="s1" aria-label="Cover">
+  <img class="cover-art" src="../../cover.png" alt="EnergyFlow — project cover">
+  <p class="lead" style="margin-top:clamp(20px,4vh,40px)">
+    Read straight from the inverter, every five seconds. No cloud, no account.
+  </p>
+  <p class="meta">v2.0.0 · 9 August 2026</p>
+</section>
+
+<!-- =========================== 2 — THE PROBLEM ======================== -->
+<section class="slide" id="s2" aria-label="The problem">
+  <p class="kicker">The problem</p>
+  <h2>To know what the system was doing, you had to trust someone else.</h2>
+  <ul class="points">
+    <li><b>The manufacturer's portal lives in the cloud.</b>
+        <span>A reading from “now” means waiting, and it comes back through a company's server.</span></li>
+    <li><b>Household data leaves the house.</b>
+        <span>Consumption, timings, habits: when the lights go on.</span></li>
+    <li><b>And the numbers shown were not the real ones.</b>
+        <span>Not a delay: the wrong quantities altogether, wearing the face of the right ones.</span></li>
+  </ul>
+</section>
+
+<!-- ========================= 3 — WHAT IT DOES ======================== -->
+<section class="slide" id="s3" aria-label="What it does">
+  <p class="kicker">What it does</p>
+  <h2>Reads the inverter, shows the flow, and admits when it doesn't know.</h2>
+  <ul class="points">
+    <li><b>Reads the inverter directly, every five seconds.</b>
+        <span>No middleman, over the home network: the protocol is the one the device already speaks.</span></li>
+    <li><b>Shows where the energy goes — sun, house, battery, grid.</b>
+        <span>On a wall panel readable from three metres, and on the same page from a phone or a Mac.</span></li>
+    <li><b>Admits when it doesn't know.</b>
+        <span>Stale, frozen, untrustworthy — three faces.</span></li>
+  </ul>
+</section>
+
+<!-- ============================= 4 — WHO FOR ========================= -->
+<section class="slide" id="s4" aria-label="Who it is for">
+  <p class="kicker">Who it is for</p>
+  <h2>Four actors, and only one of them has anything to do.</h2>
+  <div class="cards two">
+    <div class="card">
+      <h3>Whoever walks past</h3>
+      <p>The whole family. No interaction expected: you look at it, like a clock.</p>
+    </div>
+    <div class="card">
+      <h3>Whoever opens the page</h3>
+      <p>From the sofa or from away, phone or Mac. Same page, no password to type.</p>
+    </div>
+    <div class="card">
+      <h3>Whoever maintains it</h3>
+      <p>One person, who wants readable logs, an honest health status, and a check that fails when
+         something is genuinely wrong.</p>
+    </div>
+    <div class="card">
+      <h3>The inverter</h3>
+      <p>The source. It asks for nothing and does not know it is being read: it just answers.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ========================= 5 — HOW IT WORKS ======================== -->
+<section class="slide" id="s5" aria-label="How it works">
+  <p class="kicker">How it works</p>
+  <h2>Three pieces, all of them inside the house.</h2>
+  <figure>
+    <img src="../guide/assets/architettura_en.svg" alt="The inverter speaks Modbus TCP on port 502; a Raspberry Pi polls it every five seconds and serves the page on port 8003, bound to itself only; the wall panel, the phone and the Mac read from there.">
+    <figcaption>A 6 kWp array with a 12 kWh battery. The only thing the Raspberry Pi asks for
+       from outside is the weather forecast.</figcaption>
+  </figure>
+</section>
+
+<!-- ============================ 6 — IN ACTION ======================== -->
+<section class="slide" id="s6" aria-label="In action">
+  <p class="kicker">In action</p>
+  <h2>The same system, two screens.</h2>
+  <div class="shots">
+    <figure class="framed">
+      <img src="../screenshots/kiosk-verticale.png" alt="The dashboard on the portrait wall panel, dark theme: giant numbers, flow diagram, battery, today's energy.">
+      <figcaption>Wall panel, 32" portrait — from three metres.</figcaption>
+    </figure>
+    <figure class="framed">
+      <img src="../screenshots/desktop-chiaro.png" alt="The dashboard on a Mac, light theme: the same elements laid out in two columns.">
+      <figcaption>Mac — same elements, same rules.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ====================== 7 — WHAT CHANGED =========================== -->
+<section class="slide" id="s7" aria-label="What changed in this version">
+  <p class="kicker">What changed</p>
+  <h2>Three numbers looked right. They were not.</h2>
+  <div class="wrongs">
+    <div class="wrong">
+      <b>“Today's energy: 4,568.6 kWh”</b>
+      <span>That was <em>lifetime</em> production, since installation day.</span>
+    </div>
+    <div class="wrong">
+      <b>“Battery voltage: 1,220.5 V”</b>
+      <span>That was the energy discharged from the battery, in kWh — not volts.</span>
+    </div>
+    <div class="wrong">
+      <b>“Grid exchange”</b>
+      <span>It was reading a register holding the day's production.</span>
+    </div>
+  </div>
+  <p class="big" style="margin-top:clamp(14px,2.2vh,24px)">
+    And the solar figure always added up — even with the wrong map.
+  </p>
+  <p class="meta">A calculation that cannot be wrong verifies nothing. Solar now comes from the
+     panels' measured power, with twelve physical checks beside it that can fail.</p>
+</section>
+
+<!-- ================== 8 — STATE AND WHAT IS MISSING =================== -->
+<section class="slide" id="s8" aria-label="State and what is missing">
+  <p class="kicker">State — v2.0.0</p>
+  <h2>What is there today, and what still is not.</h2>
+  <div class="cards two">
+    <div class="card has">
+      <h3>There</h3>
+      <p>48 verified fields on register map v2.1 · <strong>persistent history</strong> at
+         one-minute resolution, 90 days, with a per-day summary that is never deleted · 3D view ·
+         a theme that follows sunrise and sunset · portrait kiosk panel · token-protected access
+         reachable only from the tailnet · three macOS widgets · twelve physical checks.</p>
+    </div>
+    <div class="card hasnt">
+      <h3>Not there</h3>
+      <p><strong>21 registers still unidentified</strong>, excluded rather than guessed ·
+         in the daily roll-up only production comes from the inverter's counter, the rest is
+         reconstructed · no notifications or alarms: the panel is looked at, it does not call you ·
+         no control over the inverter: EnergyFlow reads, it does not drive.</p>
+    </div>
+  </div>
+  <p class="meta" style="margin-top:clamp(16px,3vh,28px)">
+    Nothing in the right-hand column is presented anywhere else as if it already existed.
+  </p>
+</section>
+
+<!-- ========================= 9 — HOW TO TRY IT ======================= -->
+<section class="slide" id="s9" aria-label="How to try it">
+  <p class="kicker">How to try it</p>
+  <h2>Three ways, and no password to ask anyone for.</h2>
+  <div class="split two">
+    <div>
+      <p><strong>On the wall panel:</strong> it is already there, and it starts by itself.</p>
+      <p><strong>From a phone or a Mac</strong>, at home or away, with Tailscale on:</p>
+      <pre><code>https://&lt;rpi-host&gt;.&lt;tailnet&gt;.ts.net/</code></pre>
+    </div>
+    <div>
+      <p><strong>Locally</strong>, from the project folder:</p>
+      <pre><code>python3 invert.py --serve
+# → http://localhost:8003</code></pre>
+      <p class="meta">Real credentials and addresses: see the password manager. Everything else is in
+         the <a href="../guide/manuale_en.html">operating guide</a>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ NAVIGATION =========================== -->
+<nav class="nav" aria-label="Deck navigation">
+  <span class="nav__brand">
+    <svg viewBox="0 0 256 256" aria-hidden="true">
+      <defs>
+        <linearGradient id="ef-bolt" x1="0" y1="0" x2="0.35" y2="1">
+          <stop offset="0" stop-color="#22D3EE"/><stop offset="1" stop-color="#10B981"/>
+        </linearGradient>
+      </defs>
+      <path fill="none" stroke="url(#ef-bolt)" stroke-width="13" stroke-linecap="round" d="M196 196a96 96 0 1 0-14 12"/>
+      <path fill="none" stroke="url(#ef-bolt)" stroke-width="13" stroke-linejoin="round" stroke-linecap="round" d="M141 60 84 137h44l-13 63 57-77h-44z"/>
+    </svg>
+    <span>EnergyFlow</span>
+  </span>
+  <span class="hint">← → to navigate · F for full screen</span>
+  <span class="nav__spacer"></span>
+  <a class="pill" href="../guide/manuale_en.html">📖 Guide</a>
+  <span class="langs">
+    <a href="presentazione.html" hreflang="it">IT</a>
+    <span aria-current="true">EN</span>
+  </span>
+  <button type="button" id="prev" aria-label="Previous slide">←</button>
+  <span class="counter" id="counter" aria-live="polite">1 / 9</span>
+  <button type="button" id="next" aria-label="Next slide">→</button>
+</nav>
+
+<script>
+/* ==========================================================================
+   Navigation. The slides stay visible until this script runs: with
+   JavaScript off the deck still reads by scrolling instead of vanishing.
+   ========================================================================== */
+(function () {
+  "use strict";
+
+  var slides = Array.prototype.slice.call(document.querySelectorAll(".slide"));
+  if (!slides.length) { return; }
+
+  var counter = document.getElementById("counter");
+  var prevBtn = document.getElementById("prev");
+  var nextBtn = document.getElementById("next");
+  var current = 0;
+
+  document.body.classList.add("deck");
+
+  function clamp(i) { return Math.max(0, Math.min(slides.length - 1, i)); }
+
+  function show(i, pushHash) {
+    current = clamp(i);
+    slides.forEach(function (s, n) {
+      s.classList.toggle("is-current", n === current);
+      // aria-hidden on the slides that are not showing: a screen reader must
+      // not read nine slides at once.
+      s.setAttribute("aria-hidden", n === current ? "false" : "true");
+    });
+    counter.textContent = (current + 1) + " / " + slides.length;
+    prevBtn.disabled = current === 0;
+    nextBtn.disabled = current === slides.length - 1;
+    if (pushHash !== false) {
+      try { history.replaceState(null, "", "#" + slides[current].id); } catch (e) { /* file:// */ }
+    }
+    window.scrollTo(0, 0);
+  }
+
+  function fromHash() {
+    var id = (location.hash || "").replace("#", "");
+    var idx = slides.findIndex(function (s) { return s.id === id; });
+    return idx < 0 ? 0 : idx;
+  }
+
+  function typing(ev) {
+    var t = ev.target;
+    if (!t) { return false; }
+    var tag = (t.tagName || "").toLowerCase();
+    return tag === "input" || tag === "textarea" || t.isContentEditable;
+  }
+
+  document.addEventListener("keydown", function (ev) {
+    if (ev.metaKey || ev.ctrlKey || ev.altKey || typing(ev)) { return; }
+    switch (ev.key) {
+      case "ArrowRight": case "PageDown": case " ": case "n":
+        show(current + 1); ev.preventDefault(); break;
+      case "ArrowLeft": case "PageUp": case "p":
+        show(current - 1); ev.preventDefault(); break;
+      case "Home": show(0); ev.preventDefault(); break;
+      case "End": show(slides.length - 1); ev.preventDefault(); break;
+      case "f": case "F":
+        try {
+          if (!document.fullscreenElement) { document.documentElement.requestFullscreen(); }
+          else { document.exitFullscreen(); }
+        } catch (e) { /* denied by policy: not an error worth shouting about */ }
+        ev.preventDefault(); break;
+      default: break;
+    }
+  });
+
+  prevBtn.addEventListener("click", function () { show(current - 1); });
+  nextBtn.addEventListener("click", function () { show(current + 1); });
+  window.addEventListener("hashchange", function () { show(fromHash(), false); });
+
+  /* Swipe: only when the movement is clearly horizontal, otherwise a vertical
+     scroll on a tall slide would flip the page by accident. */
+  var x0 = null, y0 = null;
+  document.addEventListener("touchstart", function (ev) {
+    if (ev.touches.length !== 1) { x0 = null; return; }
+    x0 = ev.touches[0].clientX; y0 = ev.touches[0].clientY;
+  }, { passive: true });
+  document.addEventListener("touchend", function (ev) {
+    if (x0 === null || !ev.changedTouches.length) { return; }
+    var dx = ev.changedTouches[0].clientX - x0;
+    var dy = ev.changedTouches[0].clientY - y0;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      show(current + (dx < 0 ? 1 : -1));
+    }
+    x0 = null; y0 = null;
+  }, { passive: true });
+
+  show(fromHash(), false);
+})();
+</script>
+</body>
+</html>
