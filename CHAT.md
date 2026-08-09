@@ -7006,3 +7006,91 @@ translate.enabled : None
 ### 🤖 claude-opus-5
 
 > 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home`
+
+### 👤 User
+
+```
+✅ committato e pushato
+```
+
+### 🤖 claude-opus-5
+
+Fatte tutte e due, ma su una devo chiederti conferma con gli occhi.
+
+**Batteria nello storico** — c'è. La striscia della carica ora compare anche nella vista Giorno dello storico, per qualunque giorno abbia il dettaglio al minuto: il dato `soc` sta in ogni riga dei file, sia in quelli raccolti dal pannello sia in quelli scaricati dal portale. Verificato: visibile in Giorno, nascosta in Mese — su una settimana non esiste un "livello di carica del periodo", e sarebbe un numero inventato.
+
+Avevi ragione che mancasse proprio dove serve: guardando un giorno passato, senza il SOC non si capisce **perché** a una certa ora la casa ha preso dalla rete invece che dal sole.
+
+**Traduzione** — il flag `--disable-features=TranslateUI` era il nome vecchio: da Chromium 120 la funzionalità si chiama `Translate`, e sul Pi gira la 142. Ho messo entrambi i nomi, `--disable-translate` e `--lang=it-IT`, ma soprattutto ho installato una **policy di sistema** in `/etc/chromium/policies/managed/` con `TranslateEnabled: false` — quella non dipende dal nome dei flag, che cambia fra le versioni.
+
+Devo però ammettere un errore mio nel mezzo: uno script si è interrotto a metà per un heredoc annidato, quindi ho ucciso chromium e **il riavvio della sessione non è mai partito**. Per qualche minuto il pannello è rimasto senza browser. Ora è di nuovo su: 9 processi chromium, rotazione 270°, dashboard che risponde 200.
+
+**Guarda il pannello e dimmi se l'etichetta è sparita.** Non posso vederlo io, e non voglio dirti che è risolto senza che qualcuno l'abbia guardato. Se è ancora lì, la prossima mossa è aprire il debug remoto di chromium e leggere cosa sta effettivamente mostrando, invece di continuare a tirare a indovinare sui flag.
+
+### 👤 User
+
+etichetta su pi sparita
+
+### 🤖 claude-opus-5
+
+Ottimo. Lo annoto nel SODE: è il tipo di dettaglio operativo che senza traccia scritta si riscopre da capo al prossimo aggiornamento di Chromium.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Edit** `/Users/ripu/Desktop/Antigravity/live-home/SODE.md` — `- **Chromium impiega più di 30 secondi** a comparire dopo un…`
+
+### 👤 User
+
+```
+The file /Users/ripu/Desktop/Antigravity/live-home/SODE.md has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home`
+
+### 👤 User
+
+```
+424:### 10.5 Stati
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home; sed -n '408,424p' SODE.md`
+
+### 👤 User
+
+```
+### 10.3 Diagramma di flusso
+
+Le coordinate sono **misurate** con `getBoundingClientRect()` sui dischi dei nodi, e il
+`viewBox` segue i pixel CSS reali del contenitore 1:1 tramite `ResizeObserver`:
+**zero costanti geometriche nel markup**.
+
+Prima erano 4 curve di Bézier scritte a mano dentro un `viewBox` fisso con
+`preserveAspectRatio="none"`: bastava un rapporto d'aspetto diverso da quello previsto
+perché gli archi si staccassero dai nodi.
+
+### 10.4 Due layout da un solo markup
+
+Lo stesso HTML rende sia il **kiosk verticale 1080×1920** sia la vista
+**mobile/desktop**. Selezione: `?mode=kiosk` / `?mode=compact` → `localStorage` →
+media query. Gli elementi non pertinenti al kiosk sono marcati `data-kiosk-hidden`.
+
+### 10.5 Stati
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Edit** `/Users/ripu/Desktop/Antigravity/live-home/SODE.md` — `### 10.5 Stati…`
+
+### 👤 User
+
+```
+The file /Users/ripu/Desktop/Antigravity/live-home/SODE.md has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home`

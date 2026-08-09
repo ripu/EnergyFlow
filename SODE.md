@@ -421,6 +421,20 @@ Lo stesso HTML rende sia il **kiosk verticale 1080×1920** sia la vista
 **mobile/desktop**. Selezione: `?mode=kiosk` / `?mode=compact` → `localStorage` →
 media query. Gli elementi non pertinenti al kiosk sono marcati `data-kiosk-hidden`.
 
+### 10.4b Storico — carica batteria nella vista Giorno
+
+La striscia del SOC accompagna il grafico **sia** in «Andamento di oggi» **sia** nello
+storico in vista Giorno, su qualunque giorno abbia il dettaglio al minuto: il campo
+`soc` è in ogni riga dei file, tanto in quelli scritti dal poller quanto in quelli
+importati dal portale.
+
+Non è un vezzo: senza il livello di carica, guardando un giorno passato non si capisce
+**perché** a una certa ora la casa abbia preso dalla rete invece che dal sole.
+
+È nascosta dove il dato non esiste o non avrebbe senso: nelle viste aggregate
+(settimana, mese, anno) non c'è un «livello di carica del periodo», e nei giorni per cui
+resta solo il riepilogo giornaliero il SOC al minuto non c'è.
+
 ### 10.5 Stati
 
 | Stato | Cosa mostra | Perché |
@@ -688,6 +702,15 @@ Un `503 degraded` subito dopo un deploy è quasi sempre una mappa registri disal
   pannello, non dedotto.
 - **Chromium impiega più di 30 secondi** a comparire dopo un `restart lightdm`: un
   controllo troppo precoce fa credere che il kiosk non sia partito.
+- **Niente proposta di traduzione.** Il sistema è in `en_GB` e la dashboard in
+  italiano: chromium mostrava in alto a destra il riquadro «traduci questa pagina»,
+  che su un pannello a muro non chiude nessuno. Il flag storico
+  `--disable-features=TranslateUI` **non basta più**: da Chromium 120 circa la
+  funzionalità si chiama `Translate`. Nell'autostart ci sono ora entrambi i nomi,
+  più `--disable-translate` e `--lang=it-IT`; ma la difesa che regge nel tempo è la
+  **policy di sistema** in `/etc/chromium/policies/managed/energyflow.json`
+  (`TranslateEnabled: false`), che non dipende da come si chiamano i flag in questa
+  versione. Verificato sul pannello dopo il riavvio della sessione.
 - **`--password-store=basic` è obbligatorio**: senza, chromium chiede «Choose password
   for new keyring» (gnome‑keyring) e la pagina non si apre mai.
 - L'URL del kiosk è **locale**: il pannello non dipende da rete o tailnet per accendersi.
