@@ -657,7 +657,7 @@ Un `503 degraded` subito dopo un deploy è quasi sempre una mappa registri disal
 | Voce | Valore |
 |---|---|
 | **Esposizione** | **Nessuna porta aperta su internet.** Il server binda `127.0.0.1` |
-| **Accesso LAN** | mDNS: `http://<rpi-host>.local:8003/` (solo rete locale) |
+| **Accesso LAN** | **Nessuno.** Il server binda `127.0.0.1`, quindi dalla rete di casa — telefono compreso — la dashboard **non è raggiungibile**: si passa dal tailnet. Scelta confermata dall'utente il 2026‑08‑09: riaprire alla LAN esporrebbe la telemetria di casa a ospiti e dispositivi IoT sulla stessa rete, e il perimetro domestico non è un confine di fiducia. Sul Pi la pagina resta su `http://localhost:8003/`, che è ciò che usa il kiosk |
 | **Accesso remoto** | Tailnet HTTPS via `tailscale serve --bg http://127.0.0.1:8003` → certificato Let's Encrypt gestito da Tailscale, **tailnet‑only**. Disattivazione: `sudo tailscale serve --https=443 off` |
 | **Prerequisito** | Client Tailscale connesso sulla macchina che accede. mDNS `.local` **non** passa sul tailnet: da remoto si usa l'hostname del tailnet |
 | **DNS pubblico** | Nessuno. Il progetto non ha un sottodominio `archimede.world`: è un sistema domestico, l'esposizione pubblica sarebbe un rischio senza contropartita |

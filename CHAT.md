@@ -383,7 +383,7 @@ scanner.py
 screenshot.png
 === history: sensitive strings ===
    1 9909:Author: ripu <[REDACTED_DENYLIST]>
-   1 9874:+        # Example: ? ([REDACTED_IP]) at <MAC-INVERTER> on en0 ifscope [ethernet]
+   1 9874:+        # Example: ? ([REDACTED_IP]) at 68:b6:b3:c:95:26 on en0 ifscope [ethernet]
    1 9846:+        return "[REDACTED_IP]"
    1 9819:Author: ripu <[REDACTED_DENYLIST]>
    1 9772:Author: ripu <[REDACTED_DENYLIST]>
@@ -770,7 +770,7 @@ File non tracciati e **non ignorati** (quindi catturabili da un `git add .`): `.
 Ricognizione completata. Prima di proseguire, **due avvisi di sicurezza importanti**:
 
 1. **Le credenziali del portale Q.CELLS che hai incollato sono ora nel transcript di questa sessione.** La regola #15 esporta i transcript in `CHAT.md`, e questo repo è **pubblico**. Non le scriverò in nessun file e le maschererò nell'export, ma ti consiglio comunque di **cambiare quella password** una volta finito il confronto.
-2. **Il repo `ripu/EnergyFlow` è pubblico e la history contiene già le coordinate GPS di casa tua** (`README.md` e `index.html` di commit vecchi, con tanto di `// <CITTA>, IT`), più IP e un MAC. Rimuovere i valori dal working tree non li ha tolti dalla storia. Serve una tua decisione prima di qualsiasi push.
+2. **Il repo `ripu/EnergyFlow` è pubblico e la history contiene già le coordinate GPS di casa tua** (`README.md` e `index.html` di commit vecchi, con tanto di `// Siracusa, IT`), più IP e un MAC. Rimuovere i valori dal working tree non li ha tolti dalla storia. Serve una tua decisione prima di qualsiasi push.
 
 Lancio l'agent di design e intanto ti chiedo le 4 decisioni che non posso prendere io.
 
@@ -791,12 +791,12 @@ Do NOT Read or tail this file via the shell tool — it is the full subagent JSO
 
 ### 🤖 claude-opus-5
 
-> 🔧 **AskUserQuestion** {"questions": [{"question": "Il repo ripu/EnergyFlow è pubblico e nella history ci sono già le tue coordinate GPS di casa (con \"<CITTA>, IT\"), l'IP dell'inverter e un MAC address. Rimuoverli dal co
+> 🔧 **AskUserQuestion** {"questions": [{"question": "Il repo ripu/EnergyFlow è pubblico e nella history ci sono già le tue coordinate GPS di casa (con \"Siracusa, IT\"), l'IP dell'inverter e un MAC address. Rimuoverli dal co
 
 ### 👤 User
 
 ```
-Your questions have been answered: "Il repo ripu/EnergyFlow è pubblico e nella history ci sono già le tue coordinate GPS di casa (con "<CITTA>, IT"), l'IP dell'inverter e un MAC address. Rimuoverli dal codice non li ha tolti dai commit vecchi. Come procedo?"="Resta pubblico + filter-repo", "Direzione della nuova UI. Il display principale è il pannello verticale 1080×1920 a muro, ma la apri anche da telefono e Mac."="Adattiva giorno/notte", "Oggi chiunque sia sulla tua rete di casa (o sul tailnet) legge senza password la telemetria e il file config.json con le coordinate GPS. La regola #17 impone auth di default. Che livello vuoi?"="Loopback + token", "Per capire quali registri Modbus sono giusti mi serve il confronto con i valori veri del portale Q.CELLS, negli stessi istanti. Come gestiamo l'accesso?"="Login automatico, poi cambi password". You can now continue with these answers in mind.
+Your questions have been answered: "Il repo ripu/EnergyFlow è pubblico e nella history ci sono già le tue coordinate GPS di casa (con "Siracusa, IT"), l'IP dell'inverter e un MAC address. Rimuoverli dal codice non li ha tolti dai commit vecchi. Come procedo?"="Resta pubblico + filter-repo", "Direzione della nuova UI. Il display principale è il pannello verticale 1080×1920 a muro, ma la apri anche da telefono e Mac."="Adattiva giorno/notte", "Oggi chiunque sia sulla tua rete di casa (o sul tailnet) legge senza password la telemetria e il file config.json con le coordinate GPS. La regola #17 impone auth di default. Che livello vuoi?"="Loopback + token", "Per capire quali registri Modbus sono giusti mi serve il confronto con i valori veri del portale Q.CELLS, negli stessi istanti. Come gestiamo l'accesso?"="Login automatico, poi cambi password". You can now continue with these answers in mind.
 ```
 
 ### 🤖 claude-opus-5
@@ -985,7 +985,7 @@ Tre problemi, tutti verificati sul campo in questa sessione:
 1. **I numeri sono sbagliati.** La mappa registri è stata indovinata per tentativi. L'inverter è in
    realtà un **SolaX X1/X3-Hybrid-G4 rimarchiato** (confermato: evcc usa il template `solax` per il
    Q.HOME ESS HYB-G3) e la mappa ufficiale è pubblica. Il confronto è impietoso — vedi tabella sotto.
-2. **Il repo pubblico espone dati di casa.** Coordinate GPS con tanto di `// <CITTA>, IT` in commit
+2. **Il repo pubblico espone dati di casa.** Coordinate GPS con tanto di `// Siracusa, IT` in commit
    già pushati; e chiunque sia sulla LAN scarica `config.json` (stesse coordinate) senza password.
 3. **La UI non regge il pannello verticale** e nasconde gli errori: il backend dice `stale: true` e
    la dashboard continua a mostrare gli ultimi numeri buoni come se fossero freschi.
@@ -1203,7 +1203,7 @@ MAC: 1 distinti -> ['68:xx:xx:xx:xx:26']
 lat 37.x: 1 distinti -> ['37.00…']
 lon 15.x: 1 distinti -> ['15.25…']
 email: 2 distinti -> ['s***@gmail.com', 't***@0.160.0']
-citta: 1 distinti -> ['<CITTA>']
+citta: 1 distinti -> ['Siracusa']
 
 letterali salvati in scratchpad/literals.txt (non stampati)
 ```
@@ -1548,7 +1548,7 @@ Con la mappa corretta il quadro si ribalta: non 2474 W di consumo con 372 W impo
 
 ## Sicurezza — cosa ho trovato e cosa ho già chiuso
 
-Il repo è pubblico e la history contiene coordinate GPS di casa (con `// <CITTA>, IT`), IP, MAC e la tua email personale su tutti e 43 i commit. Separatamente, il backend **serve `config.json` in chiaro a chiunque sia sulla rete** — stesse coordinate, nessuna password — perché il file-serving statico pubblica qualunque file della cartella, `.git/` incluso.
+Il repo è pubblico e la history contiene coordinate GPS di casa (con `// Siracusa, IT`), IP, MAC e la tua email personale su tutti e 43 i commit. Separatamente, il backend **serve `config.json` in chiaro a chiunque sia sulla rete** — stesse coordinate, nessuna password — perché il file-serving statico pubblica qualunque file della cartella, `.git/` incluso.
 
 Fatto: `.gitignore` esteso, identità commit corretta, workflow `git add .` automatico neutralizzato (era la cosa che avrebbe pubblicato lo screenshot con le coordinate a video), backup mirror del repo, e ricetta `filter-repo` **verificata su un clone di prova**: 45 commit, zero residui sensibili, autore corretto. Non l'ho applicata: `filter-repo` fa un `reset --hard` che cancellerebbe il lavoro in corso degli agent — va eseguita alla fine, subito prima dell'unico push.
 
@@ -5085,3 +5085,532 @@ Shell cwd was reset to /Users/ripu/Desktop/Antigravity/live-home
 ### 🤖 claude-opus-5
 
 > 🔧 **Read** `/private/tmp/claude-501/-Users-ripu-Desktop-Antigravity-live-home/25b3c59a-5b70-4ef1-9b01-9af43330c131/scratchpad/final/storico-mese.png`
+
+### 🤖 claude-opus-5
+
+Luglio 2026 completo: 31 giorni di barre, 1414,7 kWh prodotti contro 468,2 consumati, 98% di autosufficienza. Il deep-link funziona (tab «Mese», LUGLIO 2026). Erano i miei selettori a sbagliare, non il codice.
+
+Ora la chiusura: rigenero la chat, riscansiono, misuro la conformità.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home`
+
+### 👤 User
+
+```
+OK CHAT.md sovrascritto — 254611 char, 204 user / 379 assistant
+=== scansione segreti (solo conteggi) ===
+=== fine scansione ===
+PROJECT                           SODE       README     CHAT       log        gitignore  envexample envignored guide      slide      cover      sync       hook       noco       version    
+live-home                         ok         ok         ok         ok         ok         ok         ok         ok         ok         ok         --         ok         ok         ok
+Shell cwd was reset to /Users/ripu/Desktop/Antigravity/live-home
+```
+
+### 🤖 claude-opus-5
+
+Scansione pulita e **13 check su 14**. L'unico rosso è `sync`, che confronta le date dei commit: si chiude committando. Procedo, in tre commit tematici.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `git status --short | sort | head -40`
+
+### 👤 User
+
+```
+M .gitignore
+ M README.md
+ M SODE.md
+ M config.example.json
+ M energyflow.service
+ M index.html
+ M invert.py
+ M logger.js
+ M macos-widget/EnergyBar.swift
+ M macos-widget/EnergyFlow.widget/index.jsx
+ M macos-widget/EnergyFlowWidget.swift
+ M registers.json
+?? .env.example
+?? CHAT.md
+?? LICENSE
+?? README.en.md
+?? apple-touch-icon.png
+?? assets/
+?? cover.png
+?? cover.svg
+?? docs/
+?? favicon.ico
+?? favicon.svg
+?? icon-192.png
+?? icon-512.png
+?? logo.png
+?? scripts/
+?? site.webmanifest
+?? static/
+D  macos-widget/EnergyBar.app/Contents/Info.plist
+D  macos-widget/EnergyBar.app/Contents/MacOS/EnergyBar
+D  macos-widget/EnergyBar.app/Contents/_CodeSignature/CodeResources
+D  scanner.py
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home`
+
+### 👤 User
+
+```
+ea01203 FIX: mappa registri verificata, autenticazione e storico persistente
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home`
+
+### 👤 User
+
+```
+4a9a744 FEAT: interfaccia riscritta, tema giorno/notte, kiosk verticale, 3D
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home`
+
+### 👤 User
+
+```
+0c9ccee DOCS: SODE v2.0.0 senza changelog, README IT/EN, guida, slide, cover
+4a9a744 FEAT: interfaccia riscritta, tema giorno/notte, kiosk verticale, 3D
+ea01203 FIX: mappa registri verificata, autenticazione e storico persistente
+663680c FEAT: auto-discovery inverter su cambio IP DHCP (self-healing poller)
+=== working tree ===
+(vuoto = tutto committato)
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **TodoWrite** {"todos": [{"content": "Fase 0 — Sicurezza: hardening backend, auth, CSP, allow-list", "status": "completed", "activeForm": "Mettendo in sicurezza"}, {"content": "Fase 1 — Ground truth portale: mappa 
+
+### 👤 User
+
+```
+Todos have been modified successfully. Ensure that you continue to use the todo list to track your progress. Please proceed with the current tasks if applicable
+```
+
+### 🤖 claude-opus-5
+
+Tutto committato in locale: **3 commit**, working tree pulito. Prima di chiederti il via, riverifico la ricetta di riscrittura sulla history **attuale**, che ora include anche i tre commit nuovi.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `D="/private/tmp/claude-501/-Users-ripu-Desktop-Antigravity-live-home/25b3c59a-5b70-4ef1-9b01-9af43330c131/scratchpad"`
+
+### 👤 User
+
+```
+Letterali sensibili residui: NESSUNO ✅
+contenuto frontend.log: ANCORA PRESENTE ❌
+contenuto find_pi/test_inverter: ANCORA PRESENTE ❌
+commit: 48 | autori: 6645111+ripu@users.noreply.github.com 
+HEAD dopo rewrite:
+d449338 DOCS: SODE v2.0.0 senza changelog, README IT/EN, guida, slide, cover
+ff5b85f FEAT: interfaccia riscritta, tema giorno/notte, kiosk verticale, 3D
+164ce79 FIX: mappa registri verificata, autenticazione e storico persistente
+Shell cwd was reset to /Users/ripu/Desktop/Antigravity/live-home
+```
+
+### 🤖 claude-opus-5
+
+I due marcatori risultano di nuovo presenti. Verifico se è un leak vero o un artefatto del mio stesso controllo.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `D="/private/tmp/claude-501/-Users-ripu-Desktop-Antigravity-live-home/25b3c59a-5b70-4ef1-9b01-9af43330c131/scratchpad"`
+
+### 👤 User
+
+```
+=== in quali file compaiono? ===
+CHAT.md
+CHAT.md
+=== esistono ancora i file cancellati? ===
+  frontend.log presente in 0 commit
+  find_pi.py presente in 0 commit
+  test_inverter.py presente in 0 commit
+=== contesto reale della riga (mascherato) ===
+   1 9724:+INVERTER_IP = '[REDACTED_IP]' # <--- METTI QUI L'IP CHE HAI TROVATO CON LA PORTA 502 APERTA
+Shell cwd was reset to /Users/ripu/Desktop/Antigravity/live-home
+```
+
+### 🤖 claude-opus-5
+
+Falso allarme, e la verifica lo dimostra: quei due marcatori compaiono **solo dentro `CHAT.md`**, e l'IP nella riga è `[REDACTED_IP]`. I tre file incriminati sono spariti da **tutti** i commit.
+
+La riscrittura è pronta e verificata su una copia: 48 commit, un solo autore (l'indirizzo noreply), zero letterali sensibili.
+
+---
+
+Restano i due passi irreversibili. Ti descrivo esattamente cosa fanno, perché da qui in poi non si torna indietro con un comando.
+
+**1. Riscrittura della history + force-push**
+
+- Ho già un backup completo (`git clone --mirror`) da prima di ogni modifica.
+- La riscrittura sostituisce in tutti i 48 commit: coordinate GPS, IP privati, MAC, hostname operativo, e riscrive l'autore da email personale a `6645111+ripu@users.noreply.github.com`. Espunge `frontend.log`, `find_pi.py`, `test_inverter.py` e i `.DS_Store`. Corregge anche il **messaggio** del commit `0b6e163`, che contiene due IP nel titolo.
+- Poi `git push --force`.
+- **Cosa questo non fa**: non cancella i fork, i mirror, le cache di GitHub né gli archivi di terzi. Le coordinate sono state pubbliche per mesi e vanno considerate compromesse; la riscrittura alza il costo di trovarle, non lo azzera. Il ticket a GitHub Support per purgare le viste in cache **devi aprirlo tu**, serve il tuo account.
+- Chiunque avesse un clone locale dovrà riclonare.
+
+**2. Deploy sul Raspberry**
+
+Oggi gira codice di luglio: la mappa registri sbagliata, nessuna autenticazione, il vecchio frontend. Il deploy copierebbe `invert.py`, `registers.json`, `index.html`, `static/`, `logger.js` e l'unit systemd, poi `daemon-reload` e restart. Due cose da sapere: il servizio passa ad ascoltare **solo su loopback** (il kiosk usa già `localhost`, ma dal telefono in casa servirà Tailscale), e al primo avvio genera da sé il token in `.env`. Dopo il restart verifico `/health`, i valori e il pannello a schermo.
+
+---
+
+**In sospeso:**
+
+1. **Force-push della history riscritta** — procedo? (sì / no)
+2. **Deploy sul Raspberry** — procedo? (sì / no)
+3. **Accesso in LAN** — A: solo loopback + Tailscale (consigliata) · B: riapro alla rete di casa col token
+4. **Grafici doppi** — l'agent consiglia di tenerli separati e ha messo il periodo di default a «settimana», così non si sovrappongono più all'apertura: confermi o li unisco?
+5. **Dettaglio a 5 minuti sul passato** — A: secondo giro sul portale · B: bastano gli aggregati
+6. **Calibrazione** — la tolgo se non ti interessa
+
+### 👤 User
+
+1si
+2si
+3a
+4confermaa
+5 a
+6 non capisco
+
+### 🤖 claude-opus-5
+
+Ricevuto. Prima ti spiego il punto 6, poi eseguo nell'ordine: riscrittura e push, deploy, e infine il secondo giro sul portale.
+
+**Cos'è la "calibrazione"** — sull'inverter ci sono ~370 registri. Ne abbiamo identificati con certezza 48; di altri 21 sappiamo *dove sono* ma non *cosa sono*, perché il loro valore non è mai cambiato in tutte le letture fatte. Un registro fermo non si può interpretare: potrebbe essere qualsiasi cosa. Per scioglierli servirebbe mettere l'impianto in condizioni che finora non ha mai avuto sotto osservazione — per esempio far caricare la batteria dalla rete, o guardare quando è scarica invece che al 98%. Non è un problema: quei 21 registri sono **esclusi dall'API**, quindi non producono nessun numero sbagliato a schermo. È solo curiosità tecnica non soddisfatta. La tolgo dalla lista.
+
+Ora procedo. Prima un backup fresco, che include anche i tre commit di stasera.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home`
+
+### 👤 User
+
+```
+✅ backup: 4.7M
+✅ config.json salvato a parte
+stato prima: 49 commit | working tree: 0 modifiche
+origin	https://github.com/ripu/EnergyFlow.git (fetch)
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home`
+
+### 👤 User
+
+```
+New history written in 0.37 seconds; now repacking/cleaning...
+Repacking your repo and cleaning out old unneeded objects
+Completely finished after 0.52 seconds.
+--- dopo ---
+commit: 48 | autori: 6645111+ripu@users.noreply.github.com 
+working tree: 0 modifiche
+file locali non tracciati sopravvissuti:
+  .env
+  config.json
+  log/energy/2026-08-09.csv
+  log/energy/daily.csv
+remote: 0 (0 = rimosso da filter-repo, va riaggiunto)
+```
+
+### 🤖 claude-opus-5
+
+La riscrittura è andata: 48 commit, un solo autore, working tree pulito, e `config.json`, `.env` e lo storico locale sono sopravvissuti.
+
+Un effetto collaterale da correggere: la sostituzione ha toccato anche l'IP di esempio in `config.example.json`, che ora non è più un indirizzo valido da copiare.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Edit** `/Users/ripu/Desktop/Antigravity/live-home/config.example.json` — `        "ip": "192.168.x.x",…`
+
+### 👤 User
+
+```
+The file /Users/ripu/Desktop/Antigravity/live-home/config.example.json has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home`
+
+### 👤 User
+
+```
+=== stato finale locale ===
+e4037ab FIX: ripristina l'IP di esempio in config.example.json
+d449338 DOCS: SODE v2.0.0 senza changelog, README IT/EN, guida, slide, cover
+ff5b85f FEAT: interfaccia riscritta, tema giorno/notte, kiosk verticale, 3D
+164ce79 FIX: mappa registri verificata, autenticazione e storico persistente
+commit totali: 49 | remote: https://github.com/ripu/EnergyFlow.git
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home`
+
+### 👤 User
+
+```
+To https://github.com/ripu/EnergyFlow.git
+ + d60e0f6...e4037ab main -> main (forced update)
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /tmp && rm -rf verify-push && git clone -q --depth=50 https://github.com/ripu/EnergyFlow.git verify-push 2>&1 | tail `
+
+### 👤 User
+
+```
+=== cosa c'è ora su GitHub ===
+  commit: 46 | autori: 6645111+ripu@users.noreply.github.com 
+  HEAD: e4037ab FIX: ripristina l'IP di esempio in config.example.json
+=== residui sensibili nei blob scaricati ===
+  IP privato reale     ✅ assente
+  MAC                  ✅ assente
+  coordinate           ✅ assente
+  hostname             ✅ assente
+  email personale      ✅ assente
+=== file che non devono esserci ===
+  frontend.log       0 commit
+  find_pi.py         0 commit
+  test_inverter.py   0 commit
+  scanner.py         2 commit
+Shell cwd was reset to /Users/ripu/Desktop/Antigravity/live-home
+```
+
+### 🤖 claude-opus-5
+
+Push eseguito e verificato **riclonando da GitHub**: 46 commit, un solo autore, e nessuna traccia di IP reali, MAC, coordinate, hostname o email personale. I tre file incriminati sono spariti dalla history pubblica.
+
+Resta `scanner.py` in 2 commit vecchi: non è un problema di sicurezza (non contiene segreti, legge l'IP dalla config), è solo una violazione della regola #8 ormai storica. Nell'albero attuale non c'è più.
+
+Ora il deploy. Prima un backup sul Raspberry.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `ssh -o BatchMode=yes -o ConnectTimeout=10 [REDACTED_DENYLIST] 'set -e`
+
+### 👤 User
+
+```
+backup: ~/backups/energyflow-20260809-233627.tgz (1.1M)
+python venv: Python 3.13.5
+pymodbus: 3.11.4
+servizio attuale: active
+file attuali: config.example.json config.json find_pi.py frontend.log hud_preview.png index.html invert.py invert.py.bak.20260531_191504 logger.js logo.png README.md registers.json scanner.py screenshot_latest.png screenshot.png SODE.md test_inverter.py venv
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home`
+
+### 👤 User
+
+```
+=== copia file ===
+  file principali OK
+  static/ e assets/ OK
+  icone e manifest OK
+  docs/ OK
+  unit systemd in /tmp OK
+=== il codice nuovo parte su python 3.13 del Pi? ===
+  sintassi OK
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `ssh [REDACTED_DENYLIST] 'set -e`
+
+### 👤 User
+
+```
+config.json aggiornato: ['location', 'inverter', 'battery', 'server', 'solar', 'history']
+  file superati rimossi
+  unit aggiornata
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `ssh [REDACTED_DENYLIST] 'sudo systemctl restart energyflow; sleep 12`
+
+### 👤 User
+
+```
+=== stato servizio ===
+active
+=== bind (deve essere solo 127.0.0.1) ===
+LISTEN 0      5          127.0.0.1:8003      0.0.0.0:*    users:(("python3",pid=15008,fd=4))
+=== health ===
+{"status": "ok", "version": "2.0.0", "map_version": "2.1", "uptime_s": 10.8, "poller_ok": true, "history": {"enabled": true, "retention_days": 90, "ring_points": 2, "rows_written": 0, "write_errors": 0, "last_write": null}, "warnings": [], "notes": [], "invariants_failed": []}
+=== log ultimi ===
+Aug 09 23:37:18 [REDACTED_DENYLIST] python3[15008]:    🔒 Auth attiva su /data, /api/* e /log (Bearer o cookie). /health e i file statici restano aperti.
+Aug 09 23:37:20 [REDACTED_DENYLIST] python3[15008]: 🚫 401 GET /data da 127.0.0.1
+Aug 09 23:37:20 [REDACTED_DENYLIST] python3[15008]: 🏷️  Dispositivo: Solax X1-Hybrid G4 · seriale H4602AK6325110
+Aug 09 23:37:20 [REDACTED_DENYLIST] python3[15008]: ✅ Poll 2147ms src=input_registers home=509W solar=5W grid=-0W batt=-452W/50% today=45.4kWh
+Aug 09 23:37:25 [REDACTED_DENYLIST] python3[15008]: 🚫 401 GET /data da 127.0.0.1
+Aug 09 23:37:27 [REDACTED_DENYLIST] python3[15008]: ✅ Poll 1048ms src=input_registers home=500W solar=6W grid=-0W batt=-452W/50% today=45.4kWh
+```
+
+### 🤖 claude-opus-5
+
+Servizio attivo, **v2.0.0**, in ascolto solo su loopback, e il poller legge correttamente: casa 509 W, batteria in scarica al 50%, 45,4 kWh oggi. L'inverter si presenta come `Solax X1-Hybrid G4`.
+
+C'è però un `401 GET /data` ogni 5 secondi: è il **kiosk che sta ancora mostrando la pagina vecchia**, che chiede i dati senza token. Va ricaricato.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `ssh [REDACTED_DENYLIST] 'sudo systemctl restart lightdm; sleep 25`
+
+### 👤 User
+
+```
+=== richieste /data dopo il riavvio del kiosk ===
+  401 negli ultimi 20s: 0
+Aug 09 23:38:18 [REDACTED_DENYLIST] python3[15008]: ✅ Poll 658ms src=input_registers home=499W solar=6W grid=-0W batt=-452W/50% today=45.4kWh
+Aug 09 23:38:18 [REDACTED_DENYLIST] python3[15008]: [BROWSER:LOG] [EnergyFlow] avviata — modalità kiosk @ /
+Aug 09 23:38:18 [REDACTED_DENYLIST] python3[15008]: [BROWSER:LOG] [storico] endpoint attivo — 1 punti per oggi (risoluzione 60s, retention 90 giorni) @ /
+Aug 09 23:38:18 [REDACTED_DENYLIST] python3[15008]: [BROWSER:LOG] [storico] aggregati 2025-08-09 → 2026-08-09: 0 giorni @ /
+=== chromium attivo? ===
+15182 /usr/lib/chromium/chromium --force-renderer-accessibility --enable-remote-
+```
+
+### 🤖 claude-opus-5
+
+Kiosk ricaricato: **zero 401**, i log del browser arrivano nel file giornaliero, la dashboard è in modalità kiosk. Ma vedo `aggregati: 0 giorni` — i 229 giorni importati sono sul mio Mac, non sul Raspberry. Li porto lì.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home`
+
+### 👤 User
+
+```
+=== stato storico sul Pi ===
+drwxr-xr-x 2 pi pi 4096 Aug  9 23:38 .
+drwxr-xr-x 3 pi pi 4096 Aug  9 23:38 ..
+-rw-r--r-- 1 pi pi   75 Aug  9 23:38 2026-08-09.csv
+2 /home/pi/EnergyFlow/log/energy/2026-08-09.csv
+=== copio i 229 giorni ===
+  daily.csv copiato
+  file di oggi del Mac copiato in /tmp sul Pi
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `ssh [REDACTED_DENYLIST] 'cd ~/EnergyFlow/log/energy`
+
+### 👤 User
+
+```
+File "<stdin>", line 1
+    echo "  daily.csv: 230 righe"
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+SyntaxError: invalid syntax
+```
+
+### 🤖 claude-opus-5
+
+Heredoc doppio mal costruito da me. Rifaccio in modo semplice — `daily.csv` è comunque arrivato (230 righe).
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cat > /tmp/merge-oggi.py <<'PY'`
+
+### 👤 User
+
+```
+minuti di oggi: 247 — da 19:25 a 23:38
+  daily.csv: 230 righe
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `ssh [REDACTED_DENYLIST] 'sleep 3`
+
+### 👤 User
+
+```
+=== /data (mappa nuova, dal Pi) ===
+  derived: {"solar_power_w": 5.0, "battery_percent": 50.0, "grid_flow_w": -0.0, "home_load_w": 502.0, "inverter_power_w": 502.0, "battery_power_w": -452.0, "grid_voltage_v": 240.9, "battery_voltage_v": 411.6, "daily_energy_kwh": 45.4}
+  status : {"battery": "discharging", "grid": "balanced", "system": "Normal"}
+  oggi   : {"battery_discharge_kwh": 7.9, "battery_charge_kwh": 8.4, "yield_kwh": 43.7, "eps_kwh": 0.0, "solar_kwh": 45.4, "grid_export_kwh": 16.8, "grid_import_kwh": 0.2}
+  meta.ip presente: False
+=== storico servito dal Pi ===
+  giorni: 229
+=== la superficie chiusa regge? ===
+  /config.json     404
+  /.env            404
+  /.git/config     404
+  /registers.json  404
+  /data senza token 401
+```
+
+### 🤖 claude-opus-5
+
+Deploy completo e verificato in produzione: dati corretti (casa 502 W, batteria 411,6 V al 50%, 45,4 kWh oggi), **229 giorni** di storico serviti, e la superficie chiusa regge — `config.json`, `.env`, `.git/config` e `registers.json` danno tutti 404, `/data` senza token dà 401.
+
+Registro il go-live nel SODE come richiede la regola #16.7.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home; sed -n '/^## 15\./,/^### 15.1/p' SODE.md | head -22`
+
+### 👤 User
+
+```
+## 15. Go‑live (regola #16.7)
+
+| Voce | Valore |
+|---|---|
+| **Esposizione** | **Nessuna porta aperta su internet.** Il server binda `127.0.0.1` |
+| **Accesso LAN** | mDNS: `http://<rpi-host>.local:8003/` (solo rete locale) |
+| **Accesso remoto** | Tailnet HTTPS via `tailscale serve --bg http://127.0.0.1:8003` → certificato Let's Encrypt gestito da Tailscale, **tailnet‑only**. Disattivazione: `sudo tailscale serve --https=443 off` |
+| **Prerequisito** | Client Tailscale connesso sulla macchina che accede. mDNS `.local` **non** passa sul tailnet: da remoto si usa l'hostname del tailnet |
+| **DNS pubblico** | Nessuno. Il progetto non ha un sottodominio `archimede.world`: è un sistema domestico, l'esposizione pubblica sarebbe un rischio senza contropartita |
+| **Porta** | 8003 (§13.3) |
+| **Indicizzazione** | `<meta name="robots" content="noindex,nofollow">` |
+| **Icone e manifest** | `favicon.ico`, `favicon.svg`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, `site.webmanifest`, tutti in allow‑list statica |
+| **Data go‑live** | Kiosk operativo dal 2026‑05‑31; revisione profonda 2026‑08‑09 (v2.0.0) |
+| **Credenziali** | Nessuna in repo. Token in `.env` (perm 600) sul solo Pi — vedi password manager |
+
+### 15.1 Kiosk (pannello a muro)
+```
+
+### 🤖 claude-opus-5
+
+Una riga però ora dice il falso: il SODE promette l'accesso LAN via mDNS, ma con il bind su loopback quella strada non esiste più — è proprio la scelta che hai confermato al punto 3.
+
+### 🤖 claude-opus-5
+
+> 🔧 **Edit** `/Users/ripu/Desktop/Antigravity/live-home/SODE.md` — `| **Accesso LAN** | mDNS: `http://<rpi-host>.local:8003/` (s…`
+
+### 👤 User
+
+```
+The file /Users/ripu/Desktop/Antigravity/live-home/SODE.md has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+### 🤖 claude-opus-5
+
+> 🔧 **Bash** `cd /Users/ripu/Desktop/Antigravity/live-home`
+
+### 👤 User
+
+```
+(Bash completed with no output)
+```
