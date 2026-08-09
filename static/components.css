@@ -1,0 +1,1753 @@
+/* ============================================================================
+   EnergyFlow — componenti.
+   Ogni valore viene da tokens.css. Nessuna costante geometrica per il
+   diagramma di flusso: quella la misura flow.js a runtime.
+   ========================================================================= */
+
+/* ======================================================================
+   MAPPA DEI RUOLI
+   Un solo posto in cui "solare" diventa un colore. I componenti leggono
+   --role / --swatch / --seg-color, mai --role-solar direttamente: così un
+   nodo, una pastiglia di legenda e un segmento di barra impilata non
+   possono divergere di tinta.
+   Si applica con data-role nel markup, non con uno style inline: se un
+   domani la CSP togliesse 'unsafe-inline' per gli stili, il markup regge.
+   ====================================================================== */
+[data-role="solar"] {
+    --role: var(--role-solar);
+    --swatch: var(--role-solar);
+    --seg-color: var(--role-solar);
+    --meter-color: var(--role-solar);
+}
+
+[data-role="grid"] {
+    --role: var(--role-grid);
+    --swatch: var(--role-grid);
+    --seg-color: var(--role-grid);
+    --meter-color: var(--role-grid);
+}
+
+[data-role="battery"] {
+    --role: var(--role-battery);
+    --swatch: var(--role-battery);
+    --seg-color: var(--role-battery);
+    --meter-color: var(--role-battery);
+}
+
+[data-role="home"] {
+    --role: var(--role-home);
+    --swatch: var(--role-home);
+    --seg-color: var(--role-home);
+    --meter-color: var(--role-home);
+}
+
+[data-role="inverter"] {
+    --role: var(--role-inverter);
+    --swatch: var(--role-inverter);
+}
+
+/* ======================================================================
+   CARD — il contenitore di base
+   ====================================================================== */
+.card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+    box-shadow: var(--elev-1);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    transition: background-color var(--dur-3) var(--ease-out),
+        border-color var(--dur-3) var(--ease-out);
+}
+
+[data-mode="kiosk"] .card {
+    border-radius: var(--radius-xl);
+    padding: var(--space-5);
+}
+
+.card__title {
+    font-size: var(--fs-label);
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: .02em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.card__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+}
+
+/* Pastiglia colorata che porta l'identità accanto al testo.
+   Il testo NON veste mai il colore della serie: a colori chiari sarebbe
+   illeggibile e sposterebbe l'identità su un canale che il daltonismo
+   cancella. La porta il segno, non la parola. */
+.swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    background: var(--swatch, var(--text-muted));
+    flex: none;
+}
+
+[data-mode="kiosk"] .swatch {
+    width: 20px;
+    height: 20px;
+    border-radius: 5px;
+}
+
+/* ======================================================================
+   FASCIA DI STATO — ora, meteo, freschezza
+   ====================================================================== */
+.statusbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    padding: var(--space-3) var(--space-4);
+    background: linear-gradient(120deg, var(--sky-from), var(--sky-to));
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    flex-wrap: wrap;
+}
+
+[data-mode="kiosk"] .statusbar {
+    border-radius: var(--radius-xl);
+    padding: var(--space-4) var(--space-6);
+    flex-wrap: nowrap;
+}
+
+.statusbar__clock {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-3);
+    min-width: 0;
+}
+
+.clock__time {
+    font-size: var(--fs-value-lg);
+    font-weight: 700;
+    letter-spacing: -.02em;
+    line-height: 1;
+    color: var(--text);
+}
+
+.clock__date {
+    font-size: var(--fs-label);
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.statusbar__weather {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-width: 0;
+}
+
+.weather__icon {
+    font-size: calc(var(--fs-value) * .9);
+    line-height: 1;
+}
+
+.weather__text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.weather__temp {
+    font-size: var(--fs-body);
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.2;
+}
+
+.weather__desc {
+    font-size: var(--fs-micro);
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.statusbar__sun {
+    display: flex;
+    gap: var(--space-4);
+    font-size: var(--fs-micro);
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.statusbar__sun b {
+    color: var(--text);
+    font-weight: 600;
+}
+
+/* ---- Chip di freschezza: SEMPRE visibile, in ogni modalità -----------
+   Prima il chip di stato viveva dentro un blocco display:none e il
+   frontend non leggeva mai meta.age_s. Un backend morto era quindi
+   invisibile: i numeri restavano congelati sull'ultimo valore buono e
+   sembravano veri. Questo chip è l'unico posto della pagina che dice se
+   quello che si sta guardando è adesso o è un fossile. */
+.freshness {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-pill);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    font-size: var(--fs-micro);
+    font-weight: 600;
+    color: var(--text-muted);
+    white-space: nowrap;
+    flex: none;
+}
+
+.freshness__dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--text-faint);
+    flex: none;
+}
+
+[data-mode="kiosk"] .freshness__dot {
+    width: 16px;
+    height: 16px;
+}
+
+.freshness[data-state="ok"] {
+    color: var(--state-ok);
+    border-color: var(--state-ok);
+}
+
+.freshness[data-state="ok"] .freshness__dot {
+    background: var(--state-ok);
+}
+
+.freshness[data-state="warn"] {
+    color: var(--state-warn);
+    border-color: var(--state-warn);
+    background: var(--state-warn-bg);
+}
+
+.freshness[data-state="warn"] .freshness__dot {
+    background: var(--state-warn);
+}
+
+.freshness[data-state="error"] {
+    color: var(--state-error);
+    border-color: var(--state-error);
+    background: var(--state-error-bg);
+}
+
+.freshness[data-state="error"] .freshness__dot {
+    background: var(--state-error);
+}
+
+/* ======================================================================
+   EROE — i due numeri che si leggono da 3 metri
+   ====================================================================== */
+/* La zona eroe ospita DUE contenuti alternativi nella stessa cella di
+   griglia: i due numeri, oppure il cartello di backend offline. Non
+   convivono mai, quindi non serve un secondo slot di layout. */
+.hero-zone {
+    display: grid;
+    min-height: 0;
+}
+
+.hero-zone>* {
+    grid-area: 1 / 1;
+}
+
+.hero {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-4);
+    min-height: 0;
+}
+
+[data-offline="true"] .hero {
+    display: none;
+}
+
+/* Sotto i 420px i due numeri eroe affiancati diventerebbero due colonne da
+   ~190px: il valore andrebbe a capo o verrebbe rimpicciolito fino a non
+   leggersi. Meglio impilarli. */
+@media (max-width: 420px) {
+    :root:not([data-mode="kiosk"]) .hero {
+        grid-template-columns: 1fr;
+    }
+}
+
+.hero__cell {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: var(--space-2);
+    position: relative;
+    overflow: hidden;
+    min-width: 0;
+}
+
+[data-mode="kiosk"] .hero__cell {
+    border-radius: var(--radius-xl);
+    padding: var(--space-6);
+}
+
+/* La barra colorata è ciò che porta l'identità del ruolo: il numero resta
+   inchiostro, così sta a 18:1 di contrasto invece dei 3.2:1 di un numero
+   ambra su bianco. Da 3 metri la differenza è tra "si legge" e "si indovina". */
+.hero__cell::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 6px;
+    background: var(--role, var(--text-muted));
+}
+
+[data-mode="kiosk"] .hero__cell::before {
+    width: 12px;
+}
+
+.hero__label {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--fs-label);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--text-muted);
+}
+
+.hero__value {
+    font-size: var(--fs-hero);
+    font-weight: 700;
+    line-height: .92;
+    letter-spacing: -.03em;
+    color: var(--text);
+    display: flex;
+    align-items: baseline;
+    gap: .12em;
+    min-width: 0;
+}
+
+.hero__unit {
+    font-size: .3em;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0;
+}
+
+.hero__sub {
+    font-size: var(--fs-label);
+    color: var(--text-muted);
+}
+
+/* ======================================================================
+   DIAGRAMMA DI FLUSSO
+   ====================================================================== */
+.flow {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+    overflow: hidden;
+    min-height: 320px;
+}
+
+[data-mode="kiosk"] .flow {
+    border-radius: var(--radius-xl);
+    padding: var(--space-5);
+}
+
+/* Gli archi stanno sotto i nodi: un arco che passa sopra un nodo lo
+   sporcherebbe. Nessuno dei due intercetta il puntatore. */
+.flow__svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.flow__nodes {
+    position: relative;
+    z-index: 2;
+    height: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas:
+        ".       pv      ."
+        ".       inv     ."
+        "battery home    grid";
+    align-items: center;
+    justify-items: center;
+    gap: var(--space-3);
+}
+
+.node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-1);
+    text-align: center;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.node[data-node="pv"] {
+    grid-area: pv;
+}
+
+.node[data-node="inverter"] {
+    grid-area: inv;
+}
+
+.node[data-node="battery"] {
+    grid-area: battery;
+}
+
+.node[data-node="home"] {
+    grid-area: home;
+}
+
+.node[data-node="grid"] {
+    grid-area: grid;
+}
+
+/* Il disco è l'ancoraggio geometrico: flow.js misura QUESTO elemento con
+   getBoundingClientRect, non un valore scritto nel CSS. Cambiare la sua
+   dimensione qui non rompe gli archi, si riattaccano da soli. */
+.node__disc {
+    --disc: 68px;
+    width: var(--disc);
+    height: var(--disc);
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: var(--surface-raised);
+    border: 3px solid var(--role, var(--border-strong));
+    font-size: calc(var(--disc) * .42);
+    line-height: 1;
+    box-shadow: var(--elev-1);
+    flex: none;
+}
+
+[data-mode="kiosk"] .node__disc {
+    --disc: 132px;
+    border-width: 5px;
+}
+
+.node__label {
+    font-size: var(--fs-micro);
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+.node__value {
+    font-size: var(--fs-value);
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.05;
+    letter-spacing: -.02em;
+    /* Una potenza non va mai a capo fra il numero e l'unità: "4,18" su una
+       riga e "kW" sulla successiva raddoppia l'altezza del nodo e manda in
+       sfondamento l'intera banda del flusso. */
+    white-space: nowrap;
+}
+
+.node__note {
+    font-size: var(--fs-micro);
+    color: var(--text-muted);
+}
+
+/* Nodo senza flusso: si spegne ma non sparisce. */
+.node[data-idle="true"] .node__disc {
+    border-color: var(--border);
+    opacity: .7;
+}
+
+/* ---- Archi ---------------------------------------------------------- */
+.arc__track {
+    fill: none;
+    stroke: var(--arc-color, var(--text-faint));
+    stroke-opacity: .18;
+    stroke-linecap: round;
+    stroke-width: var(--arc-width, 4px);
+}
+
+.arc__flow {
+    fill: none;
+    stroke: var(--arc-color, var(--text-faint));
+    stroke-linecap: round;
+    stroke-width: var(--arc-width, 4px);
+    /* Il tratteggio è in unità utente = px CSS, perché flow.js imposta il
+       viewBox sui px CSS reali del contenitore. Nessuna deformazione
+       possibile: era esattamente il bug del vecchio preserveAspectRatio="none". */
+    stroke-dasharray: 2 16;
+    animation: arc-march var(--arc-dur, 2s) linear infinite;
+}
+
+@keyframes arc-march {
+    to {
+        stroke-dashoffset: -18;
+    }
+}
+
+/* La direzione la porta il verso dell'animazione, non un secondo path. */
+.arc__flow[data-dir="reverse"] {
+    animation-direction: reverse;
+}
+
+/* Sotto i 20 W: grigio e fermo. Un filo che striscia per 4 W di
+   autoconsumo racconta un'attività che non c'è. */
+.arc[data-idle="true"] .arc__track {
+    stroke: var(--text-faint);
+    stroke-opacity: .12;
+}
+
+.arc[data-idle="true"] .arc__flow {
+    display: none;
+}
+
+/* Freccia statica a metà arco: compare solo quando il moto è vietato.
+   Così chi ha prefers-reduced-motion perde l'animazione ma NON perde
+   l'informazione — direzione dalla freccia, intensità dallo spessore,
+   sorgente dal colore. */
+.arc__arrow {
+    fill: var(--arc-color, var(--text-faint));
+    display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .arc__arrow {
+        display: block;
+    }
+
+    .arc[data-idle="true"] .arc__arrow {
+        display: none;
+    }
+}
+
+/* ---- SLOT DI OVERLAY (regola #22) ------------------------------------
+   Sei slot fissi. Nessun overlay si posiziona "a occhio" con top/left
+   propri: si appende allo slot, e più elementi nello stesso slot si
+   impilano in colonna invece di coprirsi.
+   pointer-events:none sul contenitore così uno slot vuoto non ruba i click
+   al diagramma sotto; auto sui figli così i figli restano cliccabili. */
+.slots {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas:
+        "tl tc tr"
+        ".  .  . "
+        "bl bc br";
+    padding: var(--space-3);
+    gap: var(--space-2);
+}
+
+.slot {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    pointer-events: none;
+    min-width: 0;
+}
+
+.slot>* {
+    pointer-events: auto;
+}
+
+.slot--tl {
+    grid-area: tl;
+    align-items: flex-start;
+}
+
+.slot--tc {
+    grid-area: tc;
+    align-items: center;
+}
+
+.slot--tr {
+    grid-area: tr;
+    align-items: flex-end;
+}
+
+.slot--bl {
+    grid-area: bl;
+    align-items: flex-start;
+    justify-content: flex-end;
+}
+
+.slot--bc {
+    grid-area: bc;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.slot--br {
+    grid-area: br;
+    align-items: flex-end;
+    justify-content: flex-end;
+}
+
+/* Legenda del diagramma — slot bottom-left. */
+.flow-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+    font-size: var(--fs-micro);
+    color: var(--text-muted);
+    box-shadow: var(--elev-1);
+}
+
+.flow-legend__item {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    white-space: nowrap;
+}
+
+/* ======================================================================
+   BANNER DI STATO — devono essere impossibili da non notare a 3 metri
+   ====================================================================== */
+.banner {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-md);
+    font-size: var(--fs-label);
+    font-weight: 600;
+    border: 1px solid;
+    box-shadow: var(--elev-2);
+    max-width: 100%;
+}
+
+.banner[hidden] {
+    display: none;
+}
+
+.banner--warn {
+    background: var(--state-warn-bg);
+    border-color: var(--state-warn);
+    color: var(--state-warn);
+}
+
+.banner--error {
+    background: var(--state-error-bg);
+    border-color: var(--state-error);
+    color: var(--state-error);
+}
+
+.banner__icon {
+    font-size: 1.3em;
+    flex: none;
+}
+
+/* Eroe rosso a piena larghezza: quando non arrivano dati da oltre un
+   minuto i valori spariscono del tutto. Numeri vecchi lasciati a schermo
+   sono peggio di nessun numero — sembrano veri. */
+.offline {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-3);
+    padding: var(--space-6) var(--space-4);
+    background: var(--state-error-bg);
+    border: 3px solid var(--state-error);
+    border-radius: var(--radius-lg);
+    color: var(--state-error);
+    text-align: center;
+}
+
+.offline[hidden] {
+    display: none;
+}
+
+.offline__title {
+    font-size: var(--fs-value-lg);
+    font-weight: 700;
+    letter-spacing: .02em;
+    line-height: 1;
+}
+
+.offline__detail {
+    font-size: var(--fs-label);
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+/* ---- Stato degradato (meta.stale) -----------------------------------
+   Opacità al 45% + retinatura diagonale sul diagramma. L'opacità da sola
+   non basta: su un pannello luminoso a 3 metri un 45% si legge ancora
+   benissimo. La retinatura invece è inequivocabile — dice "questa
+   immagine è ferma" con un canale che non è il colore. */
+[data-stale="true"] .hero__value,
+[data-stale="true"] .node__value,
+[data-stale="true"] .metric__value {
+    opacity: .45;
+}
+
+[data-stale="true"] .flow__nodes::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: repeating-linear-gradient(45deg,
+            transparent 0 10px,
+            var(--text-faint) 10px 12px);
+    opacity: .22;
+}
+
+[data-stale="true"] .flow__nodes {
+    position: relative;
+}
+
+/* ---- Valore sospetto (quality[campo] == "suspect") ------------------- */
+.suspect {
+    color: var(--text-faint) !important;
+    text-decoration: line-through;
+    text-decoration-thickness: 2px;
+    cursor: help;
+}
+
+/* ---- Scheletro di primo caricamento ---------------------------------
+   La pagina parte con "--", MAI con numeri finti. Il vecchio bootstrap
+   partiva da un campione di esempio: per uno o due secondi il pannello
+   mostrava valori inventati indistinguibili da quelli veri. */
+.skeleton {
+    color: var(--text-faint);
+}
+
+/* ======================================================================
+   BATTERIA
+   ====================================================================== */
+.battery__row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    flex-wrap: wrap;
+}
+
+.soc {
+    flex: 1 1 240px;
+    min-width: 0;
+}
+
+.soc__track {
+    position: relative;
+    height: 28px;
+    border-radius: var(--radius-pill);
+    background: var(--surface-sunken);
+    border: 1px solid var(--border);
+    overflow: hidden;
+}
+
+[data-mode="kiosk"] .soc__track {
+    height: 56px;
+}
+
+/* Il riempimento porta la severità; la traccia è un passo più chiaro
+   della stessa scala, così lo stato si legge su tutta la barra. */
+.soc__fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 0;
+    background: var(--role-battery);
+    border-radius: var(--radius-pill);
+    transition: width var(--dur-3) var(--ease-out),
+        background-color var(--dur-3) var(--ease-out);
+}
+
+.soc__fill[data-level="low"] {
+    background: var(--state-warn);
+}
+
+.soc__fill[data-level="critical"] {
+    background: var(--state-error);
+}
+
+/* Soglia di SOC minimo: una tacca, non un colore — il colore è già preso
+   dalla severità del riempimento. */
+.soc__floor {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--text);
+    opacity: .55;
+}
+
+.soc__floor::after {
+    content: attr(data-label);
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: var(--fs-micro);
+    color: var(--text-muted);
+    white-space: nowrap;
+    padding-top: 2px;
+}
+
+.battery__stats {
+    display: flex;
+    gap: var(--space-5);
+    flex-wrap: wrap;
+}
+
+.metric {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.metric__label {
+    font-size: var(--fs-micro);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    white-space: nowrap;
+}
+
+.metric__value {
+    font-size: var(--fs-value);
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.1;
+    letter-spacing: -.02em;
+}
+
+.metric__value small {
+    font-size: .45em;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-left: .15em;
+}
+
+/* ======================================================================
+   GRAFICI
+   ====================================================================== */
+.chart {
+    width: 100%;
+    display: block;
+    overflow: visible;
+}
+
+.chart__grid line {
+    stroke: var(--chart-grid);
+    stroke-width: 1;
+    /* Mai tratteggiata: il tratteggio si legge come "soglia" o "proiezione"
+       quando invece è solo una griglia. */
+}
+
+.chart text {
+    fill: var(--chart-axis);
+    font-size: 11px;
+    font-family: var(--stack-sans);
+}
+
+[data-mode="kiosk"] .chart text {
+    font-size: 22px;
+}
+
+.chart .axis-line {
+    stroke: var(--border-strong);
+    stroke-width: 1;
+}
+
+.chart .series-line {
+    fill: none;
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+}
+
+[data-mode="kiosk"] .chart .series-line {
+    stroke-width: 4;
+}
+
+.chart .series-area {
+    stroke: none;
+    opacity: .10;
+}
+
+.chart .end-dot {
+    stroke: var(--chart-surface);
+    stroke-width: 2;
+}
+
+.chart__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    min-height: 120px;
+    padding: var(--space-5);
+    color: var(--text-muted);
+    text-align: center;
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius-md);
+    font-size: var(--fs-label);
+}
+
+.chart__empty strong {
+    color: var(--text);
+    font-weight: 600;
+}
+
+/* Variante "informativa": qui un dato C'È, ma non è quello che il riquadro
+   avrebbe disegnato (il riepilogo di un giorno di cui manca il dettaglio al
+   minuto). Il bordo diventa pieno e prende la tinta della rete: il
+   tratteggio è il segno del buco, e qui buco non ce n'è. */
+.chart__empty[data-kind="info"] {
+    border-style: solid;
+    border-color: var(--border);
+    border-left: 3px solid var(--role-grid);
+    align-items: flex-start;
+    text-align: left;
+    min-height: 0;
+}
+
+/* ---- Colonne dello storico -------------------------------------------
+   La tinta arriva da data-role sul segno (vedi la mappa dei ruoli in cima
+   al file): nessun colore scritto qui, e nessuno stile in linea — se la CSP
+   togliesse 'unsafe-inline' agli stili, il grafico reggerebbe comunque. */
+.chart .col {
+    fill: var(--seg-color, var(--text-muted));
+}
+
+/* L'etichetta diretta del picco veste l'inchiostro, MAI il colore della
+   serie: un arancio chiaro come testo è illeggibile sulla superficie. */
+.chart .col__peak {
+    fill: var(--text);
+    font-weight: 700;
+}
+
+/* Evidenziazione della banda sotto il puntatore: un velo, non un blocco.
+   Sta dietro le colonne, quindi non ne altera il colore. */
+.chart .band-hi {
+    fill: var(--text-faint);
+    opacity: .12;
+    pointer-events: none;
+}
+
+/* Piano di cattura del puntatore: invisibile ma cliccabile.
+   `pointer-events: all` cattura anche senza riempimento — è la differenza
+   fra "devi centrare la colonna" e "basta essere nella banda". */
+.chart .band-hit {
+    fill: none;
+    pointer-events: all;
+}
+
+/* ---- Tooltip di banda ------------------------------------------------
+   Una lettura sola con TUTTE le serie di quel giorno: il puntatore non deve
+   centrare la colonna giusta per avere il numero giusto. Il valore è
+   l'elemento forte, l'etichetta il secondario — l'opposto della legenda,
+   perché qui la serie ce l'hai già e vuoi la cifra. */
+.chart-tip {
+    position: absolute;
+    z-index: 5;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity var(--dur-1) var(--ease-out);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 168px;
+    padding: var(--space-2) var(--space-3);
+    background: var(--surface-raised);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    box-shadow: var(--elev-2);
+    font-size: var(--fs-micro);
+    color: var(--text-muted);
+}
+
+.chart-tip__title {
+    color: var(--text);
+    font-weight: 700;
+    margin-bottom: 2px;
+}
+
+.chart-tip__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+}
+
+.chart-tip__key {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    white-space: nowrap;
+}
+
+/* Chiave a trattino e non a pastiglia: alla densità di un tooltip un
+   quadrato pieno è inchiostro da dato che fa il lavoro di un'etichetta. */
+.chart-tip__mark {
+    width: 14px;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--swatch, var(--text-muted));
+    flex: none;
+}
+
+.chart-tip__val {
+    color: var(--text);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.chart-tip__none {
+    color: var(--text-muted);
+}
+
+.legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-4);
+    font-size: var(--fs-micro);
+    color: var(--text-muted);
+}
+
+.legend__item {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    white-space: nowrap;
+}
+
+/* Chiave a trattino per le serie a linea, pastiglia per le aree. */
+.legend__line {
+    width: 18px;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--swatch, var(--text-muted));
+    flex: none;
+}
+
+[data-mode="kiosk"] .legend__line {
+    width: 32px;
+    height: 5px;
+}
+
+/* Contenitore di un grafico. Cresce col contenuto invece di avere
+   un'altezza fissa che escluderebbe la fascia delle etichette dell'asse —
+   il modo classico di ritrovarsi un mini-scroll dentro la card. */
+.chart-wrap {
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.energy-bars {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+/* `.chart-wrap` è un flex: senza questa riga l'attributo [hidden] non lo
+   nasconderebbe (display:flex vince su display:none dell'UA stylesheet). */
+.chart-wrap[hidden],
+.hist-summary[hidden],
+.hist-facts[hidden],
+.hist-note[hidden] {
+    display: none;
+}
+
+/* ======================================================================
+   STORICO — filtri, pannello, riepilogo del periodo
+   ======================================================================
+   Una sola riga di filtri sopra i riquadri che governa (periodo a sinistra,
+   navigazione a destra): niente controlli dentro i singoli grafici, e
+   niente due righe che si contendono la stessa informazione.
+   ====================================================================== */
+.hist-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+}
+
+/* Si restringe, non sfonda: con flex:none la riga teneva la sua larghezza
+   naturale (466px) dentro un telefono da 360 e mandava in scroll
+   orizzontale l'INTERA pagina. */
+.hist-nav {
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: flex-end;
+}
+
+/* La data del periodo non deve far saltare i due pulsanti a ogni passo:
+   cambiare "8 ago" in "10–16 novembre" sposterebbe "Successivo" di
+   trenta pixel sotto il dito che sta per cliccarlo. */
+.hist-nav #histDate {
+    min-width: 11ch;
+    text-align: center;
+}
+
+/* Sotto i 560px cadono la parola del periodo e il suggerimento del tasto:
+   su un telefono non c'è una tastiera a cui suggerire "[", e "Settimana
+   prec." per esteso, due volte, non ci sta in riga. Restano la freccia e
+   "prec./succ.", e l'aria-label continua a dire la frase intera. */
+@media (max-width: 560px) {
+    .hist-nav .hist-nav__word,
+    .hist-nav .btn__key {
+        display: none;
+    }
+
+    .hist-nav #histDate {
+        min-width: 0;
+    }
+
+    .hist-controls {
+        justify-content: flex-start;
+    }
+}
+
+.hist-panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+/* Un pulsante che non porta da nessuna parte deve DIRLO: il "precedente"
+   si spegne sul primo giorno dell'archivio, il "successivo" su oggi. */
+.btn:disabled {
+    opacity: .45;
+    cursor: not-allowed;
+}
+
+.btn:disabled:hover {
+    background: var(--surface);
+}
+
+.hist-note {
+    font-size: var(--fs-micro);
+    color: var(--text-muted);
+}
+
+.hist-summary {
+    display: grid;
+    gap: var(--space-4) var(--space-6);
+    grid-template-columns: 1fr;
+    align-items: center;
+    padding-top: var(--space-2);
+    border-top: 1px solid var(--border);
+}
+
+@media (min-width: 620px) {
+    :root:not([data-mode="kiosk"]) .hist-summary {
+        /* I meter prendono quel che serve, le barre tutto il resto: sono
+           loro a portare i numeri e a beneficiare della larghezza. */
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+}
+
+.hist-summary__bars {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    min-width: 0;
+}
+
+.hist-facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-4);
+    font-size: var(--fs-micro);
+    color: var(--text-muted);
+}
+
+.hist-facts b {
+    color: var(--text);
+    font-weight: 600;
+}
+
+/* ---- Barra impilata orizzontale (energie di oggi) --------------------
+   Mai una torta: confrontare fette vicine a occhio è il modo peggiore di
+   leggere un rapporto, e a 3 metri diventa impossibile. */
+.stackbar {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.stackbar__label {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: var(--fs-micro);
+    color: var(--text-muted);
+    gap: var(--space-3);
+}
+
+.stackbar__label b {
+    color: var(--text);
+    font-size: var(--fs-body);
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+/* Nota accanto al titolo della barra: numeri che non sono frazioni
+   dell'intero rappresentato (resa DC, carica/scarica batteria). */
+.stackbar__note {
+    display: block;
+    color: var(--text-faint);
+    font-size: .92em;
+}
+
+.stackbar__track {
+    display: flex;
+    height: 22px;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    background: var(--surface-sunken);
+    /* La separazione tra i segmenti è un buco nel colore della superficie,
+       non un bordo disegnato: un bordo aggiungerebbe inchiostro che non è
+       dato. Il gap lo fa il border-right qui sotto. */
+}
+
+[data-mode="kiosk"] .stackbar__track {
+    height: 40px;
+}
+
+.stackbar__seg {
+    height: 100%;
+    background: var(--seg-color, var(--text-faint));
+    border-right: 2px solid var(--chart-surface);
+    min-width: 0;
+    transition: width var(--dur-3) var(--ease-out);
+}
+
+.stackbar__seg:last-child {
+    border-right: none;
+}
+
+/* ---- Meter ad arco (autosufficienza / autoconsumo) ------------------- */
+.meters {
+    display: flex;
+    gap: var(--space-5);
+    flex-wrap: wrap;
+    justify-content: space-around;
+}
+
+.meter {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-1);
+    min-width: 0;
+}
+
+.meter__svg {
+    overflow: visible;
+}
+
+.meter__track {
+    fill: none;
+    stroke: var(--surface-sunken);
+    stroke-linecap: round;
+}
+
+.meter__fill {
+    fill: none;
+    stroke: var(--meter-color, var(--role-solar));
+    stroke-linecap: round;
+    transition: stroke-dashoffset var(--dur-3) var(--ease-out);
+}
+
+.meter__value {
+    font-size: var(--fs-value);
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -.02em;
+}
+
+.meter__label {
+    font-size: var(--fs-micro);
+    color: var(--text-muted);
+    text-align: center;
+}
+
+/* ---- Bullet chart (autonomia batteria) ------------------------------- */
+.bullet {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    flex: 1 1 220px;
+    min-width: 0;
+    /* Spazio riservato all'etichetta del marker, che sta sotto la traccia. */
+    padding-bottom: calc(var(--fs-micro) * 1.6);
+}
+
+.bullet__track {
+    position: relative;
+    height: 18px;
+    background: var(--surface-sunken);
+    border-radius: var(--radius-sm);
+    overflow: visible;
+}
+
+[data-mode="kiosk"] .bullet__track {
+    height: 32px;
+}
+
+.bullet__fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    background: var(--role-battery);
+    border-radius: var(--radius-sm);
+    transition: width var(--dur-3) var(--ease-out);
+}
+
+/* Marker "alba": la domanda vera non è quante ore restano, è se la
+   batteria arriva al sorgere del sole. Il marker rende la risposta una
+   lettura di posizione invece che un calcolo mentale. */
+.bullet__marker {
+    position: absolute;
+    top: -4px;
+    bottom: -4px;
+    width: 3px;
+    background: var(--text);
+    border-radius: 2px;
+}
+
+/* L'etichetta del marker sta SOTTO la traccia, non sopra: sopra finiva
+   addosso alla riga "Autonomia stimata / <valore>", che occupa già tutta
+   la larghezza. Sotto, lo spazio è riservato dal padding di .bullet. */
+.bullet__marker::after {
+    content: attr(data-label);
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: var(--fs-micro);
+    color: var(--text-muted);
+    white-space: nowrap;
+    padding-top: 4px;
+}
+
+/* ======================================================================
+   CONTROLLI, PANNELLO TECNICO, OVERLAY — solo modalità compatta
+   ====================================================================== */
+.controls {
+    display: flex;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-4);
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    color: var(--text);
+    font-size: var(--fs-label);
+    font-weight: 600;
+    transition: background-color var(--dur-1) var(--ease-out),
+        border-color var(--dur-1) var(--ease-out);
+}
+
+.btn:hover {
+    background: var(--surface-raised);
+}
+
+.btn[aria-pressed="true"] {
+    background: var(--role-grid);
+    border-color: var(--role-grid);
+    color: var(--gray-0);
+}
+
+.btn__key {
+    font-size: .8em;
+    opacity: .75;
+    border: 1px solid currentColor;
+    border-radius: 4px;
+    padding: 0 4px;
+    line-height: 1.4;
+}
+
+.tabs {
+    display: flex;
+    gap: var(--space-1);
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+}
+
+.tab {
+    padding: var(--space-2) var(--space-4);
+    font-size: var(--fs-label);
+    font-weight: 600;
+    color: var(--text-muted);
+    border-bottom: 3px solid transparent;
+    margin-bottom: -1px;
+    /* Bersaglio da dito anche sul telefono: il testo da solo sarebbe alto
+       17px, cioè meno della metà del minimo comodo. */
+    min-height: 36px;
+}
+
+.tab:hover {
+    color: var(--text);
+}
+
+.tab[aria-selected="true"] {
+    color: var(--text);
+    border-bottom-color: var(--role-grid);
+}
+
+.tech-table {
+    width: 100%;
+    font-size: var(--fs-micro);
+}
+
+.tech-table th,
+.tech-table td {
+    text-align: left;
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+}
+
+.tech-table th {
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+}
+
+.tech-table td.num {
+    text-align: right;
+}
+
+.tech-scroll {
+    overflow-x: auto;
+    overflow-y: auto;
+    max-height: 380px;
+    /* Il contenuto largo scorre dentro il proprio contenitore: il body non
+       deve mai scorrere in orizzontale. */
+}
+
+.q-badge {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: var(--radius-pill);
+    font-size: .9em;
+    font-weight: 600;
+    border: 1px solid currentColor;
+}
+
+.q-badge[data-q="measured"] {
+    color: var(--state-ok);
+}
+
+.q-badge[data-q="derived"] {
+    color: var(--text-muted);
+}
+
+.q-badge[data-q="suspect"] {
+    color: var(--state-warn);
+}
+
+.q-badge[data-q="unavailable"] {
+    color: var(--state-error);
+}
+
+/* ---- Overlay di aiuto (tasto ?) -------------------------------------- */
+.overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: grid;
+    place-items: center;
+    padding: var(--space-5);
+    background: var(--scrim);
+    backdrop-filter: blur(3px);
+}
+
+.overlay[hidden] {
+    display: none;
+}
+
+.overlay__panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--elev-3);
+    padding: var(--space-6);
+    max-width: 560px;
+    width: 100%;
+    max-height: 85vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.overlay__title {
+    font-size: var(--fs-value);
+    font-weight: 700;
+}
+
+.keylist {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--space-3) var(--space-4);
+    align-items: center;
+    font-size: var(--fs-label);
+}
+
+kbd {
+    display: inline-block;
+    min-width: 2em;
+    text-align: center;
+    padding: var(--space-1) var(--space-2);
+    border: 1px solid var(--border-strong);
+    border-bottom-width: 2px;
+    border-radius: var(--radius-sm);
+    background: var(--surface-raised);
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: .9em;
+    color: var(--text);
+}
+
+/* Regione aria-live: presente per gli AT, invisibile a schermo. */
+.sr-status {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+}
+
+/* ======================================================================
+   VISTA 3D — pannello alternativo, sopra la 2D
+
+   Non è una modalità della dashboard ma una VISTA: la pagina sotto continua
+   a girare e resta l'unica cosa che il pannello a muro mostra. Perciò il
+   riquadro riporta anche il chip di freschezza — coprire lo stato "dati
+   fermi" con una scena che si muove sarebbe il modo più efficace di far
+   sembrare vivo un backend morto.
+
+   z-index 40: sotto l'overlay di aiuto (50), che deve poter comparire sopra.
+   ====================================================================== */
+.view3d {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    background: var(--bg);
+}
+
+.view3d[hidden] {
+    display: none;
+}
+
+.view3d__bar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+}
+
+.view3d__title {
+    font-size: var(--fs-value);
+    font-weight: 700;
+    /* Spinge a destra freschezza, contatore e uscita: un solo elemento a
+       decidere l'allineamento, invece di margini sparsi sui tre. */
+    margin-right: auto;
+}
+
+/* Contatore dei fotogrammi (?debug3d=1). Tratteggiato di proposito: è uno
+   strumento di verifica, non un dato dell'impianto, e non deve poter essere
+   scambiato per una misura. */
+.view3d__stat {
+    font-size: var(--fs-micro);
+    color: var(--text-muted);
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius-sm);
+    padding: 2px var(--space-2);
+}
+
+.view3d__stat[hidden] {
+    display: none;
+}
+
+.view3d__stage {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--chart-surface);
+    /* Il trascinamento ruota la scena: senza questo, su touch il gesto
+       diventa uno scroll della pagina e la camera non si muove mai. */
+    touch-action: none;
+    cursor: grab;
+}
+
+.view3d__stage:active {
+    cursor: grabbing;
+}
+
+.view3d__canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* ---- Etichette proiettate ------------------------------------------- */
+.view3d__labels {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.label3d {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-pill);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: var(--elev-1);
+    line-height: 1.15;
+    white-space: nowrap;
+    transition: opacity var(--dur-2) var(--ease-out);
+}
+
+.label3d__name {
+    font-size: var(--fs-micro);
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.label3d__value {
+    font-size: var(--fs-body);
+    font-weight: 700;
+}
+
+/* Il bordo veste il colore di ruolo: gli stessi token dei nodi 2D, della
+   legenda e dei grafici. Il testo resta --text, che è l'unico colore con
+   contrasto verificato su --surface in entrambi i temi. */
+.label3d[data-role="solar"] {
+    border-color: var(--role-solar);
+}
+
+.label3d[data-role="battery"] {
+    border-color: var(--role-battery);
+}
+
+.label3d[data-role="grid"] {
+    border-color: var(--role-grid);
+}
+
+.label3d[data-role="home"] {
+    border-color: var(--border-strong);
+}
+
+/* Stato di carica accanto alla potenza della batteria: è il numero che si
+   cerca per primo guardando quel nodo. */
+.label3d[data-soc]::after {
+    content: attr(data-soc);
+    font-size: var(--fs-micro);
+    font-weight: 700;
+    color: var(--role-battery);
+}
+
+/* ---- Degradazione onesta -------------------------------------------- */
+.view3d__fallback {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: var(--space-4);
+    padding: var(--space-6);
+    text-align: center;
+    background: var(--surface);
+}
+
+.view3d__fallback[hidden] {
+    display: none;
+}
+
+.view3d__fallback-text {
+    max-width: 46ch;
+    font-size: var(--fs-body);
+    color: var(--text);
+}
+
+.view3d__hint {
+    font-size: var(--fs-micro);
+    color: var(--text-muted);
+    text-align: center;
+}
+
+/* Senza scena non c'è niente da trascinare: spiegare come ruotare una vista
+   che non si è potuta disegnare fa sembrare l'errore colpa di chi guarda. */
+.view3d[data-failed="true"] .view3d__hint {
+    display: none;
+}
+
+.view3d__hint kbd {
+    min-width: 1.6em;
+    padding: 0 var(--space-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .label3d {
+        transition: none;
+    }
+}

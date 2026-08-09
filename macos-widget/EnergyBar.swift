@@ -4,6 +4,35 @@ import Foundation
 // MARK: - Config
 let API_URL = "http://127.0.0.1:8003/data"
 
+// MARK: - Auth
+// Da quando /data richiede autenticazione (regola #17), i widget devono presentare
+// il token di servizio. Il token NON si scrive qui: vive in un file fuori dal repo.
+//
+//   mkdir -p ~/.config/energyflow
+//   python3 invert.py --print-token > ~/.config/energyflow/token
+//   chmod 600 ~/.config/energyflow/token
+//
+// Se il file non c'è si procede senza header: un server con l'auth spenta continua
+// a funzionare, e uno con l'auth accesa risponde 401 — che è il comportamento voluto,
+// non un widget che finge di andare.
+func energyFlowToken() -> String? {
+    if let env = ProcessInfo.processInfo.environment["ENERGYFLOW_TOKEN"], !env.isEmpty {
+        return env
+    }
+    let path = NSString(string: "~/.config/energyflow/token").expandingTildeInPath
+    guard let raw = try? String(contentsOfFile: path, encoding: .utf8) else { return nil }
+    let token = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+    return token.isEmpty ? nil : token
+}
+
+func energyFlowRequest(_ url: URL) -> URLRequest {
+    var req = URLRequest(url: url)
+    if let token = energyFlowToken() {
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+    }
+    return req
+}
+
 // MARK: - Models
 struct EnergyData: Codable { let derived: DerivedData }
 struct DerivedData: Codable {
@@ -169,12 +198,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func fetchData() {
         guard let url = URL(string: API_URL) else { return }
-        let task = URLSession.shared.dataTask(with: url) { data, response, error in
+        let task = URLSession.shared.dataTask(with: energyFlowRequest(url)) { data, response, error in
             if let _ = error {
                 DispatchQueue.main.async { self.showLoading() }
                 return
             }
-            
+
+            // 401/403: il token manca o è sbagliato. Senza questo ramo il decode
+            // fallirebbe e si vedrebbe "in caricamento" per sempre, senza capire perché.
+            if let http = response as? HTTPURLResponse, http.statusCode == 401 || http.statusCode == 403 {
+                NSLog("EnergyBar: %d da /data — token assente o errato (vedi ~/.config/energyflow/token)", http.statusCode)
+                DispatchQueue.main.async { self.showLoading() }
+                return
+            }
+
             if let data = data, let decoded = try? JSONDecoder().decode(EnergyData.self, from: data) {
                 DispatchQueue.main.async { 
                     self.lastUpdate = Date()

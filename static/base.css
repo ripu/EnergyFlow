@@ -1,0 +1,178 @@
+/* ============================================================================
+   EnergyFlow — base: reset, tipografia, utility di accessibilità.
+   Nessun colore grezzo qui dentro: solo token da tokens.css.
+   ========================================================================= */
+
+/* ----------------------------------------------------------------------
+   Font self-hosted.
+   Prima la pagina caricava Sora da fonts.googleapis.com. Su un pannello a
+   muro senza internet — o semplicemente col router giù — la richiesta va in
+   timeout e la tipografia collassa su system-ui: tutte le misure calcolate
+   per il kiosk saltano, e i numeri eroe cambiano larghezza.
+   Google Fonts serve Sora come UNICO file variabile (i tre URL per i pesi
+   400/600/700 restituiscono lo stesso identico woff2, sha256 verificato):
+   quindi un solo @font-face con l'intervallo di pesi, 25 KB per tutto.
+   ---------------------------------------------------------------------- */
+@font-face {
+    font-family: "Sora";
+    font-style: normal;
+    font-weight: 100 800;
+    /* swap: il testo si vede subito con il fallback e viene risostituito.
+       Su un kiosk che si riavvia da solo, un blocco di 3s a schermo vuoto
+       sarebbe l'unica cosa che un passante nota. */
+    font-display: swap;
+    src: url("fonts/sora-latin-var.woff2") format("woff2");
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6,
+        U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC,
+        U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    /* Il visualizzatore dipinge il proprio fondo dietro la pagina: senza un
+       background esplicito il tema di sistema traspare dai bordi. */
+    background: var(--bg);
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--stack-sans);
+    font-size: var(--fs-body);
+    line-height: 1.45;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
+    transition: background-color var(--dur-3) var(--ease-out),
+        color var(--dur-3) var(--ease-out);
+}
+
+h1,
+h2,
+h3,
+h4,
+p,
+figure,
+ul,
+ol {
+    margin: 0;
+    padding: 0;
+}
+
+ul,
+ol {
+    list-style: none;
+}
+
+button {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+table {
+    border-collapse: collapse;
+}
+
+svg {
+    display: block;
+}
+
+/* ----------------------------------------------------------------------
+   Numeri.
+   tabular-nums SOLO dove i numeri stanno incolonnati o cambiano di continuo
+   e non devono ballare: valori in tempo reale, tabelle, tick degli assi.
+   NON sui numeri eroe: a 140px le cifre tabulari (tutte larghe come uno zero)
+   fanno sembrare "121" pieno di buchi. Lì servono le cifre proporzionali.
+   ---------------------------------------------------------------------- */
+.tnum,
+.metric__value,
+.tech-table td,
+.chart text.tick {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+}
+
+.hero__value {
+    font-variant-numeric: normal;
+    font-feature-settings: normal;
+}
+
+/* ----------------------------------------------------------------------
+   Accessibilità
+   ---------------------------------------------------------------------- */
+
+/* Contenuto per i soli lettori di schermo. Resta nel flusso e leggibile
+   dagli AT: display:none lo toglierebbe anche a loro. */
+.visually-hidden {
+    position: absolute !important;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Anello di focus a 3px, visibile su qualunque superficie. :focus-visible e
+   non :focus, così il click col mouse non lascia l'anello acceso. */
+:focus-visible {
+    outline: 3px solid var(--focus-ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+}
+
+.skip-link {
+    position: absolute;
+    top: var(--space-2);
+    left: var(--space-2);
+    z-index: 100;
+    padding: var(--space-3) var(--space-4);
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    transform: translateY(-200%);
+}
+
+.skip-link:focus {
+    transform: none;
+}
+
+/* ----------------------------------------------------------------------
+   prefers-reduced-motion.
+   Non si limita a rallentare: azzera. Le animazioni di flusso sono
+   keyframe infiniti, e "più lento" resta comunque moto perpetuo nel campo
+   visivo di chi soffre di disturbi vestibolari.
+   L'informazione non si perde: components.css fa comparire una freccia
+   statica a metà arco: direzione e intensità restano leggibili.
+   ---------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+        scroll-behavior: auto !important;
+    }
+}

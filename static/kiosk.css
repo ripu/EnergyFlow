@@ -1,0 +1,365 @@
+/* ============================================================================
+   EnergyFlow — rifiniture della modalità kiosk.
+   Qui sta SOLO ciò che è vero per il pannello a muro e falso ovunque
+   altrove. Le dimensioni tipografiche stanno in tokens.css, la griglia in
+   layout.css: questo file non ne ridefinisce nessuna delle due.
+
+   Contesto: NEC E326 32" ruotato a 1080x1920, chromium in kiosk fullscreen,
+   acceso h24, guardato da 3 metri, nessun mouse e nessuna tastiera.
+   ========================================================================= */
+
+/* Il puntatore non esiste su questo schermo. Se un mouse fosse collegato per
+   sbaglio, la freccia resterebbe ferma in mezzo al pannello per giorni. */
+[data-mode="kiosk"] {
+    cursor: none;
+}
+
+/* Nessuna selezione accidentale: un tocco sul vetro non deve lasciare mezza
+   riga evidenziata in blu per il resto della settimana. */
+[data-mode="kiosk"] body {
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* Nessuna barra di scorrimento: la pianta è calcolata per stare in 1920px.
+   Se compare una scrollbar è un bug di layout da correggere, non da nascondere
+   — ma il pannello non deve mostrarlo mentre aspetta la correzione. */
+[data-mode="kiosk"] ::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+}
+
+/* Le card del kiosk respirano meno di quanto verrebbe naturale: ogni pixel
+   di padding è tolto ai numeri, e i numeri sono l'unico motivo per cui il
+   pannello esiste. */
+[data-mode="kiosk"] .card {
+    padding: var(--space-4);
+    gap: var(--space-2);
+}
+
+/* ----------------------------------------------------------------------
+   Fascia di stato — quattro gruppi su una riga sola in 108px.
+   Il rischio qui è che i gruppi si restringano sotto il proprio contenuto
+   e si sovrappongano: flex, sotto pressione, non manda a capo, sborda.
+   Quindi ogni gruppo è flex:none tranne il meteo, che può troncare.
+   ---------------------------------------------------------------------- */
+[data-mode="kiosk"] .statusbar {
+    padding: var(--space-3) var(--space-4);
+    gap: var(--space-4);
+    overflow: hidden;
+}
+
+/* Alba e tramonto: le parole lasciano il posto a due frecce.
+   "Alba" e "Tramonto" costano insieme ~175px su una riga da 1048, ed erano
+   quelli che mancavano alla descrizione del meteo per non troncarsi.
+   Le parole NON spariscono dal documento — restano leggibili dai lettori
+   di schermo con la stessa tecnica di .visually-hidden — quindi si perde
+   solo l'ingombro, non l'informazione. */
+[data-mode="kiosk"] .statusbar__sun {
+    gap: var(--space-3);
+}
+
+[data-mode="kiosk"] .sun-word {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+.sun-arrow {
+    display: none;
+}
+
+[data-mode="kiosk"] .sun-arrow {
+    display: inline;
+    margin-right: 2px;
+}
+
+[data-mode="kiosk"] .statusbar__clock,
+[data-mode="kiosk"] .statusbar__sun,
+[data-mode="kiosk"] .freshness {
+    flex: none;
+}
+
+/* Ora e data IMPILATE, non affiancate.
+   Affiancate occupavano da sole ~320px dei 1048 disponibili e schiacciavano
+   il meteo a 82px: "parzialmente nuvoloso" diventava "par…". Impilate ne
+   costano 175 in meno, che è esattamente ciò che serviva alla descrizione
+   per starci intera. Verticalmente ci stanno: 50 + 32 = 82px in una banda
+   da 108. */
+[data-mode="kiosk"] .statusbar__clock {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+}
+
+/* L'ora non usa la scala dei valori secondari: a 72px mangerebbe da sola
+   l'intera banda. Resta comunque molto sopra il minimo di leggibilità. */
+[data-mode="kiosk"] .clock__time {
+    font-size: var(--fs-value);
+    line-height: 1;
+}
+
+[data-mode="kiosk"] .clock__date {
+    font-size: var(--fs-micro);
+    line-height: 1.3;
+}
+
+[data-mode="kiosk"] .statusbar__weather {
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: flex-start;
+}
+
+/* ----------------------------------------------------------------------
+   Eroe: due numeri affiancati nella banda da 440px.
+   ---------------------------------------------------------------------- */
+[data-mode="kiosk"] .hero {
+    gap: var(--space-4);
+    height: 100%;
+}
+
+[data-mode="kiosk"] .hero__cell {
+    justify-content: center;
+    gap: var(--space-4);
+    padding: var(--space-5) var(--space-6);
+}
+
+[data-mode="kiosk"] .hero__label {
+    letter-spacing: .06em;
+}
+
+/* ----------------------------------------------------------------------
+   Flusso verticale: PV in alto, inverter al centro, i tre pozzi in basso.
+   ---------------------------------------------------------------------- */
+[data-mode="kiosk"] .flow {
+    padding: var(--space-3);
+}
+
+[data-mode="kiosk"] .flow__nodes {
+    gap: var(--space-3);
+    padding: 0 var(--space-2);
+}
+
+[data-mode="kiosk"] .node__disc {
+    --disc: 116px;
+}
+
+/* I dischi laterali (batteria e rete) stanno sulle colonne esterne di una
+   griglia larga 1080: senza un minimo di margine interno le etichette
+   lunghe toccherebbero il bordo della card. */
+[data-mode="kiosk"] .node {
+    max-width: 300px;
+}
+
+/* PV e inverter sono soli nella loro riga: impilare disco ed etichette
+   sprecherebbe verticale — la risorsa scarsa — per riempire orizzontale,
+   che qui avanza. Affiancandoli, ogni riga costa 116px invece di 230, e la
+   banda del flusso torna a starci senza rimpicciolire niente.
+   La geometria degli archi non ne risente: flow.js misura il disco dove si
+   trova, qualunque sia la disposizione. */
+/* PV e inverter occupano l'intera larghezza della loro riga: da soli nella
+   riga centrale avevano solo un terzo dei 1080px, e "4,18 kW" a 50px non ci
+   stava — andava a capo, raddoppiando l'altezza della riga e facendo
+   sfondare la banda. */
+[data-mode="kiosk"] .flow__nodes {
+    grid-template-areas:
+        "pv      pv     pv"
+        "inv     inv    inv"
+        "battery home   grid";
+}
+
+[data-mode="kiosk"] .node[data-node="pv"],
+[data-mode="kiosk"] .node[data-node="inverter"] {
+    display: grid;
+    grid-template-columns: auto auto;
+    align-items: center;
+    justify-items: start;
+    justify-content: center;
+    column-gap: var(--space-5);
+    row-gap: 0;
+    text-align: left;
+    max-width: none;
+}
+
+/* I nodi in basso hanno un terzo di larghezza ciascuno: il valore, che non
+   va a capo, è ciò che detta la dimensione minima. Una scala un filo più
+   corta di quella generale tiene la riga dentro la banda. */
+[data-mode="kiosk"] .node__value {
+    font-size: clamp(36px, 2.2vh, 44px);
+}
+
+[data-mode="kiosk"] .node[data-node="pv"] .node__disc,
+[data-mode="kiosk"] .node[data-node="inverter"] .node__disc {
+    grid-column: 1;
+    grid-row: 1 / span 3;
+}
+
+/* ----------------------------------------------------------------------
+   Grafico: la banda è 340px e deve contenere ANCHE le etichette dell'asse.
+   Un contenitore ad altezza fissa che esclude la fascia dell'asse è il modo
+   classico di ritrovarsi con un mini-scroll verticale dentro la card.
+   ---------------------------------------------------------------------- */
+[data-mode="kiosk"] [data-area="chart"] {
+    justify-content: space-between;
+}
+
+[data-mode="kiosk"] .chart-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+/* ----------------------------------------------------------------------
+   Batteria: due righe in 230px. Le metriche non devono andare a capo, e il
+   valore non deve mai finire tagliato a metà cifra.
+   ---------------------------------------------------------------------- */
+[data-mode="kiosk"] [data-area="battery"] {
+    justify-content: space-between;
+}
+
+[data-mode="kiosk"] .battery__row {
+    gap: var(--space-6);
+    flex-wrap: nowrap;
+    align-items: flex-end;
+}
+
+[data-mode="kiosk"] .battery__row .metric {
+    flex: none;
+}
+
+[data-mode="kiosk"] .soc__track {
+    height: 44px;
+}
+
+/* La card della batteria porta due righe di metriche in 240px: alla scala
+   generale dei valori (fino a 52px) sfonda di una quarantina di pixel e i
+   numeri di SOH e temperatura finiscono tagliati a metà cifra — cioè
+   proprio i due che si guardano per capire se la batteria sta bene.
+   Qui la scala scende, e le interlinee delle etichette si stringono.
+   Restano tutte molto sopra il minimo di 22px. */
+[data-mode="kiosk"] [data-area="battery"] .metric__value {
+    font-size: clamp(32px, 2vh, 40px);
+    line-height: 1.1;
+}
+
+[data-mode="kiosk"] [data-area="battery"] .metric__label,
+[data-mode="kiosk"] [data-area="battery"] .stackbar__label {
+    line-height: 1.2;
+}
+
+[data-mode="kiosk"] [data-area="battery"] .card__title,
+[data-mode="kiosk"] [data-area="battery"] .card__head {
+    line-height: 1.25;
+}
+
+[data-mode="kiosk"] .bullet__track {
+    height: 22px;
+    margin-top: var(--space-1);
+}
+
+/* Lo spazio sotto la traccia serve all'etichetta "alba": quanto basta a
+   contenerla, non una riga intera — nella banda della batteria ogni pixel
+   in eccesso taglia il valore di SOH. */
+[data-mode="kiosk"] .bullet {
+    padding-bottom: calc(var(--fs-micro) * 1.2);
+}
+
+/* Il grafico si divide la banda fra andamento e striscia SOC in proporzione
+   2:1. Le altezze le legge charts.js dal contenitore (fitHeight): se fossero
+   scritte nel codice, i due SVG sfonderebbero i wrapper ristretti dal flex e
+   finirebbero disegnati uno sopra l'altro. */
+[data-mode="kiosk"] #dayChart {
+    flex: 2 1 0;
+}
+
+[data-mode="kiosk"] #socChart {
+    flex: 1 1 0;
+}
+
+/* La tacca del SOC minimo scrive sotto di sé: nella riga stretta del kiosk
+   quel testo cadrebbe sopra la riga successiva. Il valore resta leggibile
+   dalla posizione della tacca. */
+[data-mode="kiosk"] .soc__floor::after {
+    display: none;
+}
+
+/* ----------------------------------------------------------------------
+   Energie: due barre AFFIANCATE. Impilate costerebbero il doppio
+   dell'altezza, e la banda è 150px.
+   ---------------------------------------------------------------------- */
+[data-mode="kiosk"] [data-area="energy"] {
+    justify-content: center;
+}
+
+[data-mode="kiosk"] .energy-bars {
+    flex-direction: row;
+    gap: var(--space-6);
+}
+
+[data-mode="kiosk"] [data-area="energy"] .stackbar__label,
+[data-mode="kiosk"] [data-area="energy"] .card__head {
+    line-height: 1.2;
+}
+
+/* La nota (resa DC, flussi batteria) è la riga meno importante della card:
+   sta al minimo di leggibilità e con interlinea stretta, così la banda
+   regge anche se la stringa cresce. Inseguire l'altezza esatta ritoccando
+   la pianta ogni volta che cambia una parola è una rincorsa che si perde. */
+[data-mode="kiosk"] .stackbar__note {
+    font-size: var(--fs-micro);
+    line-height: 1.1;
+}
+
+[data-mode="kiosk"] .stackbar {
+    gap: var(--space-1);
+}
+
+[data-mode="kiosk"] .energy-bars .stackbar {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+/* ----------------------------------------------------------------------
+   Banner: sul muro devono pesare quanto un titolo, non quanto una nota.
+   ---------------------------------------------------------------------- */
+[data-mode="kiosk"] .banner {
+    font-size: var(--fs-body);
+    padding: var(--space-4) var(--space-5);
+    border-width: 2px;
+    border-radius: var(--radius-lg);
+}
+
+[data-mode="kiosk"] .offline__title {
+    font-size: var(--fs-hero);
+}
+
+/* La retinatura dello stato "stale" va ingrandita in proporzione: a 10px di
+   passo, da 3 metri, si legge come una texture grigia uniforme invece che
+   come "questa immagine è congelata". */
+[data-mode="kiosk"][data-stale="true"] .flow__nodes::after {
+    background-image: repeating-linear-gradient(45deg,
+            transparent 0 22px,
+            var(--text-faint) 22px 26px);
+}
+
+/* ----------------------------------------------------------------------
+   VISTA 3D — esclusa dal kiosk, non solo nascosta per stile.
+
+   Sul pannello a muro non c'è né mouse né tastiera: nessuno può orbitare
+   attorno alla scena, quindi la 3D non aggiungerebbe una sola informazione
+   ai numeri già grandi della 2D. In cambio costerebbe un contesto WebGL e un
+   ciclo di render acceso 24 ore su 24 su un Raspberry — esattamente il
+   consumo per cui la vista era stata tolta la prima volta.
+
+   Il bottone «3D» sta nella sezione controlli, che è già data-kiosk-hidden;
+   view3d.js rifiuta l'apertura in modalità kiosk e chiude la vista se la
+   modalità cambia mentre è aperta. Questa regola è la terza rete: se in
+   futuro il bottone finisse fuori da quella sezione, il pannello a muro
+   resterebbe comunque senza scena 3D.
+   ---------------------------------------------------------------------- */
+[data-mode="kiosk"] .view3d {
+    display: none !important;
+}

@@ -19,12 +19,26 @@ struct QuickDerived: Codable {
 // MARK: - Timeline Entry
 struct EnergyEntry: TimelineEntry {
     let date: Date
-struct EnergyEntry: TimelineEntry {
-    let date: Date
     let data: QuickEnergyData?
     let error: String?
 }
-    let error: String?
+
+// MARK: - Auth
+// Il token di /data (regola #17). Sotto App Sandbox il file usato da EnergyBar non è
+// raggiungibile, quindi si prova prima l'App Group e poi l'ambiente; il percorso su
+// disco resta come ultima chance per quando il target gira senza sandbox.
+func widgetToken() -> String? {
+    if let shared = UserDefaults(suiteName: "group.world.archimede.energyflow"),
+       let t = shared.string(forKey: "token"), !t.isEmpty {
+        return t
+    }
+    if let env = ProcessInfo.processInfo.environment["ENERGYFLOW_TOKEN"], !env.isEmpty {
+        return env
+    }
+    let path = NSString(string: "~/.config/energyflow/token").expandingTildeInPath
+    guard let raw = try? String(contentsOfFile: path, encoding: .utf8) else { return nil }
+    let token = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+    return token.isEmpty ? nil : token
 }
 
 // MARK: - Provider
@@ -39,8 +53,20 @@ struct Provider: TimelineProvider {
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<EnergyEntry>) -> Void) {
         let url = URL(string: "http://localhost:8003/data")!
-        
-        let task = URLSession.shared.dataTask(with: url) { data, response, error in
+
+        // /data richiede il token (regola #17). Attenzione: una widget extension gira
+        // in App Sandbox, quindi "~" NON è la home dell'utente ma il container della
+        // extension: il file ~/.config/energyflow/token che usa EnergyBar qui non si
+        // vede. Le due vie che funzionano sotto sandbox sono l'App Group condiviso
+        // (UserDefaults(suiteName:), richiede l'entitlement) e la variabile d'ambiente.
+        // Se il token non si trova, la richiesta parte lo stesso e il 401 viene mostrato
+        // come errore leggibile invece che come widget vuoto.
+        var request = URLRequest(url: url)
+        if let token = widgetToken() {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        let task = URLSession.shared.dataTask(with: request) { data, response, error in
             var entry: EnergyEntry
             let currentDate = Date()
             

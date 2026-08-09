@@ -3,7 +3,15 @@
 // Place this folder in your Übersicht widgets folder (usually ~/Library/Application Support/Übersicht/widgets)
 
 // 1. Fetch data using curl (robust local network access)
-export const command = "curl -s 'http://127.0.0.1:8003/data'";
+//    /data ora richiede il token di servizio (regola #17). Il token non sta qui dentro:
+//    si legge da ~/.config/energyflow/token, che non è nel repo.
+//      mkdir -p ~/.config/energyflow
+//      python3 invert.py --print-token > ~/.config/energyflow/token && chmod 600 ~/.config/energyflow/token
+//    Se il file manca, curl parte senza header: con l'auth accesa il server risponde
+//    401 e il widget mostra l'errore, invece di restare misteriosamente vuoto.
+export const command =
+  "T=$(cat ~/.config/energyflow/token 2>/dev/null); " +
+  "curl -s ${T:+-H \"Authorization: Bearer $T\"} 'http://127.0.0.1:8003/data'";
 
 // 2. Refresh every 3 seconds
 export const refreshFrequency = 3000;

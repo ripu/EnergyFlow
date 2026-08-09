@@ -1,2573 +1,500 @@
-<!doctype html>
-<html lang="it">
+<!DOCTYPE html>
+<html lang="it" data-mode="compact">
 
 <head>
-  <meta charset="UTF-8">
-  <script src="logger.js"></script>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Energy Flow Inverter</title>
-  <link rel="icon" href="logo.png" type="image/png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    :root {
-      --bg: #eef1f6;
-      --panel: #ffffff;
-      --panel-soft: #f7f9fc;
-      --ink: #1e2a3b;
-      --muted: #7a8699;
-      --accent: #2bb3b1;
-      --accent-strong: #1a8c8b;
-      --line: #d9e1ec;
-      --warning: #f7c76b;
-      --danger: #ef7b7b;
-      --shadow: 0 24px 60px rgba(17, 24, 39, 0.12);
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      margin: 0;
-      font-family: "Sora", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      color: var(--ink);
-      background:
-        radial-gradient(120% 120% at 10% 10%, #f8faff 0%, #eef1f6 46%, #e8eef4 100%);
-      min-height: 100vh;
-    }
-
-    .shell {
-      width: min(1200px, 100%);
-      margin: 0 auto;
-      padding: 12px 20px;
-      display: grid;
-      gap: 12px;
-    }
-
-    .controls-card {
-      background: var(--panel);
-      border-radius: 18px;
-      padding: 8px 12px;
-      box-shadow: var(--shadow);
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      gap: 6px;
-      height: 90px;
-      min-width: 140px;
-    }
-
-    .controls-row {
-      display: flex;
-      gap: 6px;
-    }
-
-    .controls-row button {
-      padding: 6px 10px;
-      font-size: 11px;
-      height: 28px;
-    }
-
-    .last-update {
-      font-size: 10px;
-      color: var(--muted);
-      text-align: center;
-      white-space: nowrap;
-    }
-
-    .topbar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    .title-block {
-      display: grid;
-      gap: 6px;
-    }
-
-    .eyebrow {
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.2em;
-      color: var(--muted);
-    }
-
-    h1 {
-      font-size: 24px;
-      margin: 0;
-      letter-spacing: -0.02em;
-    }
-
-    .subtitle {
-      font-size: 14px;
-      color: var(--muted);
-    }
-
-    .topbar-right {
-      display: flex;
-      align-items: center;
-      gap: 18px;
-      flex-wrap: wrap;
-    }
-
-    .weather-card {
-      background: var(--panel);
-      border-radius: 18px;
-      padding: 8px 12px;
-      box-shadow: var(--shadow);
-      display: grid;
-      gap: 4px;
-      min-width: 200px;
-      height: 90px;
-      align-content: center;
-    }
-
-    .weather-main {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .weather-icon {
-      width: 28px;
-      height: 28px;
-      display: grid;
-      place-items: center;
-      background: #fff3d4;
-      border-radius: 12px;
-      color: #f4a12e;
-    }
-
-    .weather-icon.sunny {
-      background: #fff3d4;
-      color: #f4a12e;
-    }
-
-    .weather-icon.cloudy {
-      background: #e9eef7;
-      color: #7b8aa1;
-    }
-
-    .weather-icon.fog {
-      background: #e8edf5;
-      color: #8996aa;
-    }
-
-    .weather-icon.rain {
-      background: #e6f0ff;
-      color: #4c7fd6;
-    }
-
-    .weather-icon.storm {
-      background: #efe7ff;
-      color: #6c54d8;
-    }
-
-    .weather-icon.snow {
-      background: #eef4ff;
-      color: #8ab5ff;
-    }
-
-    .temp-range {
-      font-size: 18px;
-      font-weight: 600;
-    }
-
-    .sun-line {
-      font-size: 12px;
-      color: var(--muted);
-    }
-
-    .date-line {
-      font-size: 13px;
-      color: var(--muted);
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-
-    .weather-desc {
-      font-size: 12px;
-      color: var(--muted);
-    }
-
-    .forecast {
-      display: flex;
-      gap: 10px;
-    }
-
-    .forecast-item {
-      background: var(--panel);
-      border-radius: 14px;
-      padding: 6px 10px;
-      display: grid;
-      gap: 4px;
-      justify-items: center;
-      min-width: 60px;
-      box-shadow: var(--shadow);
-      font-size: 11px;
-      color: var(--muted);
-      height: 90px;
-      align-content: center;
-    }
-
-    .flow-card {
-      background: var(--panel);
-      border-radius: 26px;
-      padding: 16px;
-      box-shadow: var(--shadow);
-      display: grid;
-      gap: 16px;
-    }
-
-    .flow-board {
-      position: relative;
-      border-radius: 24px;
-      background: var(--panel-soft);
-      overflow: hidden;
-      display: grid;
-      /* 3 columns: Left (Sources), Center (Inverter), Right (Storage/Load) */
-      /* 3 columns: Equal width */
-      grid-template-columns: repeat(3, 1fr);
-      /* 2 rows */
-      grid-template-areas:
-        "solar inverter battery"
-        "grid inverter home";
-      /* Inverter spans or is centered */
-      gap: 32px 24px;
-      padding: 32px;
-      align-items: center;
-      justify-items: center;
-    }
-
-    .flow-board::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background-image:
-        repeating-linear-gradient(60deg, rgba(140, 151, 170, 0.18) 0 1px, transparent 1px 32px),
-        repeating-linear-gradient(-60deg, rgba(140, 151, 170, 0.18) 0 1px, transparent 1px 32px);
-      opacity: 0.35;
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    .flow-board::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background: radial-gradient(circle at 60% 25%, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0) 55%);
-      pointer-events: none;
-      z-index: 1;
-    }
-
-    .svg-lines {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      z-index: 2;
-    }
-
-    .connection-line {
-      fill: none;
-      stroke: #cbd5e1;
-      stroke-width: 6;
-      stroke-linecap: round;
-      stroke-dasharray: 12 12;
-      transition: stroke 0.3s;
-    }
-
-    .connection-line.idle {
-      stroke: #e2e8f0;
-      animation: none;
-    }
-
-    .connection-line.flow-in {
-      stroke: #2bb3b1;
-      /* Teal */
-      stroke-dasharray: 12 6;
-      animation: dashFlow 1s linear infinite;
-      /* Flows towards target */
-    }
-
-    .connection-line.flow-out {
-      stroke: #f7c76b;
-      /* Orange/Gold for export or special flow */
-      stroke-dasharray: 12 6;
-      animation: dashFlowReverse 1s linear infinite;
-    }
-
-    @keyframes dashFlow {
-      to {
-        stroke-dashoffset: -18;
-      }
-    }
-
-    @keyframes dashFlowReverse {
-      to {
-        stroke-dashoffset: 18;
-      }
-    }
-
-    .node {
-      position: relative;
-      width: 100%;
-      max-width: 220px;
-      margin: 0 auto;
-      height: 320px;
-      /* Fixed height for uniformity */
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-start;
-      gap: 10px;
-      text-align: left;
-      padding: 16px;
-      border-radius: 20px;
-      background: #ffffff;
-      border: 1px solid #eef2f7;
-      box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
-      z-index: 3;
-    }
-
-    .node .tile {
-      width: 100%;
-      height: 120px;
-      background: #ffffff;
-      border-radius: 16px;
-      border: 1px solid #eef2f7;
-      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
-      position: relative;
-    }
-
-    .node .tile::before {
-      content: "";
-      position: absolute;
-      inset: 6px;
-      border-radius: 14px;
-      background: linear-gradient(145deg, #ffffff, #eef3f8);
-    }
-
-    .node .tile::after {
-      content: "";
-      position: absolute;
-      bottom: -14px;
-      left: 14px;
-      width: calc(100% - 28px);
-      height: 20px;
-      background: rgba(15, 23, 42, 0.1);
-      filter: blur(12px);
-      border-radius: 50%;
-      z-index: -1;
-    }
-
-    .node .icon {
-      position: absolute;
-      inset: 0;
-      display: grid;
-      place-items: center;
-      color: var(--node-accent, #8aa0b8);
-    }
-
-    #batteryFillRect {
-      transition: width 0.6s ease, fill 0.6s ease;
-    }
-
-    .node .icon svg {
-      width: 96px;
-      height: 72px;
-    }
-
-    .node-label {
-      font-size: 13px;
-      text-transform: uppercase;
-      letter-spacing: 0.14em;
-      color: var(--muted);
-    }
-
-    .node-value {
-      font-size: clamp(28px, 3.2vw, 40px);
-      font-weight: 700;
-      letter-spacing: -0.02em;
-    }
-
-    .node-sub {
-      font-size: 15px;
-      color: var(--muted);
-    }
-
-    .node-runtime {
-      font-size: clamp(14px, 1.6vw, 18px);
-      font-weight: 600;
-      color: var(--accent-strong);
-    }
-
-    .node.solar {
-      grid-area: solar;
-      --node-accent: #f2a534;
-    }
-
-    .node.inverter {
-      grid-area: inverter;
-      --node-accent: #6aa6ff;
-      /* Center visually in grid track */
-      align-self: center;
-      justify-self: center;
-      /* Use same flex layout as .node */
-      display: flex;
-      width: 100%;
-      max-width: 220px;
-      align-items: center;
-      justify-content: center;
-      /* Center internal content for inverter */
-    }
-
-    .node.battery {
-      grid-area: battery;
-      --node-accent: #47b88f;
-    }
-
-    .node.home {
-      grid-area: home;
-      --node-accent: #8a7df2;
-    }
-
-    .node.grid {
-      grid-area: grid;
-      --node-accent: #94a3b8;
-    }
-
-    .node.meter {
-      grid-area: meter;
-      align-self: center;
-      justify-self: center;
-      max-width: 220px;
-      padding: 12px;
-    }
-
-    .node.meter .tile {
-      height: 90px;
-    }
-
-    .node.meter .icon svg {
-      width: 66px;
-      height: 50px;
-    }
-
-    .control-bar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      flex-wrap: wrap;
-    }
-
-    .status-group {
-      display: grid;
-      gap: 6px;
-    }
-
-    .status-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 12px;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: 600;
-      background: rgba(43, 179, 177, 0.12);
-      color: var(--accent-strong);
-      width: fit-content;
-    }
-
-    .status-chip.warning {
-      background: rgba(247, 199, 107, 0.25);
-      color: #b46b00;
-    }
-
-    .status-chip.danger {
-      background: rgba(239, 123, 123, 0.2);
-      color: #b14242;
-    }
-
-    .api-status {
-      font-size: 12px;
-      color: var(--muted);
-    }
-
-    .control-actions {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    button {
-      border: none;
-      border-radius: 12px;
-      padding: 10px 16px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      background: linear-gradient(120deg, #2bb3b1, #67d0c8);
-      color: #0d2626;
-      box-shadow: 0 12px 30px rgba(43, 179, 177, 0.25);
-      transition: transform 0.12s ease, box-shadow 0.12s ease;
-    }
-
-    button:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 16px 34px rgba(43, 179, 177, 0.32);
-    }
-
-    button.ghost {
-      background: #f3f6fb;
-      color: var(--ink);
-      box-shadow: inset 0 0 0 1px #e2e8f0;
-    }
-
-    .last-update {
-      font-size: 12px;
-      color: var(--muted);
-    }
-
-    details {
-      background: var(--panel);
-      border-radius: 22px;
-      padding: 16px 20px;
-      box-shadow: var(--shadow);
-    }
-
-    summary {
-      cursor: pointer;
-      font-weight: 600;
-      font-size: 15px;
-    }
-
-    .details-grid {
-      margin-top: 16px;
-      display: grid;
-      gap: 16px;
-    }
-
-    .input-panel textarea {
-      width: 100%;
-      min-height: 140px;
-      resize: vertical;
-      border-radius: 12px;
-      border: 1px solid #e2e8f0;
-      background: #fbfcff;
-      padding: 12px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      font-size: 13px;
-      line-height: 1.4;
-      color: #1f2937;
-    }
-
-    .actions {
-      margin-top: 12px;
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    .table-wrapper {
-      overflow-x: auto;
-      border-radius: 12px;
-      border: 1px solid #e2e8f0;
-      background: #ffffff;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      min-width: 480px;
-    }
-
-    th,
-    td {
-      padding: 10px 12px;
-      text-align: left;
-      border-bottom: 1px solid #edf2f7;
-    }
-
-    th {
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--muted);
-    }
-
-    td.label {
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    .hint {
-      font-size: 12px;
-      color: var(--muted);
-    }
-
-    @media (max-width: 980px) {
-      .flow-board {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        grid-template-areas:
-          "solar inverter"
-          "battery home"
-          "grid meter";
-      }
-    }
-
-    @media (max-width: 640px) {
-
-      /* --- Compact Shell & Header --- */
-      .shell {
-        padding: 8px 12px;
-        gap: 8px;
-      }
-
-      .topbar {
-        row-gap: 8px;
-      }
-
-      .title-block img {
-        width: 24px !important;
-        height: 24px !important;
-      }
-
-      h1 {
-        font-size: 20px !important;
-      }
-
-      .subtitle {
-        font-size: 12px;
-      }
-
-      /* Full width widgets */
-      .controls-card,
-      .weather-card,
-      .sun-card,
-      .forecast-item {
-        width: 100%;
-        height: auto;
-        min-height: 80px;
-        min-width: 0;
-      }
-
-      /* --- 2-Column Grid Layout --- */
-      .flow-board {
-        padding: 16px 12px;
-        gap: 12px;
-        grid-template-columns: 1fr 1fr;
-        grid-template-areas:
-          "solar solar"
-          "home battery"
-          "grid grid";
-        /* Inverter explicitly removed from areas */
-      }
-
-      /* Hide SVG Lines & Inverter Node on Mobile */
-      .svg-lines {
-        display: none !important;
-      }
-
-      .node.inverter {
-        display: none !important;
-      }
-
-      /* --- Node Compact Styling --- */
-      .node {
-        height: auto;
-        min-height: 150px;
-        /* Reduced from 320px */
-        padding: 12px;
-        max-width: none;
-        /* Allow spanning full width */
-      }
-
-      .node .tile {
-        height: 80px;
-      }
-
-      .node .icon svg {
-        width: 48px;
-        height: 48px;
-      }
-
-      .node-value {
-        font-size: clamp(24px, 6vw, 32px);
-      }
-
-      .node-label {
-        font-size: 11px;
-        margin-bottom: 2px;
-      }
-
-      .node-sub {
-        font-size: 13px;
-      }
-
-      /* Specific Node Tweaks */
-      .node.solar {
-        justify-self: stretch;
-        max-width: 100%;
-      }
-
-      .node.grid {
-        justify-self: stretch;
-        max-width: 100%;
-      }
-
-      /* Controls */
-      .control-bar {
-        flex-direction: column;
-        align-items: stretch;
-      }
-
-      .control-actions {
-        justify-content: space-between;
-        width: 100%;
-      }
-
-      /* Hide less important elements if needed */
-      .node.meter {
-        display: none;
-      }
-
-      /* Hide raw meter if present */
-    }
-
-    /* --- SUN CARD REDESIGN --- */
-    .sun-card {
-      grid-area: sun;
-      background: linear-gradient(135deg, #0ea5e9 0%, #38bdf8 100%);
-      border-radius: 14px;
-      /* Matched to forecast-item */
-      color: white;
-      position: relative;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      padding: 8px 12px;
-      box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
-      height: 90px;
-      /* Matched to forecast-item */
-      box-sizing: border-box;
-    }
-
-    .sun-top-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 0px;
-    }
-
-    .current-time {
-      font-size: 20px;
-      /* Reduced from 24 */
-      font-weight: 700;
-      line-height: 1;
-      letter-spacing: -0.02em;
-    }
-
-    .next-event {
-      text-align: right;
-    }
-
-    .event-time {
-      font-size: 11px;
-      /* Reduced */
-      font-weight: 700;
-      line-height: 1.1;
-    }
-
-    .event-label {
-      font-size: 8px;
-      /* Reduced */
-      opacity: 0.9;
-      font-weight: 500;
-      white-space: nowrap;
-      text-transform: uppercase;
-    }
-
-    .sun-graph-container {
-      position: relative;
-      flex: 1;
-      display: flex;
-      align-items: flex-end;
-      /* Push graph to bottom */
-      justify-content: center;
-      margin-bottom: 0px;
-    }
-
-    .sun-graph {
-      width: 100%;
-      height: 28px;
-      /* Reduced height to fit in 90px */
-      overflow: visible;
-      opacity: 0.9;
-    }
-
-    .daylight-duration {
-      position: absolute;
-      bottom: 3px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 9px;
-      font-weight: 600;
-      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-      white-space: nowrap;
-    }
-
-    .sun-bottom-row {
-      display: flex;
-      justify-content: space-between;
-      font-size: 9px;
-      /* Reduced */
-      font-weight: 600;
-      opacity: 0.95;
-      margin-top: 2px;
-    }
-
-    .sun-event.left {
-      text-align: left;
-    }
-
-    .sun-event.right {
-      text-align: right;
-    }
-
-    .sun-event .label {
-      opacity: 0.7;
-      font-weight: 500;
-      margin-right: 2px;
-      text-transform: uppercase;
-    }
-
-    .sun-event .val {
-      font-weight: 700;
-    }
-
-
-    /* Remove old styles */
-    .sun-card .sun-header,
-    .sun-card .label,
-    .sun-card .value,
-    .sun-card .sun-footer {
-      display: none;
-    }
-
-    .sun-path-bg {
-      fill: url(#sunGradient);
-      stroke: rgba(255, 255, 255, 0.4);
-      stroke-width: 1.5;
-    }
-
-    .sun-path-active {
-      fill: none;
-      stroke: white;
-      stroke-width: 2;
-      stroke-dasharray: 100;
-      /* Will be adjusted by JS */
-      stroke-dashoffset: 100;
-      transition: stroke-dashoffset 1s ease;
-    }
-
-    .sun-dot {
-      fill: white;
-      filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.8));
-      transition: cx 1s ease, cy 1s ease;
-    }
-
-    .horizon {
-      stroke: rgba(255, 255, 255, 0.2);
-      stroke-width: 1;
-    }
-
-    .sun-footer {
-      font-size: 10px;
-      opacity: 0.9;
-      margin-top: 0;
-    }
-
-    @media (max-width: 980px) {
-      .sun-card {
-        display: none;
-        /* Hide on small screens if cluttered */
-      }
-    }
-
-    .weather-icon-small {
-      width: 24px;
-      height: 24px;
-      margin-bottom: 4px;
-      color: #7dd3fc;
-    }
-
-    .weather-icon-small svg {
-      width: 100%;
-      height: 100%;
-    }
-  </style>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>EnergyFlow — flusso energetico di casa in tempo reale</title>
+    <meta name="description" content="Pannello di casa: produzione solare, consumo, batteria e scambio con la rete, letti dall'inverter in tempo reale.">
+    <meta name="theme-color" content="#0d1117">
+    <meta name="robots" content="noindex,nofollow">
+    <meta name="color-scheme" content="light dark">
+
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <link rel="manifest" href="site.webmanifest">
+
+    <!-- Fogli di stile separati, nessun build step.
+         Da file:// e dal server Python si comportano identici: è il motivo per
+         cui qui non si usano i moduli ES (bloccati dalla CORS su file://). -->
+    <link rel="stylesheet" href="static/tokens.css">
+    <link rel="stylesheet" href="static/base.css">
+    <link rel="stylesheet" href="static/layout.css">
+    <link rel="stylesheet" href="static/components.css">
+    <link rel="stylesheet" href="static/kiosk.css">
+
+    <link rel="preload" href="static/fonts/sora-latin-var.woff2" as="font" type="font/woff2" crossorigin>
 </head>
 
 <body>
-  <div class="shell">
-    <header class="topbar">
-      <div class="title-block">
-        <h1
-          style="display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: -0.04em; background: linear-gradient(135deg, #1e293b 0%, #334155 100%); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-          <img src="logo.png" alt="Logo" style="width: 32px; height: 32px; -webkit-text-fill-color: initial;">
-          Energy Flow
-        </h1>
-        <div class="subtitle">Dashboard in tempo reale</div>
-      </div>
-      <div class="topbar-right">
-        <!-- Controls Card -->
-        <div class="controls-card">
-          <div class="controls-row">
-            <button id="viewToggleBtn"
-              style="background: linear-gradient(120deg, #8b5cf6, #a78bfa); color: white;">3D</button>
-            <button id="pullBtn">Aggiorna</button>
-            <button id="autoBtn" class="ghost">Auto</button>
-          </div>
-          <div class="last-update">Ultimo: <span id="lastUpdate">--</span></div>
-          <div id="locationContainer" style="font-size: 11px; margin-top: 4px; display: none;">
-            📍 <a id="locationLink" href="#" target="_blank"
-              style="color: inherit; text-decoration: none; opacity: 0.8;">Posizione</a>
-          </div>
+    <a class="skip-link" href="#main">Salta al contenuto</a>
 
-          <!-- Hidden Status -->
-          <div style="display: none;">
-            <div class="status-chip" id="statusChip">Attesa dati</div>
-            <div class="api-status" id="apiStatus"></div>
-          </div>
-        </div>
-        <div class="weather-card">
-          <div class="weather-main">
-            <div class="weather-icon sunny" id="weatherIcon"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
-                <circle cx="16" cy="16" r="6" fill="currentColor"></circle>
-                <path d="M16 4v4M16 24v4M4 16h4M24 16h4M7.2 7.2l2.8 2.8M22 22l2.8 2.8M7.2 24.8l2.8-2.8M22 10l2.8-2.8"
-                  stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
-              </svg></div>
-            <div>
-              <div class="sun-line" id="sunLine">Alba --:-- · Tramonto --:--</div>
-              <div class="temp-range" id="tempRange">--&deg;
-                C - --&deg;
-                C</div>
-              <div class="date-line" id="dateLine">--</div>
-              <div class="weather-desc" id="weatherDesc">--</div>
+    <!-- Unica regione aria-live "polite" della pagina: un riassunto riscritto
+         ogni 30 s. I valori veri cambiano ogni 5 s e se fossero live il lettore
+         di schermo non smetterebbe mai di parlare. -->
+    <p class="sr-status" aria-live="polite" id="srSummary"></p>
+
+    <main class="app" id="main">
+
+        <!-- ============================ STATO ============================ -->
+        <section class="statusbar" data-area="status" aria-label="Stato del sistema">
+            <div class="statusbar__clock">
+                <span class="clock__time tnum" id="clockTime">--:--</span>
+                <span class="clock__date" id="clockDate">&nbsp;</span>
             </div>
-          </div>
-        </div>
-        <div class="sun-card">
-          <!-- Top Row: Current Time (Left) - Next Event Countdown (Right) -->
-          <div class="sun-top-row">
-            <div class="current-time" id="sunCurrentTime">--:--</div>
-            <div class="next-event">
-              <div class="event-time" id="sunNextTime">--:--</div>
-              <div class="event-label" id="sunNextLabel">alla prox alba</div>
+
+            <div class="statusbar__weather">
+                <span class="weather__icon" id="weatherIcon" aria-hidden="true">·</span>
+                <span class="weather__text">
+                    <span class="weather__temp tnum" id="weatherTemp">--°</span>
+                    <span class="weather__desc" id="weatherDesc">meteo non disponibile</span>
+                </span>
             </div>
-          </div>
 
-          <!-- Middle: Graph -->
-          <div class="sun-graph-container">
-            <svg class="sun-graph" viewBox="0 0 100 50" preserveAspectRatio="none">
-              <defs>
-                <linearGradient id="sunGradient" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0%" stop-color="rgba(255, 255, 255, 0.35)" />
-                  <stop offset="100%" stop-color="rgba(255, 255, 255, 0)" />
-                </linearGradient>
-              </defs>
-              <path id="sunPath" class="sun-path-bg" d="M10,45 Q50,-15 90,45 L90,50 L10,50 Z" />
-              <circle id="sunDot" class="sun-dot" cx="10" cy="45" r="4" fill="white" stroke="rgba(0,0,0,0.1)"
-                stroke-width="1" />
-              <line class="horizon" x1="0" y1="45" x2="100" y2="45" stroke="rgba(255,255,255,0.3)" />
-            </svg>
-            <div class="daylight-duration" id="sunDuration">luce: --:--</div>
-          </div>
+            <!-- Sul kiosk le parole "Alba"/"Tramonto" diventano frecce (vedi
+                 kiosk.css): restano nel DOM per i lettori di schermo, ma i
+                 ~175px che occupano servono alla descrizione del meteo. -->
+            <p class="statusbar__sun">
+                <span><span class="sun-word">Alba</span><span class="sun-arrow" aria-hidden="true">↑</span>
+                    <b class="tnum" id="sunrise">--:--</b></span>
+                <span><span class="sun-word">Tramonto</span><span class="sun-arrow" aria-hidden="true">↓</span>
+                    <b class="tnum" id="sunset">--:--</b></span>
+            </p>
 
-          <!-- Bottom Row: Sunrise (Left) - Sunset (Right) -->
-          <div class="sun-bottom-row">
-            <div class="sun-event left">
-              <span class="label">alba:</span> <span class="val" id="sunAlba">--:--</span>
+            <!-- Sempre visibile, in ogni modalità: è l'unico elemento che
+                 distingue "dati di adesso" da "numeri congelati". -->
+            <p class="freshness" id="freshness" data-state="init">
+                <span class="freshness__dot" aria-hidden="true"></span>
+                <span id="freshnessText">in attesa dei dati…</span>
+            </p>
+        </section>
+
+        <!-- ============================= EROE ============================= -->
+        <section class="hero-zone" data-area="hero" aria-label="Valori principali">
+            <div class="hero">
+                <article class="hero__cell" data-role="solar">
+                    <h2 class="hero__label"><span class="swatch" aria-hidden="true"></span>Solare adesso</h2>
+                    <p class="hero__value">
+                        <span class="skeleton" id="heroSolar">--</span>
+                        <span class="hero__unit" id="heroSolarUnit">kW</span>
+                    </p>
+                    <p class="hero__sub" id="heroSolarSub">&nbsp;</p>
+                </article>
+
+                <article class="hero__cell" data-role="home">
+                    <h2 class="hero__label"><span class="swatch" aria-hidden="true"></span>Casa adesso</h2>
+                    <p class="hero__value">
+                        <span class="skeleton" id="heroHome">--</span>
+                        <span class="hero__unit" id="heroHomeUnit">kW</span>
+                    </p>
+                    <p class="hero__sub" id="heroHomeSub">&nbsp;</p>
+                </article>
             </div>
-            <div class="sun-event right">
-              <span class="label">tramonto:</span> <span class="val" id="sunTramonto">--:--</span>
+
+            <!-- Sostituisce i due numeri quando il backend tace da oltre un
+                 minuto. I valori spariscono: lasciarli sarebbe peggio che
+                 non mostrarli, perché continuerebbero a sembrare veri. -->
+            <div class="offline" id="offlineHero" hidden role="alert">
+                <p class="offline__title">BACKEND OFFLINE</p>
+                <p class="offline__detail" id="offlineDetail">nessun dato ricevuto</p>
             </div>
-          </div>
-        </div>
-        <div class="forecast">
-          <div class="forecast-item">
-            <div class="weather-icon-small" id="forecastIcon1"></div>
-            <div id="forecastDate1">--/--</div>
-            <div id="forecastTemp1">--&deg;C</div>
-          </div>
-          <div class="forecast-item">
-            <div class="weather-icon-small" id="forecastIcon2"></div>
-            <div id="forecastDate2">--/--</div>
-            <div id="forecastTemp2">--&deg;C</div>
-          </div>
-        </div>
-      </div>
-    </header>
+        </section>
 
+        <!-- ============================ FLUSSO ============================ -->
+        <section class="flow" data-area="flow" aria-label="Diagramma del flusso energetico">
+            <!-- Gli archi. viewBox e coordinate li scrive flow.js misurando i
+                 nodi: nell'HTML non c'è una sola costante geometrica. -->
+            <svg class="flow__svg" id="flowSvg" aria-hidden="true" focusable="false"></svg>
 
-    <section class="flow-card">
-      <div class="flow-board">
-        <!-- Connecting Lines SVG --><svg class="svg-lines" viewBox="0 0 800 400" preserveAspectRatio="none">
-          <!-- Solar -> Inverter (Solar-Left to Inverter-Top) -->
-          <path id="lineSolar" d="M220 100 C 260 100, 320 160, 350 160" class="connection-line idle" />
-          <!-- Battery <-> Inverter (Battery-Right to Inverter-Top) -->
-          <path id="lineBattery" d="M580 100 C 540 100, 480 160, 450 160" class="connection-line idle" />
+            <div class="flow__nodes" id="flowNodes" role="img" aria-labelledby="flowAlt">
+                <div class="node" data-node="pv" data-role="solar">
+                    <span class="node__disc" data-anchor aria-hidden="true">☀</span>
+                    <span class="node__label">Fotovoltaico</span>
+                    <span class="node__value tnum" id="nodePv">--</span>
+                    <span class="node__note" id="nodePvNote"></span>
+                </div>
 
-          <!-- Grid <-> Inverter (Grid-Bottom-Left to Inverter-Bottom) -->
-          <path id="lineGrid" d="M220 320 C 300 320, 380 280, 400 230" class="connection-line idle" />
+                <div class="node" data-node="inverter" data-role="inverter">
+                    <span class="node__disc" data-anchor aria-hidden="true">⌁</span>
+                    <span class="node__label">Inverter</span>
+                    <span class="node__value tnum" id="nodeInverter">--</span>
+                    <span class="node__note" id="nodeInverterNote"></span>
+                </div>
 
-          <!-- Inverter -> Home (Inverter-Bottom to Home-Bottom-Right) -->
-          <path id="lineHome" d="M400 230 C 420 280, 500 320, 580 320" class="connection-line idle" />
-        </svg>
-        <div class="node solar">
-          <div class="tile">
-            <div class="icon"><svg viewBox="0 0 80 60" fill="none" aria-hidden="true">
-                <!-- Sun with rays -->
-                <circle cx="40" cy="22" r="10" fill="currentColor" opacity="0.9"></circle>
-                <!-- Sun rays -->
-                <line x1="40" y1="6" x2="40" y2="2" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                </line>
-                <line x1="40" y1="42" x2="40" y2="38" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                </line>
-                <line x1="24" y1="22" x2="20" y2="22" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                </line>
-                <line x1="60" y1="22" x2="56" y2="22" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                </line>
-                <line x1="28" y1="10" x2="25" y2="7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                </line>
-                <line x1="55" y1="37" x2="52" y2="34" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                </line>
-                <line x1="52" y1="10" x2="55" y2="7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                </line>
-                <line x1="25" y1="37" x2="28" y2="34" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                </line>
-                <!-- Solar panel -->
-                <rect x="15" y="40" width="50" height="16" rx="3" fill="currentColor" opacity="0.3"></rect>
-                <rect x="15" y="40" width="50" height="16" rx="3" stroke="currentColor" stroke-width="2"></rect>
-                <!-- Panel grid lines -->
-                <line x1="27" y1="40" x2="27" y2="56" stroke="currentColor" stroke-width="1" opacity="0.4"></line>
-                <line x1="40" y1="40" x2="40" y2="56" stroke="currentColor" stroke-width="1" opacity="0.4"></line>
-                <line x1="53" y1="40" x2="53" y2="56" stroke="currentColor" stroke-width="1" opacity="0.4"></line>
-                <line x1="15" y1="48" x2="65" y2="48" stroke="currentColor" stroke-width="1" opacity="0.4"></line>
-              </svg></div>
-          </div>
-          <div class="node-label">Solar</div>
-          <div class="node-value" id="solarPower">--</div>
-        </div>
-        <div class="node inverter">
-          <div class="tile">
-            <div class="icon"><svg viewBox="0 0 60 70" fill="none" aria-hidden="true">
-                <rect x="14" y="8" width="32" height="48" rx="6" fill="currentColor" opacity="0.2"></rect>
-                <rect x="14" y="8" width="32" height="48" rx="6" stroke="currentColor" stroke-width="2"></rect>
-                <rect x="22" y="18" width="16" height="10" rx="2" fill="currentColor" opacity="0.6"></rect>
-                <circle cx="30" cy="44" r="3" fill="currentColor"></circle>
-                <rect x="24" y="56" width="12" height="6" rx="3" fill="currentColor" opacity="0.4"></rect>
-              </svg></div>
-          </div>
-          <div class="node-label">Inverter</div>
-          <div class="node-value" id="inverterPower" style="visibility: hidden;">--</div>
-        </div>
-        <div class="node battery">
-          <div class="tile">
-            <div class="icon"><svg viewBox="0 0 70 60" fill="none" aria-hidden="true">
-                <defs>
-                  <linearGradient id="batteryGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stop-color="#22c55e" />
-                    <stop offset="100%" stop-color="#ef4444" />
-                  </linearGradient>
-                </defs>
-                <rect x="8" y="16" width="48" height="28" rx="6" fill="currentColor" opacity="0.2"></rect>
-                <rect x="8" y="16" width="48" height="28" rx="6" stroke="currentColor" stroke-width="2"></rect>
-                <rect x="56" y="24" width="6" height="12" rx="2" fill="currentColor"></rect>
-                <!-- Dynamic fill showing battery level -->
-                <rect id="batteryFillRect" x="14" y="22" width="34" height="16" rx="4" fill="url(#batteryGradient)"
-                  opacity="0.85"></rect>
-              </svg></div>
-          </div>
-          <div class="node-label">Battery</div>
-          <div class="node-value" id="batteryPower">--</div>
-          <div class="node-runtime" id="batteryRuntime">Autonomia: --</div>
-          <div class="node-sub" id="batterySunWindow">FV: --</div>
-        </div>
-        <div class="node home">
-          <div class="tile">
-            <div class="icon"><svg viewBox="0 0 70 60" fill="none" aria-hidden="true">
-                <path d="M12 30L35 12L58 30" stroke="currentColor" stroke-width="2" stroke-linejoin="round"></path>
-                <rect x="18" y="30" width="34" height="20" rx="4" fill="currentColor" opacity="0.2"></rect>
-                <rect x="18" y="30" width="34" height="20" rx="4" stroke="currentColor" stroke-width="2"></rect>
-                <rect x="30" y="36" width="10" height="14" rx="2" fill="currentColor" opacity="0.6"></rect>
-              </svg></div>
-          </div>
-          <div class="node-label">Home</div>
-          <div class="node-value" id="homePower">--</div>
-        </div>
-        <div class="node grid">
-          <div class="tile">
-            <div class="icon"><svg viewBox="0 0 70 70" fill="none" aria-hidden="true">
-                <path d="M35 8L22 56H48L35 8Z" fill="currentColor" opacity="0.18"></path>
-                <path d="M35 8L22 56H48L35 8Z" stroke="currentColor" stroke-width="2"></path>
-                <path d="M20 30H50M18 40H52" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
-                <path d="M28 56L22 64M42 56L48 64" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                </path>
-              </svg></div>
-          </div>
-          <div class="node-label">Grid</div>
-          <div class="node-value" id="gridPower">--</div>
-          <div class="node-sub" id="gridDirection">Standby</div>
+                <div class="node" data-node="battery" data-role="battery">
+                    <span class="node__disc" data-anchor aria-hidden="true">▮</span>
+                    <span class="node__label">Batteria</span>
+                    <span class="node__value tnum" id="nodeBattery">--</span>
+                    <span class="node__note" id="nodeBatteryNote"></span>
+                </div>
+
+                <div class="node" data-node="home" data-role="home">
+                    <span class="node__disc" data-anchor aria-hidden="true">⌂</span>
+                    <span class="node__label">Casa</span>
+                    <span class="node__value tnum" id="nodeHome">--</span>
+                    <span class="node__note" id="nodeHomeNote"></span>
+                </div>
+
+                <div class="node" data-node="grid" data-role="grid">
+                    <span class="node__disc" data-anchor aria-hidden="true">⇅</span>
+                    <span class="node__label">Rete</span>
+                    <span class="node__value tnum" id="nodeGrid">--</span>
+                    <span class="node__note" id="nodeGridNote"></span>
+                </div>
+            </div>
+
+            <!-- Overlay a slot (regola #22): sei contenitori flex fissi.
+                 Nessun banner si posiziona con top/left propri, e due elementi
+                 nello stesso slot si impilano invece di coprirsi. -->
+            <div class="slots">
+                <div class="slot slot--tl"></div>
+                <div class="slot slot--tc">
+                    <!-- assertive: un dato vecchio va annunciato subito, non
+                         alla prossima pausa del lettore di schermo. -->
+                    <p class="banner banner--warn" id="staleBanner" hidden aria-live="assertive">
+                        <span class="banner__icon" aria-hidden="true">⏳</span>
+                        <span id="staleBannerText"></span>
+                    </p>
+                    <p class="banner banner--error" id="errorBanner" hidden aria-live="assertive">
+                        <span class="banner__icon" aria-hidden="true">⚠</span>
+                        <span id="errorBannerText"></span>
+                    </p>
+                </div>
+                <div class="slot slot--tr"></div>
+                <div class="slot slot--bl">
+                    <p class="flow-legend">
+                        <span class="flow-legend__item" data-role="solar"><span class="swatch" aria-hidden="true"></span>Solare</span>
+                        <span class="flow-legend__item" data-role="battery"><span class="swatch" aria-hidden="true"></span>Batteria</span>
+                        <span class="flow-legend__item" data-role="grid"><span class="swatch" aria-hidden="true"></span>Rete</span>
+                    </p>
+                </div>
+                <div class="slot slot--bc"></div>
+                <div class="slot slot--br"></div>
+            </div>
+
+            <!-- Equivalente testuale del diagramma: stessi numeri, per chi non
+                 può vedere le curve. -->
+            <div class="visually-hidden" id="flowAlt">
+                <p id="flowAltText">Diagramma del flusso energetico in attesa di dati.</p>
+                <table>
+                    <caption>Potenze istantanee</caption>
+                    <thead>
+                        <tr><th>Elemento</th><th>Potenza</th><th>Direzione</th></tr>
+                    </thead>
+                    <tbody id="flowAltTable"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- =========================== BATTERIA =========================== -->
+        <section class="card" data-area="battery" aria-label="Batteria">
+            <div class="card__head">
+                <h2 class="card__title"><span class="swatch" data-role="battery" aria-hidden="true"></span>Batteria</h2>
+                <span class="metric__label" id="batteryStatus">—</span>
+            </div>
+
+            <div class="battery__row">
+                <div class="soc">
+                    <div class="soc__track" role="meter" aria-valuemin="0" aria-valuemax="100"
+                         aria-valuenow="0" aria-label="Stato di carica" id="socMeter">
+                        <div class="soc__fill" id="socFill"></div>
+                        <div class="soc__floor" id="socFloor" data-label="min" hidden></div>
+                    </div>
+                </div>
+                <p class="metric">
+                    <span class="metric__label">Carica</span>
+                    <span class="metric__value" id="socValue">--<small>%</small></span>
+                </p>
+            </div>
+
+            <div class="battery__row">
+                <div class="bullet">
+                    <p class="stackbar__label"><span>Autonomia stimata</span><b id="runtimeValue">--</b></p>
+                    <div class="bullet__track">
+                        <div class="bullet__fill" id="runtimeFill"></div>
+                        <div class="bullet__marker" id="runtimeSunrise" data-label="alba" hidden></div>
+                    </div>
+                </div>
+                <p class="metric">
+                    <span class="metric__label">Salute (SOH)</span>
+                    <span class="metric__value" id="sohValue">--<small>%</small></span>
+                </p>
+                <p class="metric">
+                    <span class="metric__label">Temp. batteria</span>
+                    <span class="metric__value" id="battTemp">--<small>°C</small></span>
+                </p>
+                <p class="metric" data-kiosk-hidden>
+                    <span class="metric__label">Temp. inverter</span>
+                    <span class="metric__value" id="invTemp">--<small>°C</small></span>
+                </p>
+            </div>
+        </section>
+
+        <!-- ============================ GRAFICO =========================== -->
+        <section class="card" data-area="chart" aria-label="Andamento della giornata">
+            <div class="card__head">
+                <h2 class="card__title">Andamento di oggi</h2>
+                <p class="legend">
+                    <span class="legend__item" data-role="solar"><span class="legend__line" aria-hidden="true"></span>Solare</span>
+                    <span class="legend__item" data-role="home"><span class="legend__line" aria-hidden="true"></span>Casa</span>
+                </p>
+            </div>
+            <div class="chart-wrap" id="dayChart"></div>
+            <!-- Striscia SOC separata, stesso asse x. Mai un secondo asse y
+                 sullo stesso riquadro: l'allineamento fra due scale è
+                 arbitrario e inventa correlazioni che nei dati non ci sono. -->
+            <div class="chart-wrap" id="socChart"></div>
+        </section>
+
+        <!-- ============================ ENERGIE =========================== -->
+        <section class="card" data-area="energy" aria-label="Energia di oggi">
+            <div class="card__head">
+                <h2 class="card__title">Energia di oggi</h2>
+                <!-- Sul kiosk questa è l'UNICA legenda delle due barre:
+                     charts.js non genera quelle per segmento (vedi bar()). -->
+                <p class="legend">
+                    <span class="legend__item" data-role="solar"><span class="swatch" aria-hidden="true"></span>Solare</span>
+                    <span class="legend__item" data-role="battery"><span class="swatch" aria-hidden="true"></span>Batteria</span>
+                    <span class="legend__item" data-role="grid"><span class="swatch" aria-hidden="true"></span>Rete</span>
+                </p>
+            </div>
+            <div class="energy-bars" id="energyBars"></div>
+        </section>
+
+        <!-- ============================= METER ============================ -->
+        <section class="card" data-area="meters" data-kiosk-hidden aria-label="Indici di oggi">
+            <h2 class="card__title">Indici di oggi</h2>
+            <div class="meters" id="meters"></div>
+        </section>
+
+        <!-- ============================ STORICO ===========================
+             Due livelli di dato, con coperture diverse, e la sezione deve
+             reggerli entrambi senza mentire su quale sta mostrando:
+
+               /history/day/<data>      punti al minuto — solo da quando il
+                                        pannello di casa registra in locale
+               /history/range/<a>/<b>   un aggregato per giorno — l'archivio
+                                        lungo, importato dal portale
+
+             Il periodo di default è la SETTIMANA e non il giorno: aprendo su
+             "giorno" la sezione mostrerebbe la stessa curva già disegnata da
+             "Andamento di oggi" (due riquadri, un solo contenuto), mentre
+             l'archivio lungo — il motivo per cui questa sezione esiste —
+             resterebbe invisibile finché qualcuno non clicca.
+             ============================================================== -->
+        <section class="card" data-area="history" data-kiosk-hidden aria-label="Storico">
+            <div class="card__head">
+                <h2 class="card__title">Storico</h2>
+                <!-- Riscritta da app.js: le serie cambiano con la vista, e una
+                     legenda che elenca serie non disegnate è peggio che
+                     nessuna legenda. -->
+                <p class="legend" id="histLegend"></p>
+            </div>
+
+            <!-- UNA sola riga di filtri, sopra tutto ciò che governa: periodo a
+                 sinistra, navigazione a destra. Niente controlli dentro i
+                 singoli riquadri. -->
+            <div class="hist-controls">
+                <div class="tabs" role="tablist" id="histTabs" aria-label="Periodo dello storico">
+                    <button class="tab" type="button" role="tab" id="histTabDay" data-period="day"
+                            aria-selected="false" aria-controls="histPanel" tabindex="-1">Giorno</button>
+                    <button class="tab" type="button" role="tab" id="histTabWeek" data-period="week"
+                            aria-selected="true" aria-controls="histPanel" tabindex="0">Settimana</button>
+                    <button class="tab" type="button" role="tab" id="histTabMonth" data-period="month"
+                            aria-selected="false" aria-controls="histPanel" tabindex="-1">Mese</button>
+                    <button class="tab" type="button" role="tab" id="histTabYear" data-period="year"
+                            aria-selected="false" aria-controls="histPanel" tabindex="-1">Anno</button>
+                </div>
+
+                <!-- La parola del periodo ("Settimana") e il suggerimento del
+                     tasto spariscono sotto i 560px: su un telefono non c'è
+                     tastiera, e i due pulsanti per esteso non ci starebbero
+                     in riga. Il significato pieno resta nell'aria-label, che
+                     app.js tiene allineato al periodo corrente. -->
+                <p class="controls hist-nav">
+                    <button class="btn" id="histPrev" type="button">
+                        <span aria-hidden="true">◂</span>
+                        <span class="hist-nav__word" id="histPrevLabel">Settimana</span>
+                        <span>prec.</span>
+                        <span class="btn__key">[</span>
+                    </button>
+                    <span class="metric__label tnum" id="histDate">—</span>
+                    <button class="btn" id="histNext" type="button">
+                        <span class="hist-nav__word" id="histNextLabel">Settimana</span>
+                        <span>succ.</span>
+                        <span aria-hidden="true">▸</span>
+                        <span class="btn__key">]</span>
+                    </button>
+                </p>
+            </div>
+
+            <div class="hist-panel" id="histPanel" role="tabpanel" aria-labelledby="histTabWeek">
+                <!-- Riquadro principale: curva al minuto (vista giorno) oppure
+                     colonne per giorno/mese (settimana, mese, anno). -->
+                <div class="chart-wrap" id="historyChart"></div>
+
+                <!-- Striscia separata per gli scambi, STESSO asse x e stessa
+                     scala di kWh del riquadro sopra. Mai un secondo asse y
+                     nello stesso riquadro. -->
+                <div class="chart-wrap" id="historyFlows" hidden></div>
+
+                <p class="hist-note" id="histNote" hidden></p>
+
+                <!-- Totali del periodo: le stesse due barre impilate della card
+                     "Energia di oggi" e gli stessi due indici, calcolati dalla
+                     stessa funzione ma sulla somma del periodo. -->
+                <div class="hist-summary" id="histSummary" hidden>
+                    <div class="hist-summary__bars">
+                        <p class="legend">
+                            <span class="legend__item" data-role="solar"><span class="swatch" aria-hidden="true"></span>Solare</span>
+                            <span class="legend__item" data-role="battery"><span class="swatch" aria-hidden="true"></span>Batteria</span>
+                            <span class="legend__item" data-role="grid"><span class="swatch" aria-hidden="true"></span>Rete</span>
+                        </p>
+                        <div class="energy-bars" id="histBars"></div>
+                    </div>
+                    <div class="meters" id="histMeters"></div>
+                </div>
+
+                <p class="hist-facts" id="histFacts" hidden></p>
+            </div>
+
+            <!-- Gemello tabellare del grafico: gli stessi numeri, per chi non
+                 può leggere le colonne e per chi non ha un puntatore da
+                 passare sopra le barre. Un tooltip non deve mai essere l'unica
+                 via a un valore. -->
+            <div class="visually-hidden" id="histAlt">
+                <p id="histAltText"></p>
+                <table>
+                    <caption id="histTableCaption">Storico</caption>
+                    <thead>
+                        <tr id="histTableHead"></tr>
+                    </thead>
+                    <tbody id="histTableBody"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ======================== PANNELLO TECNICO ====================== -->
+        <section class="card" data-area="tech" data-kiosk-hidden id="techPanel" hidden aria-label="Pannello tecnico">
+            <div class="card__head">
+                <h2 class="card__title">Registri e qualità del dato</h2>
+                <span class="metric__label" id="techMeta">—</span>
+            </div>
+            <div class="tech-scroll">
+                <table class="tech-table">
+                    <thead>
+                        <tr><th>Campo</th><th class="num">Valore</th><th>Origine</th></tr>
+                    </thead>
+                    <tbody id="techBody"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- =========================== CONTROLLI ========================== -->
+        <section class="controls" data-area="controls" data-kiosk-hidden aria-label="Controlli">
+            <button class="btn" id="btnRefresh" type="button">Aggiorna <span class="btn__key">r</span></button>
+            <button class="btn" id="btnAuto" type="button" aria-pressed="true">Auto <span class="btn__key">a</span></button>
+            <button class="btn" id="btnTheme" type="button">Tema <span class="btn__key">t</span></button>
+            <!-- La vista 3D vive solo qui: la sezione controlli è
+                 data-kiosk-hidden, quindi sul pannello a muro il bottone non
+                 esiste e la scena WebGL non viene mai creata. -->
+            <button class="btn" id="btn3d" type="button" aria-pressed="false">3D <span class="btn__key">3</span></button>
+            <button class="btn" id="btnKiosk" type="button" aria-pressed="false">Kiosk <span class="btn__key">k</span></button>
+            <button class="btn" id="btnTech" type="button" aria-pressed="false">Registri <span class="btn__key">d</span></button>
+            <button class="btn" id="btnHelp" type="button">Scorciatoie <span class="btn__key">?</span></button>
+        </section>
+    </main>
+
+    <!-- =========================== VISTA 3D ============================= -->
+    <!-- Vista ALTERNATIVA, mai sostitutiva: la 2D sotto continua ad
+         aggiornarsi e resta l'unica che il pannello a muro mostra. Qui i
+         numeri sono le stesse stringhe dei nodi 2D (le copia view3d.js) e il
+         chip di freschezza è rispecchiato: una vista che coprisse lo stato
+         "dati fermi" mostrerebbe numeri congelati come se fossero di adesso.
+
+         Il markup è statico; three.js NO: viene scaricata alla prima
+         apertura (static/vendor/three.min.js, self-hostata — vedi l'intestazione
+         di view3d.js per il perché). -->
+    <div class="view3d" id="view3d" hidden role="dialog" aria-modal="true" aria-labelledby="view3dTitle">
+        <header class="view3d__bar">
+            <h2 class="view3d__title" id="view3dTitle">Impianto in 3D</h2>
+
+            <p class="freshness" id="view3dFresh" data-state="init">
+                <span class="freshness__dot" aria-hidden="true"></span>
+                <span id="view3dFreshText">in attesa dei dati…</span>
+            </p>
+
+            <!-- Contatore dei fotogrammi DISEGNATI: compare con ?debug3d=1.
+                 Serve a verificare per misura, non a occhio, che il ciclo di
+                 render si ferma davvero uscendo dalla 3D o mandando la
+                 scheda in background. -->
+            <p class="view3d__stat tnum" id="view3dStat" hidden aria-hidden="true"></p>
+
+            <button class="btn" id="view3dClose" type="button">Torna alla 2D <span class="btn__key">Esc</span></button>
+        </header>
+
+        <div class="view3d__stage" id="view3dStage">
+            <!-- Etichette in HTML sopra il canvas: restano testo del
+                 documento (token tipografici, contrasto verificato) invece di
+                 diventare pixel dentro una texture. Le genera view3d.js dalla
+                 stessa tabella di nodi che costruisce la scena. -->
+            <div class="view3d__labels" id="view3dLabels" aria-hidden="true"></div>
+
+            <!-- Senza WebGL (o se il file di three.js non arriva) si dice cosa
+                 è successo e si torna alla 2D: mai una pagina nera. -->
+            <div class="view3d__fallback" id="view3dFallback" hidden role="alert">
+                <p class="view3d__fallback-text" id="view3dFallbackText"></p>
+                <button class="btn" id="view3dFallbackBack" type="button">Torna alla vista 2D</button>
+            </div>
         </div>
 
-
-      </div>
-    </section>
-    <!-- 3D View Container -->
-    <div id="container3d"
-      style="display: none; width: 100%; height: 600px; border-radius: 26px; box-shadow: var(--shadow); background: #fcfcfc; position: relative; overflow: hidden;">
-      <div id="info3d" style="position: absolute; top: 10px; left: 20px; z-index: 10; pointer-events: none;">
-        <p style="margin: 0; color: #64748b; font-size: 14px;">Isometric Realtime View</p>
-      </div>
+        <p class="view3d__hint">
+            Trascina per ruotare · rotella per avvicinare ·
+            <kbd>3</kbd> o <kbd>Esc</kbd> per tornare alla 2D.
+            Gli stessi numeri, in un'altra forma: nessun dato vive solo qui.
+        </p>
     </div>
 
-    <!-- 3D Scripts -->
-    <script type="importmap">
-      {
-        "imports": {
-          "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-          "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-        }
-      }
-    </script>
-
-    <script type="module"> import * as THREE from 'three';
-
-      import {
-        OrbitControls
-      }
-
-        from 'three/addons/controls/OrbitControls.js';
-
-      import {
-        CSS2DRenderer, CSS2DObject
-      }
-
-        from 'three/addons/renderers/CSS2DRenderer.js';
-
-      let scene, camera, renderer, labelRenderer, controls;
-      let animationId;
-
-      const nodes = {}
-
-        ;
-      const flows = [];
-      let is3DInited = false;
-
-      function init3D() {
-        if (is3DInited) return;
-        is3DInited = true;
-
-        const container = document.getElementById('container3d');
-        const width = container.clientWidth;
-        const height = container.clientHeight;
-
-        // Scene
-        scene = new THREE.Scene();
-        scene.background = new THREE.Color(0xfcfcfc);
-        scene.fog = new THREE.Fog(0xfcfcfc, 20, 100);
-
-        // Camera
-        const aspect = width / height;
-        const frustumSize = 40;
-        camera = new THREE.OrthographicCamera(frustumSize * aspect / -2, frustumSize * aspect / 2,
-          frustumSize / 2, frustumSize / -2,
-          1, 1000);
-        camera.position.set(20, 20, 20);
-        camera.lookAt(0, 0, 0);
-
-        // Renderers
-        renderer = new THREE.WebGLRenderer({
-          antialias: true, alpha: true
-        });
-        renderer.setSize(width, height);
-        renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.shadowMap.enabled = true;
-        container.appendChild(renderer.domElement);
-
-        labelRenderer = new CSS2DRenderer();
-        labelRenderer.setSize(width, height);
-        labelRenderer.domElement.style.position = 'absolute';
-        labelRenderer.domElement.style.top = '0px';
-        labelRenderer.domElement.style.pointerEvents = 'none';
-        container.appendChild(labelRenderer.domElement);
-
-        // Controls
-        controls = new OrbitControls(camera, labelRenderer.domElement);
-        controls.enableDamping = true;
-        controls.enableZoom = true;
-        controls.autoRotate = false;
-
-        // Lights
-        scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        dirLight.position.set(10, 20, 10);
-        dirLight.castShadow = true;
-        scene.add(dirLight);
-
-        // Objects
-        createWorld();
-
-        // Resize
-        window.addEventListener('resize', onWindowResize);
-
-        animate();
-      }
-
-      const baseMaterial = new THREE.MeshStandardMaterial({
-        color: 0xffffff, roughness: 0.7, metalness: 0.1
-      });
-
-      const platformMaterial = new THREE.MeshStandardMaterial({
-        color: 0xf3f4f6, roughness: 0.8
-      });
-
-      function createPlatform(w, d) {
-        const h = 0.5;
-        const geom = new THREE.BoxGeometry(w, h, d);
-        const mesh = new THREE.Mesh(geom, platformMaterial);
-        mesh.position.y = -h / 2;
-        mesh.receiveShadow = true;
-        return mesh;
-      }
-
-      function createNode(id, x, z, label) {
-        const group = new THREE.Group();
-        group.position.set(x, 0, z);
-        group.add(createPlatform(6, 6));
-
-        let mainMesh;
-
-        if (id === 'solar') {
-          const panelGeom = new THREE.BoxGeometry(4, 0.2, 3);
-
-          mainMesh = new THREE.Mesh(panelGeom, new THREE.MeshStandardMaterial({
-            color: 0x2563eb, roughness: 0.2
-          }));
-          mainMesh.rotation.x = -Math.PI / 6;
-          mainMesh.position.y = 1.5;
-          // Legs
-          const l1 = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.5), baseMaterial); l1.position.set(-1.5, 0.75, -1); group.add(l1);
-          const l2 = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.5), baseMaterial); l2.position.set(1.5, 0.75, -1); group.add(l2);
-        }
-
-        else if (id === 'battery') {
-          mainMesh = new THREE.Mesh(new THREE.BoxGeometry(2, 4, 1.5), new THREE.MeshStandardMaterial({
-            color: 0x10b981
-          }));
-          mainMesh.position.y = 2;
-        }
-
-        else if (id === 'home') {
-          mainMesh = new THREE.Mesh(new THREE.BoxGeometry(3, 2.5, 3), baseMaterial); mainMesh.position.y = 1.25;
-
-          const roof = new THREE.Mesh(new THREE.ConeGeometry(2.5, 1.5, 4), new THREE.MeshStandardMaterial({
-            color: 0x475569
-          }));
-          roof.position.y = 3.25; roof.rotation.y = Math.PI / 4; group.add(roof);
-        }
-
-        else if (id === 'grid') {
-          mainMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.5, 5), new THREE.MeshStandardMaterial({
-            color: 0x64748b
-          })); mainMesh.position.y = 2.5;
-
-          const bar = new THREE.Mesh(new THREE.BoxGeometry(3, 0.2, 0.2), new THREE.MeshStandardMaterial({
-            color: 0x64748b
-          })); bar.position.y = 4; group.add(bar);
-        }
-
-        else if (id === 'inverter') {
-          mainMesh = new THREE.Mesh(new THREE.BoxGeometry(2, 3, 1), new THREE.MeshStandardMaterial({
-            color: 0xf1f5f9
-          })); mainMesh.position.y = 1.5;
-
-          const screen = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.5), new THREE.MeshStandardMaterial({
-            color: 0x000000
-          })); screen.position.set(0, 2, 0.51); group.add(screen);
-        }
-
-        mainMesh.castShadow = true; mainMesh.receiveShadow = true;
-        group.add(mainMesh);
-
-        const labelDiv = document.createElement('div');
-        labelDiv.style.background = "rgba(255, 255, 255, 0.9)";
-        labelDiv.style.padding = "8px 12px";
-        labelDiv.style.borderRadius = "12px";
-        labelDiv.style.boxShadow = "0 4px 20px rgba(0,0,0,0.08)";
-
-        labelDiv.innerHTML = `<div style="font-size: 18px; font-weight: 700; color: #0f172a;" id="3d-val-${id}">--</div>
-        <div style="font-size: 12px; font-weight: 600; color: #64748b;" id="3d-unit-${id}">KW</div>
-        <div style="font-size: 11px; text-transform: uppercase; color: #94a3b8;">${label}</div>`;
-        const labelObj = new CSS2DObject(labelDiv);
-        labelObj.position.set(0, 5, 0);
-        group.add(labelObj);
-
-        scene.add(group);
-
-        nodes[id] = {
-          group
-        }
-
-          ;
-      }
-
-      function createConnection(fromId, toId) {
-        const p1 = nodes[fromId].group.position.clone(); p1.y = 0.5;
-        const p2 = nodes[toId].group.position.clone(); p2.y = 0.5;
-        const path = new THREE.LineCurve3(p1, p2);
-
-        const tube = new THREE.Mesh(new THREE.TubeGeometry(path, 20, 0.1, 8, false), new THREE.MeshBasicMaterial({
-          color: 0xe2e8f0, transparent: true, opacity: 0.5
-        }));
-        scene.add(tube);
-
-        const packet = new THREE.Mesh(new THREE.SphereGeometry(0.25), new THREE.MeshBasicMaterial({
-          color: 0x3b82f6
-        }));
-        packet.visible = false;
-        scene.add(packet);
-
-        flows.push({
-          from: fromId, to: toId, mesh: packet, path: path, progress: 0, active: false, speed: 0.01
-        });
-      }
-
-      function createWorld() {
-        createNode('inverter', 0, 0, 'Inverter');
-        createNode('solar', -10, -8, 'Solar');
-        createNode('battery', 10, -4, 'Battery');
-        createNode('home', 5, 8, 'Home');
-        createNode('grid', -8, 8, 'Grid');
-
-        createConnection('solar', 'inverter');
-        createConnection('inverter', 'battery');
-        createConnection('battery', 'inverter'); // Add reverse flow path explicitly if needed, or reuse bidirectional logic
-        createConnection('inverter', 'home');
-        createConnection('inverter', 'grid');
-      }
-
-      function onWindowResize() {
-        const container = document.getElementById('container3d');
-        if (!container) return; // Ensure container exists before trying to get its dimensions
-        const width = container.clientWidth;
-        const height = container.clientHeight;
-        const aspect = width / height;
-        const frustumSize = 40;
-
-        camera.left = -frustumSize * aspect / 2;
-        camera.right = frustumSize * aspect / 2;
-        camera.top = frustumSize / 2;
-        camera.bottom = -frustumSize / 2;
-
-        camera.updateProjectionMatrix();
-        renderer.setSize(width, height);
-        labelRenderer.setSize(width, height);
-      }
-
-      function animate() {
-        animationId = requestAnimationFrame(animate); // Store animation ID
-        controls.update();
-
-        flows.forEach(f => {
-          if (f.active) {
-            f.progress += f.speed;
-            if (f.progress > 1) f.progress = 0;
-            if (f.progress < 0) f.progress = 1;
-            f.mesh.position.copy(f.path.getPoint(f.progress));
-          }
-        });
-
-        renderer.render(scene, camera);
-        labelRenderer.render(scene, camera);
-      }
-
-      // Export 3D control functions
-      window.init3DView = init3D;
-
-      window.stop3DAnimation = function () {
-        if (animationId) {
-          cancelAnimationFrame(animationId);
-          animationId = null;
-        }
-      }
-
-        ;
-
-      // Export update function to window so main script can call it
-      window.update3D = function (data) {
-        if (!is3DInited) init3D();
-
-        if (!data || !data.derived) {
-          console.warn("Dati incompleti per 3D:", data);
-          return;
-        }
-
-        let invW = data.derived.inverter_power_w || 0;
-        let gridW = data.derived.grid_flow_w || 0;
-        let battP = data.derived.battery_percent || 0;
-        let solarVal = data.derived.solar_power_w || 0;
-
-        // FILTER: Clean Grid Noise (< 50W -> 0)
-        if (Math.abs(gridW) < 50) gridW = 0;
-
-        // Logic for Load
-        // Load = Inverter + Grid Import (or - Export)
-        let load = invW + gridW;
-        if (load < 0) load = 0;
-
-        // Format Helper
-        const fmt = (val) => {
-          if (val >= 1000) return (val / 1000).toFixed(2);
-          return val.toFixed(0);
-        }
-
-          ;
-        const unit = (val) => val >= 1000 ? 'kW' : 'W';
-
-        // Update Labels
-        document.getElementById('3d-val-battery').textContent = battP + '%';
-
-        document.getElementById('3d-val-inverter').textContent = fmt(invW);
-        document.getElementById('3d-unit-inverter').textContent = unit(invW);
-
-        document.getElementById('3d-val-home').textContent = fmt(load);
-        document.getElementById('3d-unit-home').textContent = unit(load);
-
-        document.getElementById('3d-val-grid').textContent = fmt(Math.abs(gridW));
-        document.getElementById('3d-unit-grid').textContent = (gridW > 0 ? 'IMPORT' : (gridW < 0 ? 'EXPORT' : 'STANDBY')) + ' ' + unit(Math.abs(gridW));
-
-        document.getElementById('3d-val-solar').textContent = fmt(solarVal);
-        document.getElementById('3d-unit-solar').textContent = unit(solarVal);
-
-        // Flows Logic
-        // 1. Solar -> Inverter (only if producing)
-        activateFlow('solar', 'inverter', solarVal > 20);
-
-        // 2. Battery -> Inverter (Discharging) vs Inverter -> Battery (Charging)
-        // We don't have direct battery power reg, but we can infer:
-        // If Solar is 0 and Inverter is outputting power, it comes from Battery.
-        // If Solar > Inverter output, likely charging.
-        // For now, simple logic based on Night/Day:
-        if (solarVal < 20 && invW > 50) {
-          // Night Discharge
-          activateFlow('battery', 'inverter', true);
-          activateFlow('inverter', 'battery', false);
-        }
-
-        else if (solarVal > invW + 100) {
-          // Likely Charging
-          activateFlow('battery', 'inverter', false);
-          activateFlow('inverter', 'battery', true);
-        }
-
-        else {
-          // Idle or unsure
-          activateFlow('battery', 'inverter', false);
-          activateFlow('inverter', 'battery', false);
-        }
-
-        // 3. Inverter -> Home (Always active if there is load)
-        activateFlow('inverter', 'home', load > 20);
-
-        // 4. Grid
-        if (gridW > 20) {
-          // Import: Grid -> Inverter (to House)
-          activateFlow('grid', 'inverter', true);
-          activateFlow('inverter', 'grid', false);
-        }
-
-        else if (gridW < -20) {
-          // Export: Inverter -> Grid
-          activateFlow('grid', 'inverter', false);
-          activateFlow('inverter', 'grid', true);
-        }
-
-        else {
-          activateFlow('grid', 'inverter', false);
-          activateFlow('inverter', 'grid', false);
-        }
-      }
-
-        ;
-
-      // Manual Init (for when no data is flowing yet)
-      window.init3DView = function () {
-        if (!is3DInited) init3D();
-      }
-
-        ;
-
-      function activateFlow(from, to, active) {
-        const f = flows.find(x => (x.from === from && x.to === to) || (x.from === to && x.to === from));
-
-        if (f) {
-          f.active = active;
-          f.mesh.visible = active;
-          if (f.from === from) f.speed = 0.02; else f.speed = -0.02;
-        }
-      }
-
-      window.stop3DAnimation = function () {
-        if (animationId) {
-          cancelAnimationFrame(animationId);
-          animationId = null;
-        }
-      }
-
-        ;
-
-      function computeSolarWindow(hourly) {
-        const times = hourly?.time || [];
-        const radiation = hourly?.shortwave_radiation || [];
-        const thresholdOverride = Number(window.SOLAR_START_WM2);
-        const threshold = Number.isFinite(thresholdOverride) ? thresholdOverride : 50;
-        const now = Date.now();
-        let activeNow = false;
-        let nextStart = null;
-
-        for (let i = 0; i < times.length; i += 1) {
-          const time = new Date(times[i]);
-          const rad = Number(radiation[i]);
-          if (!Number.isFinite(rad) || Number.isNaN(time.getTime())) continue;
-          const ts = time.getTime();
-          if (ts <= now && rad >= threshold) activeNow = true;
-
-          if (ts > now && rad >= threshold) {
-            nextStart = ts;
-            break;
-          }
-        }
-
-        const etaMinutes = nextStart != null ? (nextStart - now) / 60000 : null;
-
-        return {
-          activeNow, etaMinutes, threshold
-        }
-
-          ;
-      }
-
-    </script>
-    <details>
-      <summary>Dettagli tecnici e registri</summary>
-      <div class="details-grid">
-        <div class="input-panel">
-          <div class="subtitle">Incolla l'output dello script o usa i pulsanti per applicare i dati.</div>
-          <textarea id="rawInput" spellcheck="false"></textarea>
-          <div class="actions"> <button id="applyBtn" class="ghost">Applica testo</button> <button id="resetBtn"
-              class="ghost">Ripristina esempio</button> </div>
-          <div class="hint">Suggerimento: mappa il FV con <code>window.SOLAR_REG=7</code>, la capacita batteria
-            con <code>window.BATTERY_KWH=5.12</code> e la soglia FV con <code>window.SOLAR_START_WM2=50</code>.
-          </div>
+    <!-- ========================== OVERLAY AIUTO ========================== -->
+    <div class="overlay" id="helpOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+        <div class="overlay__panel">
+            <h2 class="overlay__title" id="helpTitle">Scorciatoie da tastiera</h2>
+            <div class="keylist">
+                <kbd>?</kbd><span>Apri e chiudi questo aiuto</span>
+                <kbd>r</kbd><span>Aggiorna i dati adesso</span>
+                <kbd>a</kbd><span>Aggiornamento automatico on/off</span>
+                <kbd>t</kbd><span>Tema: automatico → chiaro → scuro → automatico</span>
+                <kbd>k</kbd><span>Modalità kiosk / compatta</span>
+                <kbd>1</kbd><span>Vista flusso</span>
+                <kbd>2</kbd><span>Vista storico</span>
+                <kbd>p</kbd><span>Storico: giorno → settimana → mese → anno</span>
+                <kbd>[</kbd><span>Storico: periodo precedente</span>
+                <kbd>]</kbd><span>Storico: periodo successivo</span>
+                <kbd>3</kbd><span>Vista 3D dell'impianto (apri e chiudi)</span>
+                <kbd>d</kbd><span>Pannello registri (era anche il tasto 3)</span>
+                <kbd>f</kbd><span>Schermo intero</span>
+                <kbd>Esc</kbd><span>Chiudi</span>
+            </div>
+            <p class="metric__label" id="helpVersion"></p>
         </div>
-        <div class="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Registro</th>
-                <th>Valore grezzo</th>
-                <th>Interpretazione</th>
-              </tr>
-            </thead>
-            <tbody id="tableBody"></tbody>
-          </table>
-        </div>
-      </div>
-    </details>
-  </div>
-  <script> const API_URL = "/data";
-    const AUTO_MS = 5000;
-    const WEATHER_REFRESH_MS = 15 * 60 * 1000;
-    const DEFAULT_BATTERY_KWH = 5.12;
-
-    const sampleRaw = `Reg 0 | 2258 Reg 1 | 41 Reg 2 | 915 Reg 3 | 705 Reg 4 | 700 Reg 7 | 4997 Reg 8 | 29 Reg 9 | 2 Reg 10 | 2 Reg 11 | 1 Reg 19 | 1 Reg 20 | 4145 Reg 21 | 65515 Reg 22 | 64624 Reg 23 | 1 Reg 24 | 16 Reg 27 | 2 Reg 28 | 89 Reg 29 | 561 Reg 32 | 40 Reg 33 | 722 Reg 35 | 64 Reg 36 | 171 Reg 37 | 300 Reg 38 | 12288`;
-
-    const registerHints = {
-      0: { name: "Tensione rete (V)", derive: v => `${(v / 10).toFixed(1)} V` },
-      2: { name: "Potenza inverter (W)", derive: v => `${signed16(v)} W` },
-      21: { name: "Scambio con rete (W)", derive: v => `${signed16(v)} W (import + / export -)` },
-      28: { name: "Batteria (%)", derive: v => `${v} %` },
-      33: { name: "Tensione batteria (V)", derive: v => `${(v / 10).toFixed(1)} V` }
-    };
-
-    ;
-
-    const rawInput = document.getElementById("rawInput");
-    const tableBody = document.getElementById("tableBody");
-    const statusChip = document.getElementById("statusChip");
-    const apiStatusEl = document.getElementById("apiStatus");
-    const lastUpdateEl = document.getElementById("lastUpdate");
-    const applyBtn = document.getElementById("applyBtn");
-    const resetBtn = document.getElementById("resetBtn");
-    const pullBtn = document.getElementById("pullBtn");
-    const autoBtn = document.getElementById("autoBtn");
-    const viewToggleBtn = document.getElementById("viewToggleBtn");
-
-    // Elements to toggle
-    const flowCard = document.querySelector(".flow-card");
-    const detailsEl = document.querySelector("details");
-    const container3d = document.getElementById("container3d");
-
-    let is3d = false;
-
-    viewToggleBtn.addEventListener("click", () => {
-      is3d = !is3d;
-
-      if (is3d) {
-        flowCard.style.display = 'none';
-        detailsEl.style.display = 'none';
-        container3d.style.display = 'block';
-        viewToggleBtn.textContent = "2D";
-        // Trigger resize to fix canvas size if it was hidden
-        if (window.init3DView) window.init3DView();
-        window.dispatchEvent(new Event('resize'));
-      }
-
-      else {
-        flowCard.style.display = 'grid';
-        detailsEl.style.display = 'block';
-        container3d.style.display = 'none';
-        viewToggleBtn.textContent = "3D";
-      }
-    });
-
-    const dateLine = document.getElementById("dateLine");
-    const tempRange = document.getElementById("tempRange");
-    const sunLine = document.getElementById("sunLine");
-    const weatherIcon = document.getElementById("weatherIcon");
-    const weatherDesc = document.getElementById("weatherDesc");
-    const forecastDate1 = document.getElementById("forecastDate1");
-    const forecastTemp1 = document.getElementById("forecastTemp1");
-    const forecastDate2 = document.getElementById("forecastDate2");
-    const forecastTemp2 = document.getElementById("forecastTemp2");
-
-    const solarPowerEl = document.getElementById("solarPower");
-    const inverterPowerEl = document.getElementById("inverterPower");
-    const batteryPowerEl = document.getElementById("batteryPower");
-    const batteryRuntimeEl = document.getElementById("batteryRuntime");
-    const batterySunEl = document.getElementById("batterySunWindow");
-    const homePowerEl = document.getElementById("homePower");
-    const gridPowerEl = document.getElementById("gridPower");
-    const gridDirectionEl = document.getElementById("gridDirection");
-
-    const lineSolar = document.getElementById("lineSolar");
-    const lineBattery = document.getElementById("lineBattery");
-    const lineHome = document.getElementById("lineHome");
-    const lineGrid = document.getElementById("lineGrid");
-
-    const state = {
-      auto: true, // Default ON
-      timer: null,
-      lastBatteryPercent: null,
-      lastLoadW: null,
-      solarEtaMinutes: null,
-      solarActive: false
-    }
-
-      ;
-
-    applyBtn.addEventListener("click", () => {
-      updateDashboardFromText(rawInput.value.trim());
-    });
-
-    resetBtn.addEventListener("click", () => {
-      rawInput.value = sampleRaw;
-      updateDashboardFromText(sampleRaw);
-      setApiStatus(`Mostrati dati di esempio. Avvia l'API su ${API_URL} per i valori live.`);
-
-    });
-
-    pullBtn.addEventListener("click", () => {
-      fetchFromApi();
-    });
-
-    autoBtn.addEventListener("click", () => {
-      toggleAuto();
-    });
-
-    function setApiStatus(text, variant = "ok") {
-      apiStatusEl.textContent = text;
-      apiStatusEl.className = "api-status";
-      statusChip.classList.remove("warning", "danger");
-
-      if (variant === "warning") statusChip.classList.add("warning");
-      if (variant === "danger") statusChip.classList.add("danger");
-    }
-
-    function signed16(val) {
-      const n = Number(val) || 0;
-      return n > 32767 ? n - 65536 : n;
-    }
-
-    function formatPower(value) {
-      if (value == null || Number.isNaN(value)) return "--";
-      const abs = Math.abs(value);
-      if (abs >= 1000) return `${(value / 1000).toFixed(2)} kW`;
-      return `${Math.round(value)} W`;
-    }
-
-    function formatKw(value) {
-      if (value == null || Number.isNaN(value)) return "-- kW";
-      return `${(value / 1000).toFixed(2)} kW`;
-    }
-
-    function resolveBatteryCapacityWh() {
-      // User confirmed 12kWh capacity
-      if (window.BATTERY_KWH) return window.BATTERY_KWH * 1000;
-      return 12000;
-    }
-
-    function formatRuntimeMinutes(minutes) {
-      if (!Number.isFinite(minutes) || minutes <= 0) return "--";
-      const total = Math.round(minutes);
-      const h = Math.floor(total / 60);
-      const m = total % 60;
-
-      if (h <= 0) return `${m} min`;
-
-      return `${h}h ${String(m).padStart(2, "0")}m`;
-    }
-
-    function estimateRuntimeMinutes(batteryPercent, loadW) {
-      if (batteryPercent == null || loadW == null) return null;
-      const load = Number(loadW);
-      if (!Number.isFinite(load)) return null;
-      if (load <= 10) return Infinity;
-
-      // Battery stops at min_soc (default 10%), so usable is what's above that
-      const minSoc = config.battery?.min_soc || 0;
-      const usablePercent = Math.max(0, batteryPercent - minSoc);
-
-      if (usablePercent <= 0) return 0;
-
-      const totalWh = resolveBatteryCapacityWh();
-      // Wh available is based on the TOTAL capacity * USABLE percent
-      const availableWh = (totalWh * usablePercent) / 100;
-
-      // minutes = Wh / W * 60
-      return (availableWh / load) * 60;
-    }
-
-    function estimateRuntimeText(batteryPercent, loadW) {
-      const minutes = estimateRuntimeMinutes(batteryPercent, loadW);
-      if (minutes == null) return "Autonomia: --";
-      if (minutes === Infinity) return "Autonomia: standby";
-      return `Autonomia: ${formatRuntimeMinutes(minutes)}`;
-    }
-
-    function updateBatterySunLine() {
-      const runtimeMinutes = estimateRuntimeMinutes(state.lastBatteryPercent, state.lastLoadW);
-
-      if (runtimeMinutes == null) {
-        batterySunEl.textContent = "FV: --";
-        return;
-      }
-
-      // Force solar inactive if it's past sunset (simple robust check)
-      const now = new Date();
-      if (state.dailySunset && now > state.dailySunset) {
-        state.solarActive = false;
-      }
-
-      if (state.solarActive) {
-        batterySunEl.textContent = "FV: Produzione";
-        return;
-      }
-
-      if (!state.nextSunrise) {
-        batterySunEl.textContent = "Attesa meteo...";
-        return;
-      }
-
-      // use existing now
-      // const now = new Date(); // Removed duplicate declaration
-
-      // DEBUG: Log the calculation
-      console.log('Battery Night Calc:', {
-        now: now.toISOString(),
-        nextSunrise: state.nextSunrise?.toISOString(),
-        msToSunrise: state.nextSunrise - now,
-        minutesToSunrise: (state.nextSunrise - now) / 60000
-      });
-
-      const msToSunrise = state.nextSunrise - now;
-      const minutesToSunrise = msToSunrise / 60000;
-
-      if (minutesToSunrise <= 0) {
-        batterySunEl.textContent = "Sole sorto";
-        return;
-      }
-
-      // Show total time to sunrise
-      const hToSunrise = Math.floor(minutesToSunrise / 60);
-      const mToSunrise = Math.round(minutesToSunrise % 60);
-
-      // If battery is charging or full, logic might differ, but assuming discharging context:
-      const runtimeMins = (runtimeMinutes === Infinity) ? 9999 : runtimeMinutes;
-
-      const diff = minutesToSunrise - runtimeMins;
-
-      if (diff <= 0) {
-        // Battery covers until sunrise
-        batterySunEl.innerHTML = `Alba tra ${hToSunrise}h ${mToSunrise}m <span style='color: var(--accent)'>✓ Copre</span>`;
-        batterySunEl.style.color = "var(--muted)";
-      } else {
-        // Battery will run out before sunrise
-        const hDeficit = Math.floor(diff / 60);
-        const mDeficit = Math.round(diff % 60);
-        batterySunEl.innerHTML = `Alba tra ${hToSunrise}h ${mToSunrise}m <span style='color: var(--danger)'>Mancano ${hDeficit}h ${mDeficit}m</span>`;
-        batterySunEl.style.color = "var(--muted)";
-      }
-    }
-
-    function updateBatteryFill(percent) {
-      const fillRect = document.getElementById('batteryFillRect');
-      if (!fillRect || percent == null) return;
-
-      // Battery internal dimensions: x=14, y=22, full width=34, height=16
-      const maxWidth = 34;
-      const fillWidth = (percent / 100) * maxWidth;
-
-      // Fill from left: x stays at 14, width changes
-      fillRect.setAttribute('x', 14);
-      fillRect.setAttribute('y', 22);
-      fillRect.setAttribute('width', fillWidth);
-      fillRect.setAttribute('height', 16);
-
-      // Color based on percentage (smooth transition)
-      let color;
-      if (percent >= 50) {
-        // Green to yellow (50-100%)
-        const ratio = (percent - 50) / 50;
-        color = `hsl(${120 * ratio + 60}, 70%, 50%)`;
-      } else if (percent >= 20) {
-        // Yellow to orange (20-50%)
-        const ratio = (percent - 20) / 30;
-        color = `hsl(${60 * ratio + 30}, 70%, 50%)`;
-      } else {
-        // Orange to red (0-20%)
-        const ratio = percent / 20;
-        color = `hsl(${30 * ratio}, 70%, 50%)`;
-      }
-
-      fillRect.setAttribute('fill', color);
-    }
-
-    function parseRegisters(rawText) {
-      const regs = {}
-
-        ;
-
-      rawText.split(/\r?\n/).forEach(line => {
-        const match = line.match(/Reg\s+(\d+)\s*\|\s*(-?\d+)/i);
-        if (match) regs[Number(match[1])] = Number(match[2]);
-      });
-      return regs;
-    }
-
-    function normalizeRegs(raw) {
-      const regs = {}
-
-        ;
-
-      Object.entries(raw || {}).forEach(([k, v]) => {
-        const key = Number(k);
-        if (!Number.isNaN(key)) regs[key] = Number(v);
-      });
-      return regs;
-    }
-
-    function formatRegsForTextarea(regs) {
-      return Object.keys(regs).map(Number).sort((a, b) => a - b).map(k => `Reg ${k} | ${regs[k]}`).join("\n");
-    }
-
-    function getWeatherIcon(code) {
-      // 0: Clear, 1-3: Cloudy, 45/48: Fog, 51-67: Rain, 71-77: Snow, 80-82: Showers, 95-99: Storm
-      if (code === 0) return '<svg viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="6" fill="#facc15" stroke="#facc15" stroke-width="2"/><path d="M16 4v4M16 24v4M4 16h4M24 16h4M7.5 7.5l2.8 2.8M21.7 21.7l2.8 2.8M7.5 24.5l2.8-2.8M21.7 10.5l2.8-2.8" stroke="#facc15" stroke-width="2" stroke-linecap="round"/></svg>';
-      if (code >= 1 && code <= 3) return '<svg viewBox="0 0 32 32" fill="none"><path d="M22 24a6 6 0 000-12 5.5 5.5 0 00-6-2.5 7 7 0 00-11 6 4.5 4.5 0 001 9h16z" fill="#94a3b8" opacity="0.8"/></svg>';
-      if (code >= 51 && code <= 67) return '<svg viewBox="0 0 32 32" fill="none"><path d="M22 20a6 6 0 000-12 5.5 5.5 0 00-6-2.5 7 7 0 00-11 6 4.5 4.5 0 001 9h16z" fill="#94a3b8"/><path d="M12 26l-2 4M18 26l-2 4M24 26l-2 4" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/></svg>';
-      if (code >= 95) return '<svg viewBox="0 0 32 32" fill="none"><path d="M22 20a6 6 0 000-12 5.5 5.5 0 00-6-2.5 7 7 0 00-11 6 4.5 4.5 0 001 9h16z" fill="#64748b"/><path d="M14 22l4-6h-4l3-6" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-
-      // Default: Cloud
-      return '<svg viewBox="0 0 32 32" fill="none"><path d="M22 24a6 6 0 000-12 5.5 5.5 0 00-6-2.5 7 7 0 00-11 6 4.5 4.5 0 001 9h16z" fill="#cbd5e1"/></svg>';
-    }
-
-    function getWeatherDesc(code) {
-      const map = {
-        0: 'Sereno', 1: 'Poco nuvoloso', 2: 'Parz. nuvoloso', 3: 'Nuvoloso',
-        45: 'Nebbia', 48: 'Nebbia brina', 51: 'Pioviggine', 53: 'Pioviggine',
-        55: 'Pioviggine intensa', 61: 'Pioggia', 63: 'Pioggia', 65: 'Pioggia forte',
-        80: 'Rovesci', 81: 'Rovesci', 82: 'Rovesci violenti', 95: 'Temporale'
-      }
-
-        ;
-      return map[code] || 'Variabile';
-    }
-
-    function computeSolarWindow(hourly) {
-      const times = hourly?.time || [];
-      const radiation = hourly?.shortwave_radiation || [];
-      const thresholdOverride = Number(window.SOLAR_START_WM2);
-      const threshold = Number.isFinite(thresholdOverride) ? thresholdOverride : 50;
-      const now = Date.now();
-      let activeNow = false;
-      let nextStart = null;
-
-      for (let i = 0; i < times.length; i += 1) {
-        const time = new Date(times[i]);
-        const rad = Number(radiation[i]);
-        if (!Number.isFinite(rad) || Number.isNaN(time.getTime())) continue;
-        const ts = time.getTime();
-        if (ts <= now && rad >= threshold) activeNow = true;
-
-        if (ts > now && rad >= threshold) {
-          nextStart = ts;
-          break;
-        }
-      }
-
-      const etaMinutes = nextStart != null ? (nextStart - now) / 60000 : null;
-
-      return {
-        activeNow, etaMinutes, threshold
-      }
-
-        ;
-    }
-
-    // Load configuration
-    let config = {
-      location: { latitude: 0.0, longitude: 0.0 },
-      battery: { capacity_kwh: 5.0 }
-    };
-
-    fetch('/config.json?t=' + Date.now())
-      .then(res => res.json())
-      .then(data => {
-        config = data;
-        console.log('Config loaded:', config);
-
-        // Update Location Link
-        const lat = config.location?.latitude;
-        const lon = config.location?.longitude;
-        if (lat && lon && (lat !== 0 || lon !== 0)) {
-          const locLink = document.getElementById('locationLink');
-          const locContainer = document.getElementById('locationContainer');
-          if (locLink && locContainer) {
-            locLink.href = `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`;
-            locLink.textContent = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
-            locContainer.style.display = 'block';
-          }
-        }
-
-        fetchWeather(); // Re-fetch weather with correct location
-      })
-      .catch(err => {
-        console.warn('Config not found, using defaults:', err);
-        fetchWeather();
-      });
-
-    async function fetchWeather() {
-      const LAT = config.location.latitude;
-      const LON = config.location.longitude;
-
-      try {
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,weather_code&daily=weather_code,sunrise,sunset,temperature_2m_max,temperature_2m_min&hourly=shortwave_radiation&timezone=auto`;
-        const res = await fetch(url);
-        const data = await res.json();
-        const current = data.current;
-        const daily = data.daily;
-        const hourly = data.hourly;
-
-        const wIcon = document.getElementById('weatherIcon');
-        if (wIcon) wIcon.innerHTML = getWeatherIcon(current.weather_code);
-
-        const wDesc = document.getElementById('weatherDesc');
-        if (wDesc) wDesc.textContent = getWeatherDesc(current.weather_code);
-
-        const sunrise = new Date(daily.sunrise[0]).toLocaleTimeString('it-IT', {
-          hour: '2-digit', minute: '2-digit'
-        });
-
-        const sunset = new Date(daily.sunset[0]).toLocaleTimeString('it-IT', {
-          hour: '2-digit', minute: '2-digit'
-        });
-        const sunLine = document.getElementById('sunLine');
-
-        if (sunLine) sunLine.textContent = `Alba ${sunrise} · Tramonto ${sunset}`;
-
-        if (tempRange) tempRange.innerHTML = `${daily.temperature_2m_min[0].toFixed(1)}&deg;C - ${daily.temperature_2m_max[0].toFixed(1)}&deg;C`;
-
-        // Forecast for Day +1
-        const d1 = document.getElementById('forecastDate1');
-        const t1 = document.getElementById('forecastTemp1');
-        const i1 = document.getElementById('forecastIcon1');
-        if (d1) d1.textContent = formatDateShort(daily.time[1]);
-        if (t1) t1.innerHTML = `${daily.temperature_2m_min[1].toFixed(0)}&deg; - ${daily.temperature_2m_max[1].toFixed(0)}&deg;`;
-        if (i1) i1.innerHTML = getWeatherIcon(daily.weather_code[1]);
-
-        // Forecast for Day +2
-        const d2 = document.getElementById('forecastDate2');
-        const t2 = document.getElementById('forecastTemp2');
-        const i2 = document.getElementById('forecastIcon2');
-        if (d2) d2.textContent = formatDateShort(daily.time[2]);
-        if (t2) t2.innerHTML = `${daily.temperature_2m_min[2].toFixed(0)}&deg; - ${daily.temperature_2m_max[2].toFixed(0)}&deg;`;
-        if (i2) i2.innerHTML = getWeatherIcon(daily.weather_code[2]);
-
-
-        // Update visual sun arc
-        updateSunVisual(daily.sunrise[0], daily.sunset[0]);
-
-        // Store sunset for logic checks
-        state.dailySunset = new Date(daily.sunset[0]);
-
-        // Update Solar Window State
-        const win = computeSolarWindow(hourly);
-        state.solarActive = win.activeNow;
-        state.solarEtaMinutes = win.etaMinutes;
-        // Determine NEXT sunrise
-        const now = new Date();
-        const srToday = new Date(daily.sunrise[0]);
-        const ssToday = new Date(daily.sunset[0]);
-
-        console.log('Sunrise calc:', {
-          now: now.toISOString(),
-          sunrise0: daily.sunrise[0],
-          sunrise1: daily.sunrise[1],
-          srToday: srToday.toISOString(),
-          ssToday: ssToday.toISOString()
-        });
-
-        // If it's night (past sunset), use tomorrow's sunrise
-        // Otherwise if we haven't reached today's sunrise yet, use today's
-        if (now > ssToday) {
-          // Past sunset - use tomorrow's sunrise from daily.sunrise[1]
-          state.nextSunrise = new Date(daily.sunrise[1]);
-          console.log('Using tomorrow sunrise:', state.nextSunrise.toISOString());
-        } else if (now < srToday) {
-          // Before today's sunrise - use today's
-          state.nextSunrise = srToday;
-        } else {
-          // Between sunrise and sunset - sun is up, but for battery calc use tomorrow's sunrise
-          state.nextSunrise = new Date(daily.sunrise[1]);
-        }
-
-        updateBatterySunLine();
-
-      }
-
-      catch (e) {
-        console.error("Weather error:", e);
-      }
-    }
-
-    function updateSunVisual(sunriseIso, sunsetIso) {
-      const sr = new Date(sunriseIso);
-      const ss = new Date(sunsetIso);
-      const now = new Date(); // Use real time for display
-      const isDay = now >= sr && now <= ss;
-      window.isDay = isDay; // Expose globally for metrics logic
-
-      // DOM Elements
-      const els = {
-        current: document.getElementById('sunCurrentTime'),
-        nextTime: document.getElementById('sunNextTime'),
-        nextLabel: document.getElementById('sunNextLabel'),
-        duration: document.getElementById('sunDuration'),
-        alba: document.getElementById('sunAlba'),
-        tramonto: document.getElementById('sunTramonto'),
-        path: document.getElementById('sunPath'),
-        dot: document.getElementById('sunDot')
-      };
-
-      const fmt = d => d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
-
-      // 1. Current Time (Top Left)
-      if (els.current) els.current.textContent = fmt(now);
-
-      // 2. Sunrise / Sunset (Bottom Row)
-      if (els.alba) els.alba.textContent = fmt(sr);
-      if (els.tramonto) els.tramonto.textContent = fmt(ss);
-
-      // 3. Duration (Center)
-      const totalMs = ss - sr;
-      const hours = Math.floor(totalMs / 3600000);
-      const minutes = Math.round((totalMs % 3600000) / 60000);
-      if (els.duration) els.duration.textContent = `luce: ${hours}h ${minutes}m`;
-
-      // 4. Next Event Countdown (Top Right)
-      // If Day: Count to Sunset. If Night: Count to Sunrise (tomorrow/today).
-      let targetDate = isDay ? ss : sr;
-      let label = isDay ? "al tramonto" : "all'alba";
-
-      // If night and now > ss, we need next day's sunrise
-      // Simplified: Just showing time of next event usually, but user asked for "hours/minutes missing" (countdown?)
-      // User request: "ore e minuti che mancano alla prossima alba" (or tramonto if day?)
-      // Let's interpret "alla prox alba" as "to next sunrise". But contextually usually means next phase.
-      // Re-reading request: "- ore e minuti che mancano alla prossima alba in alto a destra"
-      // Wait, specific text was "alla prox alba". Assuming logic:
-      // If Night (before sunrise): Count to Sunrise today.
-      // If Day: Count to Sunset? Original design usually Next Event.
-      // Let's implement Next Event Countdown.
-
-      if (!isDay && now > ss) {
-        // It's night, after sunset. Target is tomorrow sunrise.
-        // We don't have tomorrow's sunrise var passed easily here, approximate +24h or re-use SR if SR > Now (early morning)
-        // For safety, if Now > SS, target is SR + 24h.
-        targetDate = new Date(sr.getTime() + 24 * 60 * 60 * 1000);
-        label = "alla prox alba";
-      } else if (!isDay && now < sr) {
-        // Early morning before sunrise
-        targetDate = sr;
-        label = "all'alba";
-      } else {
-        // Day time
-        targetDate = ss;
-        label = "al tramonto";
-      }
-
-      const diffMs = targetDate - now;
-      if (diffMs > 0) {
-        const h = Math.floor(diffMs / 3600000);
-        const m = Math.floor((diffMs % 3600000) / 60000);
-        if (els.nextTime) els.nextTime.textContent = `${h}h ${m}m`;
-      } else {
-        if (els.nextTime) els.nextTime.textContent = "--:--";
-      }
-      if (els.nextLabel) els.nextLabel.textContent = label;
-
-
-      // 5. Graph Position (Quadratic Curve)
-      // M10,45 Q50,-15 90,45
-      // P0=(10,45), P1=(50,-15), P2=(90,45)
-
-      const totalMinutesDay = (ss - sr) / 60000;
-      let progress = 0;
-      if (now < sr) progress = 0;
-      else if (now > ss) progress = 1;
-      else {
-        progress = (now - sr) / 60000 / totalMinutesDay;
-      }
-
-      if (els.path && els.dot) {
-        const P0 = { x: 10, y: 45 };
-        const P1 = { x: 50, y: -15 };
-        const P2 = { x: 90, y: 45 };
-
-        const t = progress;
-        const x = (1 - t) * (1 - t) * P0.x + 2 * (1 - t) * t * P1.x + t * t * P2.x;
-        const y = (1 - t) * (1 - t) * P0.y + 2 * (1 - t) * t * P1.y + t * t * P2.y;
-
-        els.dot.setAttribute('cx', x);
-        els.dot.setAttribute('cy', y);
-        els.dot.style.opacity = isDay ? '1' : '0'; // Hide dot at night
-      }
-    }
-
-
-
-    function deriveMetrics(regs) {
-      // Logic refined based on Balance Physics & User Inputs:
-      // 1. Inverter Active Power (Reg 2) = Total AC Output (Home + Grid Export).
-      // 2. Grid Flow = Reg 80. Raw Positive = Export (108W). 
-      //    We map this to Negative for 'Flow' logic (Export < 0, Import > 0).
-      // 3. Home Load = Inverter AC Output + Grid Import (or - Grid Export).
-      //    Formula: Home = Reg2 + GridFlow (signed).
-      //    Check: 2510 (Inv) + (-108) (Grid Exp) = 2402 W. (Matches ~2.4kW).
-      // 4. Battery Power = Reg 22 (Positive = Charging).
-      // 5. Solar = Derived Balance: Solar = Home + Battery - Grid.
-
-      const batteryPercent = regs[28];
-      const gridVoltage = regs[0] != null ? (regs[0] / 10) : 0;
-
-      // Battery Power: Reg 22
-      const batteryPower = regs[22] != null ? signed16(regs[22]) : 0;
-
-      // Inverter Power (Reg 2): Total AC Generation
-      // Note: If Importing, Inverter might be 0, but Grid supplies Home.
-      const inverterPower = regs[2] != null ? Math.abs(signed16(regs[2])) : 0;
-
-      // Grid Flow: Reg 21 (Meter Active Power - Signed)
-      // Positive = Import, Negative = Export.
-      // Matches our visualization logic directly.
-      let gridFlow = 0;
-      if (regs[21] != null) gridFlow = signed16(regs[21]);
-      else if (regs[80] != null) gridFlow = -1 * signed16(regs[80]); // Fallback
-      else if (regs[3] != null) gridFlow = -1 * signed16(regs[3]);   // Fallback
-      // No more noise filter for value, just for display status if needed.
-
-      // Home Load Calculation
-      // Home = Inverter(AC) + Grid(Import) - Grid(Export)
-      // Since gridFlow is Negative for Export, we just ADD it.
-      // Case 1: Inv 2500, Grid Export 100 (Flow -100). Home = 2500 + (-100) = 2400.
-      // Case 2: Inv 0, Grid Import 2000 (Flow 2000). Home = 0 + 2000 = 2000.
-      let homeLoad = 0;
-      if (regs[38] != null) homeLoad = regs[38] * 0.1;
-      else {
-        homeLoad = inverterPower + gridFlow;
-        if (homeLoad < 0) homeLoad = 0;
-      }
-
-      // Solar Calculation (Derived)
-      // Solar = Home + Battery - GridFlow
-      // Check: 2400(Home) + 700(Charge) - (-100)(Grid) = 3100 + 100 = 3200.
-      let solarPower = homeLoad + batteryPower - gridFlow;
-
-      // --- NIGHT MODE CLAMP ---
-      // Use Astronomical calc from UI (window.isDay) if available.
-      // Fallback to PV Voltage check if UI not ready.
-      if (typeof window.isDay !== 'undefined') {
-        if (!window.isDay) solarPower = 0;
-      } else {
-        // Fallback: Check Reg 70 (PV1 Voltage) & Reg 74 (PV2 Voltage)
-        const pvVoltage = (regs[70] || 0) + (regs[74] || 0);
-        if (pvVoltage < 200) solarPower = 0;
-      }
-
-      if (solarPower < 0) solarPower = 0;
-
-      return {
-        batteryPercent,
-        inverterPower,
-        gridFlow,
-        gridVoltage,
-        solarPower,
-        homeLoad,
-        batteryPower
-      };
-    }
-
-    function setLineState(line, mode) {
-      if (!line) return;
-      line.classList.remove("idle", "flow-in", "flow-out");
-      line.classList.add(mode);
-    }
-
-    function renderMetrics(metrics, ts = Date.now()) {
-      const gridFlow = metrics.gridFlow;
-
-      solarPowerEl.textContent = formatPower(metrics.solarPower);
-      inverterPowerEl.textContent = formatPower(metrics.inverterPower);
-      homePowerEl.textContent = formatPower(metrics.homeLoad);
-      gridPowerEl.textContent = formatPower(Math.abs(gridFlow));
-
-      // Battery Status logic
-      if (metrics.batteryPercent != null) {
-        // Calculate kWh stored
-        const capWh = resolveBatteryCapacityWh();
-        const storedKwh = (capWh * (metrics.batteryPercent / 100)) / 1000;
-
-        // Show Power (+Charge/-Discharge) AND %/kWh
-        const powerStr = formatPower(Math.abs(metrics.batteryPower));
-        const dirArrow = metrics.batteryPower > 0 ? "▲" : (metrics.batteryPower < 0 ? "▼" : "");
-        const color = metrics.batteryPower > 0 ? "#10b981" : (metrics.batteryPower < 0 ? "#ef4444" : "#64748b");
-
-        batteryPowerEl.innerHTML = `
-          <div style="font-size: 1.25rem;">${powerStr} <span style="font-size: 1rem; color: ${color};">${dirArrow}</span></div>
-          <div style="font-size: 0.85rem; color: #64748b; font-weight: 500; margin-top: 4px;">
-            ${metrics.batteryPercent}% (${storedKwh.toFixed(1)} kWh)
-          </div>
-        `;
-      } else {
-        batteryPowerEl.textContent = "--";
-      }
-
-      state.lastBatteryPercent = metrics.batteryPercent ?? null;
-      state.lastLoadW = metrics.homeLoad;
-      batteryRuntimeEl.textContent = estimateRuntimeText(metrics.batteryPercent, metrics.homeLoad);
-      updateBatterySunLine();
-      updateBatteryFill(metrics.batteryPercent);
-
-      // Grid Direction Text
-      if (gridFlow > 20) {
-        gridDirectionEl.textContent = "Import";
-        statusChip.textContent = "Prelievo da rete";
-        setLineState(lineGrid, "flow-in"); // Grid -> Inverter
-      } else if (gridFlow < -20) {
-        gridDirectionEl.textContent = "Export";
-        statusChip.textContent = "Immissione in rete";
-        setLineState(lineGrid, "flow-out"); // Inverter -> Grid
-      } else {
-        gridDirectionEl.textContent = "Standby";
-        statusChip.textContent = "Quasi zero";
-        setLineState(lineGrid, "idle");
-      }
-
-
-
-      // Meter -> Home (If load exists)
-      setLineState(lineHome, metrics.homeLoad > 10 ? "flow-in" : "idle");
-
-      // Solar -> Inverter
-      setLineState(lineSolar, metrics.solarPower > 10 ? "flow-in" : "idle");
-
-      // Battery <-> Inverter
-      // SVG: Battery(580,100) -> Inverter(450,160).
-      // Flow-in = Battery -> Inverter (Discharging).
-      // Flow-out = Inverter -> Battery (Charging).
-      // metrics.batteryPower: Positive = Charging, Negative = Discharging.
-
-      if (metrics.batteryPower < -20) {
-        setLineState(lineBattery, "flow-in"); // Discharging
-      } else if (metrics.batteryPower > 20) {
-        setLineState(lineBattery, "flow-out"); // Charging
-      } else {
-        setLineState(lineBattery, "idle");
-      }
-
-
-      // Battery Flow
-      // Logic: batteryPower is explicit (Positive = Charge, Negative = Discharge)
-      // Line is Battery <-> Inverter.
-      // Flow-in = Towards Inverter (Discharging).
-      // Flow-out = Towards Battery (Charging).
-
-      if (metrics.batteryPower < -20) {
-        // Discharging (Negative) -> Flow FROM Battery TO Inverter
-        setLineState(lineBattery, "flow-in"); // Battery -> Inverter
-      } else if (metrics.batteryPower > 20) {
-        // Charging (Positive) -> Flow FROM Inverter TO Battery
-        setLineState(lineBattery, "flow-out"); // Inverter -> Battery
-      } else {
-        setLineState(lineBattery, "idle");
-      }
-
-      lastUpdateEl.textContent = new Date(ts).toLocaleString("it-IT");
-    }
-
-    function renderTable(regs) {
-      const rows = Object.keys(regs).map(Number).sort((a, b) => a - b).map(key => {
-        const hint = registerHints[key];
-        const readable = hint ? hint.derive(regs[key]) : "-";
-        const label = hint ? hint.name : "n/d";
-
-        return `<tr>
-          <td><strong>Reg ${key}</strong></td>
-          <td>${regs[key]}</td>
-          <td class="label">
-            ${label} ${readable !== "-" ? ` · ${readable}` : ""}
-          </td>
-        </tr>`;
-      }).join("");
-
-      tableBody.innerHTML = rows || `<tr><td colspan="3" class="label">Nessun registro trovato</td></tr>`;
-    }
-
-    function updateDashboardWithRegs(regs, ts, derivedOverride) {
-      const metrics = derivedOverride || deriveMetrics(regs);
-      renderMetrics(metrics, ts);
-      renderTable(regs);
-    }
-
-    function updateDashboardFromText(rawText) {
-      const regs = parseRegisters(rawText);
-      updateDashboardWithRegs(regs);
-    }
-
-    async function fetchFromApi() {
-      setApiStatus(`Lettura da ${API_URL}...`);
-
-      try {
-        const res = await fetch(API_URL, {
-          cache: "no-store"
-        });
-
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-
-        // Update 3D View
-        if (window.update3D) window.update3D(data);
-
-        const regs = normalizeRegs(data.raw || {});
-        const ts = data.meta?.timestamp ? data.meta.timestamp * 1000 : Date.now();
-        rawInput.value = formatRegsForTextarea(regs);
-
-        // Use Server Derived values if available!
-        let derived = null;
-        if (data.derived) {
-          derived = {
-            batteryPercent: data.derived.battery_percent,
-            inverterPower: data.derived.inverter_power_w,
-            gridFlow: data.derived.grid_flow_w,
-            gridVoltage: data.derived.grid_voltage_v,
-            solarPower: data.derived.solar_power_w,
-            homeLoad: data.derived.home_load_w,
-            batteryPower: data.derived.battery_power_w
-          };
-        }
-
-        updateDashboardWithRegs(regs, ts, derived);
-        const source = data.meta?.source || "API";
-
-        setApiStatus(`Ultima lettura OK (${source}) @ ${new Date(ts).toLocaleTimeString("it-IT")}`);
-      }
-
-      catch (err) {
-        statusChip.textContent = "API non disponibile";
-
-        setApiStatus(`Errore API: ${err.message}`, "danger");
-      }
-    }
-
-    function toggleAuto() {
-      state.auto = !state.auto;
-      autoBtn.textContent = state.auto ? "Auto ON" : "Auto OFF";
-
-      if (state.auto) {
-        fetchFromApi();
-        state.timer = setInterval(fetchFromApi, AUTO_MS);
-      }
-
-      else if (state.timer) {
-        clearInterval(state.timer);
-        state.timer = null;
-      }
-    }
-
-    // (Duplicates removed)
-    // (Duplicates removed)
-
-    function updateDateLine() {
-      const now = new Date();
-
-      dateLine.textContent = now.toLocaleString("it-IT", {
-        weekday: "short",
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit"
-      });
-      // Force refresh weather periodically or on load
-
-    }
-
-    // --- Old Weather Functions Removed (redefined above) ---
-    // resolveWeatherCoords removed to prevent Geolocation prompt
-    // fetchWeather removed (duplicate)
-    // updateWeather removed (merged into fetchWeather)
-
-    function mapWeatherCode(code) {
-      const c = Number(code);
-
-      if (c === 0) return {
-        label: "Sereno", className: "sunny"
-      }
-
-        ;
-
-      if ([1, 2, 3].includes(c)) return {
-        label: "Parz. nuvoloso", className: "cloudy"
-      }
-
-        ;
-
-      if ([45, 48].includes(c)) return {
-        label: "Nebbia", className: "fog"
-      }
-
-        ;
-
-      if ([51, 53, 55].includes(c)) return {
-        label: "Pioviggine", className: "rain"
-      }
-
-        ;
-
-      if ([61, 63, 65].includes(c)) return {
-        label: "Pioggia", className: "rain"
-      }
-
-        ;
-
-      if ([71, 73, 75, 77].includes(c)) return {
-        label: "Neve", className: "snow"
-      }
-
-        ;
-
-      if ([80, 81, 82].includes(c)) return {
-        label: "Rovesci", className: "rain"
-      }
-
-        ;
-
-      if ([95, 96, 99].includes(c)) return {
-        label: "Temporale", className: "storm"
-      }
-
-        ;
-
-      return {
-        label: "Meteo variabile", className: "cloudy"
-      }
-
-        ;
-    }
-
-    function formatTemp(value, digits = 1) {
-      if (value == null || Number.isNaN(value)) return `--\u00B0C`;
-      return `${Number(value).toFixed(digits)}\u00B0C`;
-    }
-
-    function formatDateShort(isoDate) {
-      if (!isoDate) return "--/--";
-      const d = new Date(`${isoDate}T00:00:00`);
-      const day = String(d.getDate()).padStart(2, "0");
-      const month = String(d.getMonth() + 1).padStart(2, "0");
-      return `${day}/${month}`;
-    }
-
-    function formatTime(value) {
-      if (!value) return "--:--";
-      const d = new Date(value);
-      if (Number.isNaN(d.getTime())) return "--:--";
-
-      return d.toLocaleTimeString("it-IT", {
-        hour: "2-digit", minute: "2-digit"
-      });
-    }
-
-    // Bootstrap with sample data.
-    rawInput.value = sampleRaw;
-    updateDashboardFromText(sampleRaw);
-    updateDateLine();
-    setInterval(updateDateLine, 60000);
-
-    // Force Auto ON
-    state.auto = true;
-    autoBtn.textContent = "Auto ON";
-    fetchFromApi();
-    state.timer = setInterval(fetchFromApi, AUTO_MS);
-
-    // Initial Weather Fetch
-
-    setInterval(fetchWeather, WEATHER_REFRESH_MS);
-  </script>
+    </div>
+
+    <!-- Script classici con defer, nessun modulo ES: da file:// i moduli sono
+         bloccati dalla CORS, mentre defer si comporta identico ovunque.
+         L'ordine conta: format definisce il bus window.EF, gli altri lo
+         popolano, app.js parte per ultimo e avvia tutto. -->
+    <script src="logger.js" defer></script>
+    <script src="static/format.js" defer></script>
+    <script src="static/charts.js" defer></script>
+    <script src="static/flow.js" defer></script>
+    <!-- Dopo flow.js: la vista 3D si iscrive ai flussi già normalizzati da
+         quello, e non ne ricava di propri. Qui arriva solo il modulo (~50 KB,
+         per lo più commenti); i 668 KB di three.js NON sono in questa lista e
+         si scaricano alla prima apertura della vista, mai prima. -->
+    <script src="static/view3d.js" defer></script>
+    <script src="static/keys.js" defer></script>
+    <script src="static/app.js" defer></script>
 </body>
 
 </html>

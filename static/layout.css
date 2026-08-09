@@ -1,0 +1,183 @@
+/* ============================================================================
+   EnergyFlow — layout.
+   Due modalità, UN SOLO markup. Cambia solo la griglia: nessuna sezione
+   viene duplicata per il kiosk, così una modifica al contenuto non può
+   applicarsi a una vista e dimenticare l'altra.
+
+     compatta  telefono / tablet / Mac — interattiva, si scrolla
+     kiosk     pannello verticale 1080x1920 — non si scrolla mai
+
+   La modalità la stampa app.js su <html data-mode>, decisa da:
+     1. ?mode=kiosk|compact nell'URL   (vince su tutto, regola #4)
+     2. tasto `k`                       (persistito in localStorage)
+     3. @media (orientation: portrait) and (min-height: 1400px)
+   ========================================================================= */
+
+.app {
+    display: grid;
+    gap: var(--space-4);
+    padding: var(--space-4);
+    grid-template-columns: 1fr;
+    grid-template-areas:
+        "status"
+        "hero"
+        "flow"
+        "battery"
+        "chart"
+        "energy"
+        "meters"
+        "history"
+        "tech"
+        "controls";
+}
+
+[data-area="status"] {
+    grid-area: status;
+}
+
+[data-area="hero"] {
+    grid-area: hero;
+}
+
+[data-area="flow"] {
+    grid-area: flow;
+}
+
+[data-area="battery"] {
+    grid-area: battery;
+}
+
+[data-area="chart"] {
+    grid-area: chart;
+}
+
+[data-area="energy"] {
+    grid-area: energy;
+}
+
+[data-area="meters"] {
+    grid-area: meters;
+}
+
+[data-area="history"] {
+    grid-area: history;
+}
+
+[data-area="tech"] {
+    grid-area: tech;
+}
+
+[data-area="controls"] {
+    grid-area: controls;
+}
+
+/* ----------------------------------------------------------------------
+   Modalità compatta — 1 colonna a 360, 2 a 768, 3 a 1440.
+   ---------------------------------------------------------------------- */
+@media (min-width: 768px) {
+    :root:not([data-mode="kiosk"]) .app {
+        grid-template-columns: 1fr 1fr;
+        grid-template-areas:
+            "status   status"
+            "hero     hero"
+            "flow     flow"
+            "battery  chart"
+            "energy   meters"
+            "history  history"
+            "tech     tech"
+            "controls controls";
+        padding: var(--space-5);
+        gap: var(--space-5);
+    }
+}
+
+@media (min-width: 1200px) {
+    :root:not([data-mode="kiosk"]) .app {
+        grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 1fr);
+        grid-template-areas:
+            "status   status   status"
+            "hero     hero     hero"
+            "flow     flow     battery"
+            "flow     flow     energy"
+            "chart    chart    meters"
+            "history  history  history"
+            "tech     tech     tech"
+            "controls controls controls";
+        max-width: 1600px;
+        margin-inline: auto;
+        padding: var(--space-6);
+        gap: var(--space-6);
+    }
+}
+
+/* ----------------------------------------------------------------------
+   Modalità kiosk — pianta verticale 1080x1920.
+
+     stato     108px   ora · meteo · freschezza dati
+     eroe      414px   PV adesso + Casa adesso
+     flusso    1fr     diagramma verticale (~588px a 1920 di viewport)
+     batteria  250px   SOC + autonomia + SOH + temperature
+     grafico   310px   andamento giornaliero + striscia SOC
+     energie   176px   bilancio di oggi (due barre + note)
+
+   Il conto: 12px di padding per lato e 10px fra le bande costano
+   24 + 5x10 = 74px, quindi alle bande restano 1846px, non 1920. Le altezze
+   qui sopra sono la pianta di progetto (120/480/640/220/340/120) rifusa su
+   quel budget reale — la somma nominale faceva 1920 esatti e non lasciava
+   un pixel né alle spaziature né ai bordi delle card.
+
+   La banda del flusso è 1fr e non un valore fisso: se il viewport reale
+   non è esattamente 1920 (barra del browser, scaling, un monitor di prova
+   diverso) è la banda elastica ad assorbire la differenza, invece di far
+   sforare il totale e attivare uno scroll che sul kiosk non deve esistere.
+   Il diagramma misura la propria geometria a runtime, quindi si adatta a
+   qualunque altezza gli tocchi senza deformarsi.
+   ---------------------------------------------------------------------- */
+[data-mode="kiosk"] {
+    /* Niente scroll: il pannello non ha né mouse né dita. Se qualcosa
+       sfora, va visto in fase di verifica, non nascosto da uno scroll. */
+    overflow: hidden;
+}
+
+[data-mode="kiosk"] body {
+    overflow: hidden;
+    height: 100vh;
+}
+
+[data-mode="kiosk"] .app {
+    height: 100vh;
+    padding: var(--space-3);
+    gap: 10px;
+    grid-template-columns: 1fr;
+    grid-template-rows:
+        108px
+        414px
+        minmax(0, 1fr)
+        250px
+        310px
+        176px;
+    grid-template-areas:
+        "status"
+        "hero"
+        "flow"
+        "battery"
+        "chart"
+        "energy";
+    overflow: hidden;
+}
+
+/* Sul muro nessuno interagisce: i controlli, il pannello registri e lo
+   storico non hanno pubblico. Lo spazio va ai numeri che si guardano. */
+[data-mode="kiosk"] [data-kiosk-hidden] {
+    display: none !important;
+}
+
+/* Ogni cella del kiosk ha un'altezza assegnata: il contenuto deve starci
+   dentro, non allungarla. min-height:0 rompe il minimo automatico dei grid
+   item, che altrimenti impedisce alla cella di rimpicciolirsi sotto la
+   dimensione del contenuto e fa sfondare la somma delle bande. */
+[data-mode="kiosk"] .app>* {
+    min-height: 0;
+    min-width: 0;
+    overflow: hidden;
+}
