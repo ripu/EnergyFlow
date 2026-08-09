@@ -52,7 +52,14 @@ struct Provider: TimelineProvider {
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<EnergyEntry>) -> Void) {
-        let url = URL(string: "http://localhost:8003/data")!
+        // Stesso indirizzo configurabile di EnergyBar: il server sta sul Raspberry e da
+        // qui ci si arriva via tailnet. Sotto App Sandbox il file non è leggibile
+        // (vedi widgetToken), quindi resta il default per chi usa un tunnel.
+        let base = (try? String(contentsOfFile:
+                NSString(string: "~/.config/energyflow/url").expandingTildeInPath, encoding: .utf8))?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let root = (base?.isEmpty == false ? base! : "http://localhost:8003")
+        let url = URL(string: (root.hasSuffix("/") ? root + "data" : root + "/data"))!
 
         // /data richiede il token (regola #17). Attenzione: una widget extension gira
         // in App Sandbox, quindi "~" NON è la home dell'utente ma il container della

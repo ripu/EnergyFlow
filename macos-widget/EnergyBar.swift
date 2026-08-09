@@ -2,7 +2,28 @@ import Cocoa
 import Foundation
 
 // MARK: - Config
-let API_URL = "http://127.0.0.1:8003/data"
+// L'indirizzo non è più fisso su localhost: il server gira sul Raspberry e ascolta
+// solo in loopback, quindi da questo Mac ci si arriva via tailnet (o via tunnel SSH).
+// Ordine: variabile d'ambiente → file → default storico.
+//
+//   echo "https://<host>.<tailnet>.ts.net" > ~/.config/energyflow/url
+//
+// Il default resta localhost per non rompere chi ha un tunnel aperto.
+func energyFlowBaseURL() -> String {
+    if let env = ProcessInfo.processInfo.environment["ENERGYFLOW_URL"], !env.isEmpty {
+        return env.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    let path = NSString(string: "~/.config/energyflow/url").expandingTildeInPath
+    if let raw = try? String(contentsOfFile: path, encoding: .utf8) {
+        let v = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !v.isEmpty { return v }
+    }
+    return "http://127.0.0.1:8003"
+}
+
+let API_URL = energyFlowBaseURL().hasSuffix("/")
+    ? energyFlowBaseURL() + "data"
+    : energyFlowBaseURL() + "/data"
 
 // MARK: - Auth
 // Da quando /data richiede autenticazione (regola #17), i widget devono presentare

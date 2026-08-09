@@ -9,9 +9,16 @@
 //      python3 invert.py --print-token > ~/.config/energyflow/token && chmod 600 ~/.config/energyflow/token
 //    Se il file manca, curl parte senza header: con l'auth accesa il server risponde
 //    401 e il widget mostra l'errore, invece di restare misteriosamente vuoto.
+//    L'indirizzo non è più fisso: il server sta sul Raspberry e ascolta solo in
+//    loopback, quindi da qui ci si arriva via tailnet. Si configura una volta:
+//      mkdir -p ~/.config/energyflow
+//      echo "https://<host>.<tailnet>.ts.net" > ~/.config/energyflow/url
+//      ssh <rpi-host> 'cd ~/EnergyFlow && ./venv/bin/python3 invert.py --print-token' \
+//        > ~/.config/energyflow/token && chmod 600 ~/.config/energyflow/token
 export const command =
+  "U=$(cat ~/.config/energyflow/url 2>/dev/null || echo 'http://127.0.0.1:8003'); " +
   "T=$(cat ~/.config/energyflow/token 2>/dev/null); " +
-  "curl -s ${T:+-H \"Authorization: Bearer $T\"} 'http://127.0.0.1:8003/data'";
+  "curl -s --max-time 8 ${T:+-H \"Authorization: Bearer $T\"} \"${U%/}/data\"";
 
 // 2. Refresh every 3 seconds
 export const refreshFrequency = 3000;
