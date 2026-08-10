@@ -53,3 +53,10 @@ screenshot_latest.png
 
 # Log applicativi giornalieri (regola #10): restano sulla macchina, non nel repo.
 log/
+
+# Transcript delle sessioni AI: resta **locale**, mai committato (#15).
+# Contiene tutto cio' che e' stato digitato — chiavi incollate al volo
+# comprese — e il sanitize e' un elenco di regex: copre i formati gia'
+# previsti, non quello che arriva domani.
+/CHAT.md
+/CHAT-*.md
