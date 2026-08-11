@@ -168,6 +168,10 @@ figcaption {
 .shots { display: flex; flex-wrap: wrap; gap: clamp(14px, 2.5vw, 32px); justify-content: center; align-items: center; }
 .shots figure { flex: 1 1 240px; max-width: 440px; }
 .shots img { max-height: 50vh; }
+/* Uno scatto orizzontale accanto a uno verticale: con la stessa larghezza
+   massima il primo diventa illeggibile mentre il secondo resta alto e stretto.
+   La proporzione la decide il contenuto, non la simmetria. */
+.shots figure.wide { flex: 1.7 1 380px; max-width: 760px; }
 
 .cover-art { max-width: min(760px, 100%); border-radius: 18px; box-shadow: var(--shadow); display: block; }
 
@@ -235,7 +239,7 @@ body:not(.deck) .nav { position: static; }
   <p class="lead" style="margin-top:clamp(20px,4vh,40px)">
     Letto direttamente dall'inverter, ogni cinque secondi. Nessun cloud, nessun account.
   </p>
-  <p class="meta">v2.0.0 · 9 agosto 2026</p>
+  <p class="meta">v2.1.0 · 11 agosto 2026</p>
 </section>
 
 <!-- =========================== 2 — IL PROBLEMA ========================= -->
@@ -255,12 +259,13 @@ body:not(.deck) .nav { position: static; }
 <!-- ============================ 3 — COSA FA =========================== -->
 <section class="slide" id="s3" aria-label="Cosa fa">
   <p class="kicker">Cosa fa</p>
-  <h2>Legge l'inverter, mostra il flusso, e dice quando non sa.</h2>
+  <h2>Legge l'inverter, mostra dove va l'energia — e dove andrà.</h2>
   <ul class="points">
     <li><b>Legge l'inverter direttamente, sulla rete di casa, ogni cinque secondi.</b>
         <span>Nessun intermediario: il protocollo è quello che l'apparecchio parla già.</span></li>
-    <li><b>Mostra dove va l'energia — sole, casa, batteria, rete.</b>
-        <span>Su un pannello a muro che si legge da tre metri, e sulla stessa pagina da telefono e da Mac.</span></li>
+    <li><b>Mostra dove va l'energia, e dove andrà fino a fine giornata di domani.</b>
+        <span>Sole, casa, batteria e rete adesso; poi la linea si fa tratteggiata, perché da lì in
+              avanti è una previsione e non una misura.</span></li>
     <li><b>Dice quando non sa.</b>
         <span>Dato vecchio, dato fermo e valore non attendibile hanno tre facce diverse e impossibili da confondere.</span></li>
   </ul>
@@ -298,7 +303,7 @@ body:not(.deck) .nav { position: static; }
   <figure>
     <img src="../guide/assets/architettura.svg" alt="L'inverter parla Modbus TCP sulla porta 502; un Raspberry Pi lo interroga ogni cinque secondi e serve la pagina sulla porta 8003, solo su sé stesso; il pannello a muro, il telefono e il Mac leggono da lì.">
     <figcaption>Impianto da 6 kWp con batteria da 12 kWh. L'unica cosa che il Raspberry chiede
-       fuori è la previsione meteo.</figcaption>
+       fuori è il meteo — che serve anche a prevedere domani.</figcaption>
   </figure>
 </section>
 
@@ -308,12 +313,12 @@ body:not(.deck) .nav { position: static; }
   <h2>Lo stesso impianto, due schermi.</h2>
   <div class="shots">
     <figure class="framed">
-      <img src="../screenshots/kiosk-verticale.png" alt="La dashboard sul pannello verticale a muro, tema scuro: numeri giganti, diagramma di flusso, batteria, energia di oggi.">
+      <img src="../screenshots/kiosk-previsione.png" alt="La dashboard sul pannello verticale a muro, tema scuro: numeri giganti, diagramma di flusso, batteria, andamento con la previsione tratteggiata, energia di oggi.">
       <figcaption>Pannello a muro, 32" verticale — da tre metri.</figcaption>
     </figure>
-    <figure class="framed">
-      <img src="../screenshots/desktop-chiaro.png" alt="La dashboard su un Mac, tema chiaro: gli stessi elementi disposti su due colonne.">
-      <figcaption>Mac — stessi elementi, stesse regole.</figcaption>
+    <figure class="framed wide">
+      <img src="../screenshots/valore-giorno.png" alt="Lo storico su un Mac: linguette giorno, settimana, mese, anno; la curva del giorno con la carica batteria e la parte tratteggiata di previsione; sotto, il valore in euro dell'energia.">
+      <figcaption>Mac — lo storico, la previsione tratteggiata e quanto vale in euro.</figcaption>
     </figure>
   </div>
 </section>
@@ -345,22 +350,28 @@ body:not(.deck) .nav { position: static; }
 
 <!-- ==================== 8 — STATO E COSA MANCA ======================== -->
 <section class="slide" id="s8" aria-label="Stato e cosa manca">
-  <p class="kicker">Stato — v2.0.0</p>
+  <p class="kicker">Stato — v2.1.0</p>
   <h2>Cosa c'è oggi, e cosa ancora no.</h2>
   <div class="cards two">
     <div class="card has">
       <h3>C'è</h3>
-      <p>48 campi verificati sulla mappa registri v2.1 · <strong>storico persistente</strong> al
-         minuto, 90 giorni, con riepilogo di ogni giornata che non si cancella mai · vista 3D ·
-         tema che segue alba e tramonto · pannello verticale in kiosk · accesso protetto da token e
-         raggiungibile solo dal tailnet · tre widget per macOS · dodici verifiche fisiche.</p>
+      <p>48 campi verificati sulla mappa registri v2.1 · <strong>previsione</strong> di sole, consumo
+         e batteria fino a fine giornata di domani, che <strong>si dà i voti da sola</strong> ·
+         <strong>valore in euro</strong> dell'energia — risparmiato, incassato, speso ·
+         <strong>storico</strong> a quattro periodi su 230 giorni, 90 col dettaglio al minuto e la
+         carica della batteria · vista 3D · tema che segue alba e tramonto · pannello verticale in
+         kiosk · accesso protetto da token e raggiungibile solo dal tailnet · tre widget per macOS ·
+         dodici verifiche fisiche.</p>
     </div>
     <div class="card hasnt">
       <h3>Non c'è</h3>
-      <p><strong>21 registri non ancora identificati</strong>, esclusi invece che indovinati ·
-         nel riepilogo giornaliero solo la produzione viene dal contatore dell'inverter, il resto è
-         ricostruito · nessuna notifica o allarme: il pannello si guarda, non avvisa ·
-         nessun comando all'inverter: EnergyFlow legge, non pilota.</p>
+      <p><strong>Nessuna «precisione dichiarata» della previsione</strong>: si sa solo di quanto ha
+         sbagliato ieri, ed è scritto anche quando è brutto · gli importi in euro solo se la tariffa
+         è configurata, e mai sul pannello a muro · <strong>21 registri non ancora
+         identificati</strong>, esclusi invece che indovinati · nel riepilogo giornaliero solo la
+         produzione viene dal contatore dell'inverter, il resto è ricostruito · nessuna notifica o
+         allarme: il pannello si guarda, non avvisa · nessun comando all'inverter: EnergyFlow legge,
+         non pilota.</p>
     </div>
   </div>
   <p class="meta" style="margin-top:clamp(16px,3vh,28px)">

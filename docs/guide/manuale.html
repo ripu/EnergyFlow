@@ -246,7 +246,7 @@ footer.end {
   <h1>Guida operativa</h1>
   <p class="lead">Come si apre EnergyFlow, come si legge quello che mostra, come ci si accorge
      quando qualcosa non va, e cosa fare quando succede.</p>
-  <p class="meta">Versione v2.0.0 · 9 agosto 2026 · mappa registri v2.1</p>
+  <p class="meta">Versione v2.1.0 · 11 agosto 2026 · mappa registri v2.1</p>
 </header>
 
 <nav class="toc" aria-label="Indice">
@@ -255,6 +255,8 @@ footer.end {
     <li><a href="#intro">Cos'è e a cosa serve</a></li>
     <li><a href="#accesso">Come si apre</a></li>
     <li><a href="#leggere">Come si legge la dashboard</a></li>
+    <li><a href="#previsione">La previsione: cosa succederà</a></li>
+    <li><a href="#euro">Quanto vale, in euro</a></li>
     <li><a href="#stato">Capire se qualcosa non va</a></li>
     <li><a href="#scorciatoie">Scorciatoie da tastiera</a></li>
     <li><a href="#servizio">Servizio, log e token</a></li>
@@ -275,6 +277,11 @@ footer.end {
 <p>Serve a rispondere a colpo d'occhio a una domanda sola — <em>adesso sto usando il mio sole o
    sto comprando corrente?</em> — senza aprire il portale del costruttore, senza aspettare il
    cloud e senza che i dati di casa escano di casa.</p>
+
+<p>Alle stesse domande risponde anche <strong>in avanti e all'indietro</strong>: una
+   <a href="#previsione">previsione</a> dice come andranno sole, consumo e batteria fino a fine
+   giornata di domani, e il <a href="#euro">valore in euro</a> dice quanto vale, in denaro,
+   l'energia di un giorno, di un mese o di un anno.</p>
 
 <figure>
   <img src="assets/architettura.svg" alt="Schema: l'inverter parla Modbus TCP sulla porta 502; un Raspberry Pi lo interroga ogni 5 secondi e serve la pagina web sulla porta 8003, solo sul proprio loopback; il pannello a muro, il telefono e il Mac leggono da lì.">
@@ -316,10 +323,16 @@ footer.end {
   <li><strong>Widget di sistema</strong> — nel Centro Notifiche o sulla Scrivania.</li>
   <li><strong>Übersicht</strong> — una barra fissa sullo sfondo della Scrivania.</li>
 </ul>
-<p>Tutti e tre leggono da <code>127.0.0.1:8003</code>, cioè si aspettano di trovare il server
-   <em>sul Mac</em>. Serve quindi un tunnel verso il Raspberry, aperto una volta e lasciato lì:</p>
+<p>Tutti e tre leggono <strong>indirizzo e token da due file</strong> nella cartella di
+   configurazione del Mac:</p>
+<pre><code>~/.config/energyflow/url      https://&lt;rpi-host&gt;.&lt;tailnet&gt;.ts.net
+~/.config/energyflow/token    il token del server</code></pre>
+<p>Con quei due file i widget vanno da qualunque rete, purché Tailscale sia acceso — come la pagina
+   nel browser. Come si scrivono: <a href="#servizio">«Servizio, log e token»</a>.</p>
+<p>Se il file <code>url</code> manca, i widget ripiegano su <code>127.0.0.1:8003</code>, cioè
+   cercano il server <em>sul Mac</em>: in quel caso serve un tunnel verso il Raspberry, aperto una
+   volta e lasciato lì.</p>
 <pre><code>ssh -N -L 8003:127.0.0.1:8003 &lt;rpi-host&gt;</code></pre>
-<p>e il token nel file che i widget si aspettano — vedi <a href="#servizio">«Servizio, log e token»</a>.</p>
 </section>
 
 <!-- ==================================================================== -->
@@ -383,13 +396,44 @@ footer.end {
    non l'ultimo valore, che sarebbe un colpo di fortuna. Se il server non risponde, il browser fa da
    rete di sicurezza con la curva che ha accumulato lui: meglio una curva parziale di una card
    vuota.</p>
+<p>Il grafico non finisce più a «adesso»: prosegue, <strong>tratteggiato</strong>, fino a fine
+   giornata di domani. Quella parte è una previsione e si riconosce a colpo d'occhio — vedi
+   <a href="#previsione">il capitolo dedicato</a>.</p>
 
 <h3 id="storico">Storico</h3>
-<p>Sotto l'andamento c'è la sezione <strong>Storico</strong>, con «◂ Giorno prec.» e «Giorno succ. ▸»
-   per muoversi nei giorni passati. Il pulsante «giorno successivo» si spegne su oggi, invece di
-   restare cliccabile senza portare da nessuna parte.</p>
+<p>Sotto l'andamento c'è la sezione <strong>Storico</strong>, che guarda indietro su
+   <strong>quattro periodi</strong>: <strong>Giorno</strong>, <strong>Settimana</strong>,
+   <strong>Mese</strong>, <strong>Anno</strong>. Si sceglie con le linguette in alto a sinistra; i
+   due pulsanti a destra («◂ prec.» e «succ. ▸») scorrono avanti e indietro <em>nel periodo
+   scelto</em>, e quello in avanti si spegne quando si è arrivati a oggi invece di restare
+   cliccabile senza portare da nessuna parte.</p>
+<p>Si apre sulla <strong>settimana</strong>, non sul giorno: la giornata di oggi è già disegnata
+   due centimetri più su, mentre l'archivio lungo — il motivo per cui questa sezione esiste — non
+   si vedrebbe finché qualcuno non clicca.</p>
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Periodo</th><th>Cosa mostra</th><th>Fin dove arriva</th></tr></thead>
+  <tbody>
+    <tr><td class="key"><strong>Giorno</strong></td>
+        <td>La curva al minuto di quel giorno, <strong>con la carica della batteria</strong> sotto,
+            come in «Andamento di oggi»</td>
+        <td>Gli ultimi <strong>90 giorni</strong>: oltre, del giorno resta solo il riepilogo</td></tr>
+    <tr><td class="key"><strong>Settimana</strong><br><strong>Mese</strong><br><strong>Anno</strong></td>
+        <td>Una colonna per giorno — per mese, sull'anno: prodotto e consumato, con sotto quanto si
+            è preso e dato alla rete e i flussi di batteria</td>
+        <td><strong>230 giorni</strong>, importati dal portale del costruttore e uniti a quelli
+            registrati in casa</td></tr>
+  </tbody>
+</table>
+</div>
+<p>La <strong>carica della batteria</strong> compare solo nella vista Giorno, e solo dove il dato al
+   minuto esiste davvero. Non è un vezzo: senza il livello di carica, guardando un giorno passato non
+   si capisce <em>perché</em> a una certa ora la casa abbia preso dalla rete invece che dal sole. In
+   settimana, mese e anno non compare perché non esiste una «carica del periodo».</p>
 <p>Un giorno si può anche aprire direttamente, e il link si può salvare o mandare a qualcuno:</p>
 <pre><code>https://&lt;rpi-host&gt;.&lt;tailnet&gt;.ts.net/?day=2026-08-08</code></pre>
+<p>Da tastiera: <kbd>p</kbd> cicla il periodo, <kbd>[</kbd> e <kbd>]</kbd> scorrono avanti e
+   indietro.</p>
 <p>Un giorno senza dati non viene disegnato come una linea piatta a zero — sarebbe indistinguibile
    da una casa senza consumi. Dice invece che non c'è, e perché: «o il sistema era spento, o il
    giorno è più vecchio della retention».</p>
@@ -454,7 +498,7 @@ footer.end {
 <h3>Le stesse cose sul pannello a muro e sul telefono</h3>
 <div class="shots">
   <figure>
-    <img src="../screenshots/kiosk-verticale.png" alt="La dashboard sul pannello verticale a muro: numeri molto grandi, diagramma di flusso al centro, batteria e andamento sotto.">
+    <img src="../screenshots/kiosk-previsione.png" alt="La dashboard sul pannello verticale a muro: numeri molto grandi, diagramma di flusso al centro, batteria, andamento con la previsione tratteggiata e energia di oggi.">
     <figcaption>Pannello a muro (1080×1920). Tutto è dimensionato per essere letto da tre metri.</figcaption>
   </figure>
   <figure>
@@ -465,8 +509,221 @@ footer.end {
 </section>
 
 <!-- ==================================================================== -->
+<section id="previsione">
+<h2>4. La previsione: cosa succederà</h2>
+
+<p>Il grafico dell'andamento non si ferma ad adesso: prosegue fino a <strong>fine giornata di
+   domani</strong>, e sotto le curve un riquadro dice a parole le stesse cose. Non risponde a
+   «quanto ho prodotto», ma alla domanda che uno si fa la sera: <em>la batteria mi porta fino a
+   domattina, o alle sei sto già comprando corrente?</em></p>
+
+<h3>Come si riconosce a colpo d'occhio</h3>
+<p>È la cosa più importante di questo capitolo, perché misura e previsione stanno nello stesso
+   grafico e <strong>non devono potersi confondere</strong>. La parte prevista è diversa in tre modi
+   contemporaneamente:</p>
+<ul>
+  <li><strong>è tratteggiata</strong>, mentre il misurato è a linea piena;</li>
+  <li><strong>è più chiara</strong>, e <strong>non ha l'area colorata sotto la curva</strong>;</li>
+  <li>comincia dopo una <strong>riga verticale con la scritta «adesso»</strong> — a destra di quella
+      riga niente è ancora successo. Una seconda riga più tenue segna la mezzanotte, cioè dove
+      comincia «domani».</li>
+</ul>
+<p>La legenda in alto al riquadro aggiunge la voce <em>previsione</em> con lo stesso tratteggio, e
+   compare solo quando una previsione c'è davvero.</p>
+
+<div class="shots">
+  <figure>
+    <img src="../screenshots/previsione.png" alt="Il grafico dell'andamento: fino alla riga «adesso» le curve sono piene e con l'area colorata, dopo diventano tratteggiate e chiare fino a fine giornata di domani. Sotto, il riquadro «Previsione» con le frasi.">
+    <figcaption>Tema chiaro. A destra della riga «adesso» tutto è tratteggiato: è previsione.</figcaption>
+  </figure>
+  <figure>
+    <img src="../screenshots/previsione-notte.png" alt="Lo stesso riquadro nel tema scuro, con le stesse curve tratteggiate dopo la riga «adesso».">
+    <figcaption>Tema scuro, di notte. Cambiano i colori, non le regole.</figcaption>
+  </figure>
+</div>
+
+<h3>Cosa dice il riquadro</h3>
+<p>Le frasi sono ordinate per importanza, e ci sono solo quelle che il calcolo sa davvero dire:</p>
+<ul>
+  <li><strong>Quando la batteria si svuota</strong> — l'ora, non «fra 9 ore»: un'ora si confronta
+      con la sveglia, un intervallo va sottratto a mente.</li>
+  <li><strong>Quando torna piena.</strong></li>
+  <li><strong>Da che ora si comincia a prelevare dalla rete</strong>, cioè da quando si paga.</li>
+  <li><strong>Quanto sole resta da qui a mezzanotte</strong>, e quando è finito lo dice invece di
+      mostrare uno zero.</li>
+  <li><strong>Quanto sole è atteso domani</strong>, accanto al consumo previsto: da solo, «43,9 kWh»
+      non dice se domani sarà una giornata di surplus o di prelievo.</li>
+</ul>
+<p>In alto a destra c'è <strong>a che ora è stata calcolata</strong> e <strong>fin dove arriva</strong>.
+   Il ricalcolo è ogni quarto d'ora: se l'orario è vecchio di ore, la previsione è ferma e va
+   guardata con sospetto (o è sparita del tutto — vedi <a href="#ts-previsione">il troubleshooting</a>).</p>
+
+<h3 id="previsione-fiducia">Quanto ci si può fidare</h3>
+<p>La previsione <strong>si dà i voti da sola</strong>. Ogni mattina mette da parte quello che ha
+   previsto, e il giorno dopo lo confronta con quello che è successo davvero: il risultato è la riga
+   <em>«Ieri l'avevo sbagliata del …%»</em>, che compare <strong>anche quando la cifra è brutta</strong>.
+   Finché quel confronto non c'è ancora, al suo posto si legge <em>«Precisione non ancora misurata»</em>:
+   uno spazio bianco lascerebbe credere che sia stata verificata e vada bene.</p>
+
+<div class="warn">
+  <p><strong>Non esiste una «precisione dichiarata» di questa previsione, e non va cercata.</strong>
+     L'ultima riga del riquadro dice su cosa è costruita — per esempio <em>«sole tarato su 6 giorni
+     (R² della taratura 0,95)»</em> — e quel numero <em>non</em> è una percentuale di accuratezza:
+     misura quanto bene la relazione fra irraggiamento e produzione spiega i giorni
+     <strong>già passati</strong>, non quanto la previsione ci prenderà domani. Quanto ci prende lo
+     dice soltanto la pagella di ieri. Chiunque scriva «precisione 95%» sta leggendo male
+     quella riga.</p>
+</div>
+
+<h3>Da dove escono i numeri</h3>
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Pezzo</th><th>Come si ottiene</th></tr></thead>
+  <tbody>
+    <tr>
+      <td class="key"><strong>Il sole</strong></td>
+      <td>L'irraggiamento previsto dal servizio meteo, moltiplicato per un coefficiente
+          <strong>imparato da questo impianto</strong> confrontando giorni di sole veri con
+          produzione vera. Il valore di targa non saprebbe nulla di orientamento, ombre e pannelli
+          sporchi; i dati dell'impianto sì.</td>
+    </tr>
+    <tr>
+      <td class="key"><strong>Il consumo</strong></td>
+      <td>Il profilo <strong>mediano</strong> dei giorni comparabili, quarto d'ora per quarto d'ora,
+          con <strong>feriali e fine settimana tenuti separati</strong> — in una casa sono due
+          giornate diverse. Della mediana si tiene la forma e si riscala il livello sui totali
+          recenti, perché i consumi derivano con le stagioni.</td>
+    </tr>
+    <tr>
+      <td class="key"><strong>La batteria</strong></td>
+      <td><strong>Non si prevede: si simula.</strong> Si parte dalla carica di adesso e si integra
+          <em>sole − consumo</em> di quarto d'ora in quarto d'ora, tenendo conto della capacità,
+          della riserva minima e del rendimento di carica e scarica. Le ore che compaiono nelle
+          frasi escono da questa simulazione, non da una stima a occhio.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<h3>Quando la previsione avverte di non fidarsi</h3>
+<p>Sopra le frasi può comparire una <strong>banda ambra</strong> che comincia con «Previsione poco
+   affidabile:» e dice il motivo. I casi che si vedono davvero:</p>
+<ul>
+  <li><strong>meteo non raggiungibile</strong> o vecchio di ore;</li>
+  <li><strong>poco storico</strong> — con due giorni di dati la taratura del sole è una retta su
+      quattro punti;</li>
+  <li><strong>relazione sole‑produzione instabile</strong>, cioè la taratura non ha retto;</li>
+  <li><strong>fuso orario del Raspberry diverso da quello del meteo</strong>. È il guasto peggiore
+      di tutti proprio perché non rompe niente: la previsione continua a funzionare, spostata di
+      un'ora, con il picco solare messo quando il sole non c'è.</li>
+</ul>
+<p>Senza meteo la previsione <strong>non dice che non produrrai niente</strong> — sarebbe la bugia
+   più grossa possibile: ripiega sulla mediana di quanto <em>questo</em> impianto ha prodotto alla
+   stessa ora nei sette giorni scorsi, e lo dichiara nella banda.</p>
+
+<div class="note">
+  <p><strong>Sul pannello a muro c'è, ma ridotta a una riga.</strong> Restano il tratteggio nel
+     grafico e la <em>prima</em> frase — quella della batteria, la domanda per cui la previsione sta
+     su un muro — più il giudizio di ieri. Il dettaglio tecnico non ha pubblico a tre metri di
+     distanza, e mezza frase troncata sarebbe peggio di nessuna frase.</p>
+</div>
+
+<p>La previsione compare <strong>solo su oggi</strong>. Se nello storico si apre un giorno passato,
+   il tratteggio non c'è: accanto alla misura di un 15 marzo, una previsione sarebbe solo un modo di
+   confondere le due cose.</p>
+</section>
+
+<!-- ==================================================================== -->
+<section id="euro">
+<h2>5. Quanto vale, in euro</h2>
+
+<p>Sotto le barre dell'energia — e nello storico, sotto il periodo che si sta guardando — c'è il
+   riquadro <strong>Valore dell'energia</strong>: gli stessi kWh già mostrati sopra, moltiplicati per
+   il prezzo della corrente.</p>
+
+<h3>Prima va configurato: senza tariffa non compare nulla</h3>
+<p>I prezzi non li indovina nessuno. Vanno scritti in <code>config.json</code>, sul Raspberry:</p>
+<pre><code>"tariff": {
+  "currency": "EUR",
+  "import_eur_kwh": 0.00,
+  "export_eur_kwh": 0.00
+}</code></pre>
+<p><code>import_eur_kwh</code> è quanto <strong>paghi</strong> un kWh preso dalla rete;
+   <code>export_eur_kwh</code> è quanto <strong>ti danno</strong> per un kWh immesso. Dopo la
+   modifica: <code>sudo systemctl restart energyflow</code>, poi ricarica la pagina.</p>
+
+<div class="warn">
+  <p><strong>Usa il prezzo pieno della bolletta, non la sola componente energia.</strong> Quello che
+     conta è quanto costa davvero un kWh in più: energia <em>più</em> oneri di sistema, trasporto e
+     imposte, cioè il totale della bolletta diviso i kWh consumati. Con la sola componente energia il
+     risparmio esce sottostimato di parecchio — e il risparmio è il numero per cui l'impianto
+     esiste.</p>
+</div>
+
+<div class="note">
+  <p><strong>Se il blocco <code>tariff</code> non c'è, il riquadro non compare affatto</strong> — non
+     mostra zeri, trattini o un prezzo medio nazionale «tanto per». Un importo plausibile e falso è
+     peggio di un importo assente, perché nessuno va a verificarlo, mentre un riquadro che manca si
+     nota subito. Se hai configurato solo il prezzo di prelievo, compaiono risparmio e spesa e
+     <em>manca il totale</em>: sarebbe una somma a cui manca un addendo.</p>
+</div>
+
+<h3>Le tre voci, e perché quella grossa è la prima</h3>
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Voce</th><th>Cos'è</th></tr></thead>
+  <tbody>
+    <tr>
+      <td class="key"><strong>Risparmiato</strong></td>
+      <td>L'energia che la casa ha preso <strong>dall'impianto invece che dalla rete</strong>, al
+          prezzo a cui l'avresti pagata. Non compare su nessuna bolletta — è denaro che non è uscito
+          — ed è quasi sempre la voce più grossa delle tre. Per questo sta in cima e in grande.</td>
+    </tr>
+    <tr>
+      <td class="key"><strong>Incassato</strong></td>
+      <td>I kWh immessi in rete, al prezzo di ritiro. Di norma molto più basso di quello di
+          acquisto: è il motivo per cui conviene consumare quando c'è il sole invece di vendere.</td>
+    </tr>
+    <tr>
+      <td class="key"><strong>Speso</strong></td>
+      <td>I kWh prelevati dalla rete, al prezzo di acquisto. È l'unico dei tre che si legge anche
+          altrove, e infatti sta per ultimo.</td>
+    </tr>
+    <tr>
+      <td class="key"><strong>Beneficio netto</strong></td>
+      <td><em>risparmiato + incassato − speso</em>, scritto sotto la riga così com'è.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<p>Ogni voce porta sotto <strong>i kWh da cui viene</strong>, e in fondo al riquadro c'è la riga
+   «Calcolato a … €/kWh in prelievo e … €/kWh in immissione»: sono la sola cosa che rende
+   controllabili i quattro numeri sopra. Se un giorno gli importi sembrano sbagliati, la prima cosa
+   da guardare è quella riga — di solito la tariffa in configurazione è vecchia.</p>
+
+<div class="shots">
+  <figure>
+    <img src="../screenshots/valore-giorno.png" alt="Lo storico in vista Giorno: linguette Giorno/Settimana/Mese/Anno, la curva del giorno con la carica batteria e la parte prevista tratteggiata, e sotto il riquadro «Valore dell'energia» con risparmiato, incassato, speso e beneficio netto.">
+    <figcaption>Un giorno solo. Gli importi seguono il periodo scelto qui sopra.</figcaption>
+  </figure>
+  <figure>
+    <img src="../screenshots/valore-anno.png" alt="Lo stesso riquadro in vista Anno: una colonna per mese e il valore dell'energia calcolato su tutto l'anno.">
+    <figcaption>Lo stesso riquadro sull'anno intero.</figcaption>
+  </figure>
+</div>
+
+<p><strong>Sul pannello a muro gli importi non ci sono</strong>, ed è una rinuncia decisa: in quella
+   fascia dello schermo lo spazio è già tutto speso, e una riga in più verrebbe tagliata a metà. Un
+   numero tagliato è peggio di un numero assente. Fra previsione ed euro, sul muro sta la previsione
+   — dice una cosa che lì non c'è da nessun'altra parte, mentre gli euro sono i kWh di sopra
+   moltiplicati per un prezzo. Il valore in denaro resta intero nella vista da computer e da
+   telefono.</p>
+</section>
+
+<!-- ==================================================================== -->
 <section id="stato">
-<h2>4. Capire se qualcosa non va</h2>
+<h2>6. Capire se qualcosa non va</h2>
 
 <p>La dashboard non finge mai. Se i numeri non sono attendibili lo dice, e lo dice in modo diverso a
    seconda di <em>cosa</em> è rotto: sono guasti diversi e mandano a cercare in posti diversi.</p>
@@ -533,7 +790,7 @@ footer.end {
 
 <!-- ==================================================================== -->
 <section id="scorciatoie">
-<h2>5. Scorciatoie da tastiera</h2>
+<h2>7. Scorciatoie da tastiera</h2>
 
 <p>Servono sulla vista da computer e per la manutenzione (una tastiera attaccata al Raspberry).
    Il pannello a muro non ha tastiera. Premi <kbd>?</kbd> in qualsiasi momento per rivederle a
@@ -550,6 +807,8 @@ footer.end {
     <tr><td class="key"><kbd>k</kbd></td><td>Passa fra modalità kiosk (numeri giganti) e compatta</td></tr>
     <tr><td class="key"><kbd>1</kbd></td><td>Vai alla vista del flusso</td></tr>
     <tr><td class="key"><kbd>2</kbd></td><td>Vai allo storico</td></tr>
+    <tr><td class="key"><kbd>p</kbd></td><td>Storico: giorno → settimana → mese → anno</td></tr>
+    <tr><td class="key"><kbd>[</kbd> <kbd>]</kbd></td><td>Storico: periodo precedente e successivo</td></tr>
     <tr><td class="key"><kbd>3</kbd></td><td>Apre e chiude la vista 3D dell'impianto</td></tr>
     <tr><td class="key"><kbd>d</kbd></td><td>Mostra o nasconde il pannello dei registri</td></tr>
     <tr><td class="key"><kbd>f</kbd></td><td>Schermo intero</td></tr>
@@ -567,12 +826,19 @@ footer.end {
    questo si carica <em>solo quando la si apre</em>: il pannello a muro, dove nessuno la guarda, non
    paga il costo di una libreria grafica che non userà mai. Quando si esce, il disegno si ferma
    davvero — e si ferma anche quando la finestra passa in secondo piano. I numeri che mostra sono
-   gli stessi della vista 2D, non un calcolo a parte.</p>
+   gli stessi della vista 2D, non un calcolo a parte. Sul <strong>pannello a muro non c'è</strong>:
+   lì non ci sono né mouse né tastiera per girare intorno alla scena, e un contesto grafico acceso
+   ventiquattro ore su ventiquattro si pagherebbe senza restituire niente.</p>
+
+<figure>
+  <img src="../screenshots/vista-3d.png" alt="La vista 3D: l'impianto rappresentato in tre dimensioni, con i flussi di energia fra pannelli, inverter, batteria, casa e rete.">
+  <figcaption>La vista 3D, col tasto <kbd>3</kbd>. Stessi numeri della 2D, un'altra forma.</figcaption>
+</figure>
 </section>
 
 <!-- ==================================================================== -->
 <section id="servizio">
-<h2>6. Servizio, log e token</h2>
+<h2>8. Servizio, log e token</h2>
 
 <h3>Avviare e riavviare</h3>
 <p>Sul Raspberry EnergyFlow gira come servizio di sistema e riparte da solo a ogni avvio e dopo
@@ -609,8 +875,9 @@ XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 \
 <h3 id="storico-disco">Lo storico su disco</h3>
 <p>Accanto ai log del giorno, in <code>log/energy/</code>, ci sono i dati che tengono in piedi la
    sezione <a href="#storico">Storico</a>:</p>
-<pre><code>log/energy/2026-08-09.csv   dettaglio al minuto, tenuto 90 giorni
-log/energy/daily.csv        un rigo per giorno, non si cancella mai</code></pre>
+<pre><code>log/energy/2026-08-09.csv    dettaglio al minuto, tenuto 90 giorni
+log/energy/daily.csv         un rigo per giorno, non si cancella mai
+log/forecast/2026-08-09.json la previsione salvata quel mattino, per la pagella</code></pre>
 <ul>
   <li><strong>Una scrittura al minuto</strong>, non una a ogni lettura: dodici volte meno scritture
       sulla microSD, che è la parte del Raspberry che si consuma per prima.</li>
@@ -621,6 +888,9 @@ log/energy/daily.csv        un rigo per giorno, non si cancella mai</code></pre>
       perso.</li>
   <li><strong>Ogni cancellazione</strong> dovuta alla retention finisce nel log del giorno: i file
       non spariscono in silenzio.</li>
+  <li><strong>I giorni più vecchi dei 90</strong> restano nello storico come riepilogo: sono i
+      <strong>230 giorni</strong> che si vedono nelle viste Settimana, Mese e Anno, importati una
+      volta dal portale del costruttore e da lì in poi aggiornati in casa.</li>
 </ul>
 <p>Per spegnere del tutto lo storico, in <code>config.json</code>:</p>
 <pre><code>"history": { "enabled": false }</code></pre>
@@ -636,15 +906,20 @@ log/energy/daily.csv        un rigo per giorno, non si cancella mai</code></pre>
 <h3>Il token</h3>
 <p>Nel browser non serve fare niente: la pagina riceve il token da sola al primo caricamento. Serve
    invece ai widget del Mac e a qualunque richiesta fatta a mano.</p>
-<pre><code># leggerlo (lo genera al primo avvio se manca)
+<pre><code># sul Raspberry: leggerlo (lo genera al primo avvio se manca)
 python3 invert.py --print-token
 
-# consegnarlo ai widget macOS
+# sul Mac: due file, l'indirizzo e il token
 mkdir -p ~/.config/energyflow
-python3 invert.py --print-token &gt; ~/.config/energyflow/token
+echo "https://&lt;rpi-host&gt;.&lt;tailnet&gt;.ts.net" &gt; ~/.config/energyflow/url
+ssh &lt;rpi-host&gt; "cd EnergyFlow &amp;&amp; python3 invert.py --print-token" &gt; ~/.config/energyflow/token
 chmod 600 ~/.config/energyflow/token</code></pre>
 <p>Il token vive nel file <code>.env</code> del progetto sul Raspberry, con permessi <code>600</code>,
    e <strong>non è nel repository</strong>. Se lo si rigenera, i widget vanno riconfigurati.</p>
+<p>Il file <code>url</code> è la ragione per cui i widget funzionano senza tunnel: senza, cercano il
+   server sul Mac stesso (<code>127.0.0.1:8003</code>), che è il vecchio comportamento. In
+   alternativa ai due file valgono le variabili d'ambiente <code>ENERGYFLOW_URL</code> e
+   <code>ENERGYFLOW_TOKEN</code>.</p>
 
 <h3>Verificare che i numeri siano quelli giusti</h3>
 <pre><code>python3 invert.py --validate</code></pre>
@@ -658,7 +933,7 @@ python3 invert.py --validate --from giornata.json</code></pre>
 
 <!-- ==================================================================== -->
 <section id="troubleshooting">
-<h2>7. Se qualcosa si rompe</h2>
+<h2>9. Se qualcosa si rompe</h2>
 
 <details id="ts-bianco">
 <summary>Il pannello a muro è bianco, nero o mostra un errore del browser</summary>
@@ -736,16 +1011,54 @@ python3 invert.py --validate             # controllo completo sui dati veri</cod
 <summary>I widget del Mac non si aggiornano</summary>
 <p>Nell'ordine:</p>
 <ol>
-  <li><strong>Manca il tunnel.</strong> I widget cercano il server sul Mac stesso. Riapri
+  <li><strong>Manca l'indirizzo.</strong> Senza <code>~/.config/energyflow/url</code> i widget
+      cercano il server sul Mac stesso e non lo trovano. Scrivilo (vedi
+      <a href="#servizio">sopra</a>), oppure riapri il tunnel
       <code>ssh -N -L 8003:127.0.0.1:8003 &lt;rpi-host&gt;</code>.</li>
+  <li><strong>Tailscale è spento</strong> sul Mac: con l'indirizzo del tailnet, i widget dipendono
+      da quello esattamente come il browser.</li>
   <li><strong>Manca o è scaduto il token.</strong> Il file <code>~/.config/energyflow/token</code>
       deve contenere il token corrente; se il server ne ha generato uno nuovo, va riscritto
       (vedi <a href="#servizio">sopra</a>). Senza, il server risponde <code>401</code> e il widget
       resta vuoto invece di fingere.</li>
   <li>Verifica a mano che il giro funzioni:
       <pre><code>curl -s -H "Authorization: Bearer $(cat ~/.config/energyflow/token)" \
-     http://127.0.0.1:8003/data | head -c 200</code></pre></li>
+     "$(cat ~/.config/energyflow/url)/data" | head -c 200</code></pre></li>
 </ol>
+</details>
+
+<details id="ts-previsione">
+<summary>La previsione non c'è, o è ferma a ore fa</summary>
+<p>Il riquadro «Previsione» compare solo quando c'è qualcosa di vero da dire. Sparisce, di proposito,
+   in questi casi:</p>
+<ul>
+  <li><strong>Stai guardando un giorno passato</strong> nello storico. È voluto: su un giorno già
+      andato una previsione non significa niente.</li>
+  <li><strong>Non restano abbastanza punti nel futuro</strong>: la previsione è scaduta — il
+      ricalcolo dovrebbe girare ogni quarto d'ora e non gira. Guarda il servizio
+      (<code>journalctl -u energyflow -n 100</code>) e cerca le righe della previsione.</li>
+  <li><strong>La previsione non è mai stata calcolata</strong>: succede sul primo avvio, e finché
+      non c'è abbastanza storico da tarare il sole. Nel frattempo la banda ambra lo dice.</li>
+</ul>
+<p>Se invece c'è ma la banda ambra avverte, il motivo è scritto lì: meteo irraggiungibile, poco
+   storico, taratura instabile, o <strong>fuso orario del Raspberry diverso da quello del meteo</strong>.
+   L'ultimo va corretto sul sistema (<code>timedatectl</code>) e non nell'applicazione: con l'ora
+   sbagliata la previsione continua a funzionare, spostata, ed è il modo peggiore di sbagliare.</p>
+<pre><code>curl -s -H "Authorization: Bearer $(python3 invert.py --print-token)" \
+     http://localhost:8003/api/forecast | head -c 400
+python3 invert.py --forecast-backtest 5     # riprova la previsione sui 5 giorni scorsi</code></pre>
+</details>
+
+<details id="ts-euro">
+<summary>Non vedo nessun importo in euro</summary>
+<p>È il comportamento voluto quando in <code>config.json</code> manca il blocco
+   <code>tariff</code>: senza prezzi la dashboard non mostra importi invece di inventarne.
+   Aggiungilo e riavvia il servizio — vedi <a href="#euro">«Quanto vale, in euro»</a>.</p>
+<p>Se gli importi ci sono ma sembrano sbagliati, guarda la riga in fondo al riquadro
+   («Calcolato a … €/kWh»): dice i prezzi usati davvero, ed è quasi sempre una tariffa rimasta
+   vecchia in configurazione.</p>
+<p><strong>Sul pannello a muro gli importi non compaiono mai</strong>, tariffa o non tariffa: non è
+   un guasto, è la scelta spiegata in fondo a <a href="#euro">quel capitolo</a>.</p>
 </details>
 
 <details id="ts-storico">
@@ -772,7 +1085,7 @@ python3 invert.py --validate             # controllo completo sui dati veri</cod
 
 <!-- ==================================================================== -->
 <section id="faq">
-<h2>8. Domande frequenti</h2>
+<h2>10. Domande frequenti</h2>
 
 <h4>I dati escono di casa?</h4>
 <p>No. L'unica cosa che il Raspberry chiede fuori è la previsione meteo, e la chiede lui con le
@@ -796,7 +1109,29 @@ python3 invert.py --validate             # controllo completo sui dati veri</cod
 <p>Il dettaglio al minuto per <strong>90 giorni</strong>; il riepilogo di ogni giornata
    <strong>per sempre</strong>, perché occupa una manciata di byte. Tenere il minuto per sempre
    costerebbe scritture continue sulla microSD senza che nessuno vada mai a guardare un minuto di
-   due anni fa.</p>
+   due anni fa. Oggi in archivio ci sono <strong>230 giorni</strong>: quelli precedenti al pannello
+   di casa arrivano da un'importazione dal portale del costruttore.</p>
+
+<h4>Quanto è precisa la previsione?</h4>
+<p>Non c'è una risposta unica, e chi ne dà una sta indovinando. La pagina dice
+   <em>quanto ha sbagliato ieri</em> — quello è un numero misurato — e finché non ha ancora un
+   confronto lo scrive («Precisione non ancora misurata»). Il valore fra parentesi accanto a «sole
+   tarato su N giorni» <strong>non</strong> è una precisione: vedi
+   <a href="#previsione-fiducia">«Quanto ci si può fidare»</a>.</p>
+
+<h4>La previsione dice zero produzione: si è rotto qualcosa?</h4>
+<p>Di giorno, quasi certamente no: senza meteo il sistema non prevede zero, ripiega sulla mediana
+   dei sette giorni scorsi e lo dichiara con una banda ambra. Se davvero mostra zero in pieno
+   giorno, guarda <a href="#ts-previsione">«La previsione non c'è»</a>.</p>
+
+<h4>Perché non vedo gli euro?</h4>
+<p>O manca il blocco <code>tariff</code> in configurazione (nessun prezzo, nessun importo: la
+   dashboard non se li inventa), o stai guardando il <strong>pannello a muro</strong>, dove gli
+   importi non compaiono di proposito. Vedi <a href="#euro">«Quanto vale, in euro»</a>.</p>
+
+<h4>Posso vedere la dashboard dal telefono, in casa, senza Tailscale?</h4>
+<p>No. Il server ascolta solo su sé stesso: dalla rete di casa — wifi compreso — la pagina non
+   risponde. È voluto (vedi <a href="#accesso">«Come si apre»</a>), e vale anche stando in salotto.</p>
 
 <h4>Posso lasciare il pannello acceso tutta la notte?</h4>
 <p>Sì, è pensato per quello: di notte passa da solo al tema scuro, e le animazioni sono leggere.</p>
@@ -816,7 +1151,7 @@ python3 invert.py --validate             # controllo completo sui dati veri</cod
 </section>
 
 <footer class="end">
-  <p>EnergyFlow v2.0.0 — guida operativa. Lo stato tecnico del progetto sta in <code>SODE.md</code>;
+  <p>EnergyFlow v2.1.0 — guida operativa. Lo stato tecnico del progetto sta in <code>SODE.md</code>;
      l'avvio e lo stack in <code>README.md</code>; il perché del progetto nella
      <a href="../slides/presentazione.html">presentazione</a>.</p>
   <p>Nessun indirizzo, token o credenziale compare in questa pagina: dove serve un valore reale,

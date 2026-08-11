@@ -236,7 +236,7 @@ footer.end {
   <h1>Operating guide</h1>
   <p class="lead">How to open EnergyFlow, how to read what it shows, how to notice when something
      is wrong, and what to do about it.</p>
-  <p class="meta">Version v2.0.0 · 9 August 2026 · register map v2.1</p>
+  <p class="meta">Version v2.1.0 · 11 August 2026 · register map v2.1</p>
 </header>
 
 <div class="note">
@@ -251,6 +251,8 @@ footer.end {
     <li><a href="#intro">What it is and what it is for</a></li>
     <li><a href="#accesso">How to open it</a></li>
     <li><a href="#leggere">How to read the dashboard</a></li>
+    <li><a href="#previsione">The forecast: what is going to happen</a></li>
+    <li><a href="#euro">What it is worth, in money</a></li>
     <li><a href="#stato">Telling when something is wrong</a></li>
     <li><a href="#scorciatoie">Keyboard shortcuts</a></li>
     <li><a href="#servizio">Service, logs and token</a></li>
@@ -270,6 +272,11 @@ footer.end {
 <p>It answers one question at a glance — <em>am I running on my own sun right now, or am I buying
    power?</em> — without opening the manufacturer's portal, without waiting for a cloud round trip,
    and without the household data ever leaving the house.</p>
+
+<p>It answers the same question <strong>forwards and backwards</strong> too: a
+   <a href="#previsione">forecast</a> says how sun, consumption and battery will go through the end
+   of tomorrow, and the <a href="#euro">money value</a> says what a day, a month or a year of energy
+   is worth in cash.</p>
 
 <figure>
   <img src="assets/architettura_en.svg" alt="Diagram: the inverter speaks Modbus TCP on port 502; a Raspberry Pi polls it every 5 seconds and serves the web page on port 8003, bound to its own loopback only; the wall panel, the phone and the Mac read from there.">
@@ -311,10 +318,16 @@ footer.end {
   <li><strong>System widget</strong> — in Notification Centre or on the Desktop.</li>
   <li><strong>Übersicht</strong> — a fixed bar drawn on the desktop background.</li>
 </ul>
-<p>All three read from <code>127.0.0.1:8003</code>, that is, they expect to find the server
-   <em>on the Mac</em>. So they need a tunnel to the Raspberry Pi, opened once and left running:</p>
+<p>All three read <strong>address and token from two files</strong> in the Mac's configuration
+   directory:</p>
+<pre><code>~/.config/energyflow/url      https://&lt;rpi-host&gt;.&lt;tailnet&gt;.ts.net
+~/.config/energyflow/token    the server's token</code></pre>
+<p>With those two files the widgets work from any network, as long as Tailscale is on — exactly like
+   the page in the browser. How to write them: <a href="#servizio">“Service, logs and token”</a>.</p>
+<p>If the <code>url</code> file is missing, the widgets fall back to <code>127.0.0.1:8003</code>,
+   that is, they look for the server <em>on the Mac</em>: in that case a tunnel to the Raspberry Pi
+   is needed, opened once and left running.</p>
 <pre><code>ssh -N -L 8003:127.0.0.1:8003 &lt;rpi-host&gt;</code></pre>
-<p>plus the token in the file the widgets look for — see <a href="#servizio">“Service, logs and token”</a>.</p>
 </section>
 
 <!-- ==================================================================== -->
@@ -378,13 +391,44 @@ footer.end {
    that minute — not the last value, which would be a matter of luck. If the server does not answer,
    the browser acts as a safety net with the curve it accumulated itself: a partial curve beats an
    empty card.</p>
+<p>The chart no longer stops at “now”: it carries on, <strong>dashed</strong>, through the end of
+   tomorrow. That part is a forecast, and it is meant to be recognisable at a glance — see
+   <a href="#previsione">its own chapter</a>.</p>
 
 <h3 id="storico">Storico — history</h3>
-<p>Below the trend sits the <strong>Storico</strong> section, with “◂ Giorno prec.” (previous day)
-   and “Giorno succ. ▸” (next day) to move through past days. The “next day” button switches off on
-   today, rather than staying clickable and leading nowhere.</p>
+<p>Below the trend sits the <strong>Storico</strong> section, which looks back over
+   <strong>four periods</strong>: <strong>Giorno</strong> (day), <strong>Settimana</strong> (week),
+   <strong>Mese</strong> (month), <strong>Anno</strong> (year). They are picked with the tabs on the
+   left; the two buttons on the right (“◂ prec.” and “succ. ▸”) step back and forth <em>within the
+   chosen period</em>, and the forward one switches off once it reaches today rather than staying
+   clickable and leading nowhere.</p>
+<p>It opens on the <strong>week</strong>, not on the day: today is already drawn two centimetres
+   above, whereas the long archive — the reason this section exists — would stay invisible until
+   somebody clicked.</p>
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Period</th><th>What it shows</th><th>How far back it goes</th></tr></thead>
+  <tbody>
+    <tr><td class="key"><strong>Giorno</strong></td>
+        <td>That day's per-minute curve, <strong>with the battery charge</strong> below it, as in
+            “Andamento di oggi”</td>
+        <td>The last <strong>90 days</strong>: beyond that, only the day's summary survives</td></tr>
+    <tr><td class="key"><strong>Settimana</strong><br><strong>Mese</strong><br><strong>Anno</strong></td>
+        <td>One column per day — per month, on the year view: produced and consumed, with grid
+            import/export and battery flows underneath</td>
+        <td><strong>230 days</strong>, imported from the manufacturer's portal and merged with the
+            ones recorded at home</td></tr>
+  </tbody>
+</table>
+</div>
+<p>The <strong>battery charge</strong> strip appears only in the Day view, and only where per-minute
+   data actually exists. It is not decoration: without the state of charge, looking at a past day you
+   cannot tell <em>why</em> the house drew from the grid at a given hour instead of from the sun. In
+   week, month and year it is absent because there is no such thing as “the charge of a period”.</p>
 <p>A day can also be opened directly, and the link can be bookmarked or sent to someone:</p>
 <pre><code>https://&lt;rpi-host&gt;.&lt;tailnet&gt;.ts.net/?day=2026-08-08</code></pre>
+<p>From the keyboard: <kbd>p</kbd> cycles the period, <kbd>[</kbd> and <kbd>]</kbd> step back and
+   forth.</p>
 <p>A day with no data is not drawn as a flat line at zero — that would be indistinguishable from a
    house using nothing. It says instead that there is nothing, and why: “either the system was off,
    or the day is older than the retention window”.</p>
@@ -451,7 +495,7 @@ footer.end {
 <h3>The same things on the wall panel and on a phone</h3>
 <div class="shots">
   <figure>
-    <img src="../screenshots/kiosk-verticale.png" alt="The dashboard on the portrait wall panel: very large numbers, flow diagram in the middle, battery and trend below.">
+    <img src="../screenshots/kiosk-previsione.png" alt="The dashboard on the portrait wall panel: very large numbers, flow diagram in the middle, battery, the trend with its dashed forecast, and today's energy.">
     <figcaption>Wall panel (1080×1920). Everything is sized to be read from three metres away.</figcaption>
   </figure>
   <figure>
@@ -462,8 +506,227 @@ footer.end {
 </section>
 
 <!-- ==================================================================== -->
+<section id="previsione">
+<h2>4. The forecast: what is going to happen</h2>
+
+<p>The trend chart does not stop at now: it runs through the <strong>end of tomorrow</strong>, and a
+   panel below the curves says the same things in words. It does not answer “how much did I
+   produce”, but the question people actually ask in the evening: <em>will the battery get me to
+   the morning, or will I be buying power at six?</em></p>
+
+<h3>How to tell it apart at a glance</h3>
+<p>This is the important part of the chapter, because measurement and forecast share one chart and
+   <strong>must never be mistaken for each other</strong>. The forecast part differs in three ways at
+   once:</p>
+<ul>
+  <li>it is <strong>dashed</strong>, while measured data is a solid line;</li>
+  <li>it is <strong>lighter</strong>, and it has <strong>no filled area beneath the curve</strong>;</li>
+  <li>it starts after a <strong>vertical line labelled “adesso”</strong> (now) — nothing to the right
+      of that line has happened yet. A fainter second line marks midnight, where “tomorrow” begins.</li>
+</ul>
+<p>The legend at the top of the card gains a <em>previsione</em> entry with the same dashes, and it
+   only appears when a forecast is actually drawn.</p>
+
+<div class="shots">
+  <figure>
+    <img src="../screenshots/previsione.png" alt="The trend chart: up to the “adesso” line the curves are solid and filled, after it they turn dashed and pale through the end of tomorrow. Below, the “Previsione” panel with the sentences.">
+    <figcaption>Light theme. Everything right of the “adesso” line is dashed: it is a forecast.</figcaption>
+  </figure>
+  <figure>
+    <img src="../screenshots/previsione-notte.png" alt="The same card in the dark theme, with the same dashed curves after the “adesso” line.">
+    <figcaption>Dark theme, at night. The colours change, the rules do not.</figcaption>
+  </figure>
+</div>
+
+<h3>What the panel says</h3>
+<p>The sentences are ordered by importance, and only the ones the computation can genuinely support
+   are shown:</p>
+<ul>
+  <li><strong>When the battery runs out</strong> — the time of day, not “in 9 hours”: a time can be
+      compared with the alarm clock, an interval has to be subtracted in your head.</li>
+  <li><strong>When it is full again.</strong></li>
+  <li><strong>From what time the grid starts being drawn on</strong>, which is when you start
+      paying.</li>
+  <li><strong>How much sun is left before midnight</strong>, and when there is none it says so
+      instead of showing a zero.</li>
+  <li><strong>How much sun is expected tomorrow</strong>, next to the expected consumption: on its
+      own, “43.9 kWh” does not tell you whether tomorrow is a surplus day or an import day.</li>
+</ul>
+<p>Top right you get <strong>when it was computed</strong> and <strong>how far it reaches</strong>.
+   It is recomputed every quarter of an hour: if that time is hours old, the forecast is stuck and
+   should be treated with suspicion (or it has vanished altogether — see
+   <a href="#ts-previsione">the troubleshooting section</a>).</p>
+
+<h3 id="previsione-fiducia">How much to trust it</h3>
+<p>The forecast <strong>marks its own homework</strong>. Every morning it stores what it predicted,
+   and the next day it compares that with what actually happened: the result is the line
+   <em>“Ieri l'avevo sbagliata del …%”</em> (yesterday I was off by …%), and it shows up
+   <strong>even when the figure is embarrassing</strong>. Until that comparison exists, its place
+   reads <em>“Precisione non ancora misurata”</em> (accuracy not measured yet): blank space would
+   suggest it had been checked and was fine.</p>
+
+<div class="warn">
+  <p><strong>There is no “stated accuracy” for this forecast, and none should be looked for.</strong>
+     The last line of the panel says what it is built on — for instance <em>“sole tarato su 6 giorni
+     (R² della taratura 0,95)”</em>, sun calibrated over 6 days, R² of the fit 0.95 — and that
+     number is <em>not</em> a percentage of accuracy: it measures how well the relation between
+     irradiance and production explains the days that have <strong>already happened</strong>, not how
+     close the forecast will land tomorrow. Only yesterday's score says that. Anyone writing
+     “95% accurate” is misreading that line.</p>
+</div>
+
+<h3>Where the numbers come from</h3>
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Piece</th><th>How it is obtained</th></tr></thead>
+  <tbody>
+    <tr>
+      <td class="key"><strong>The sun</strong></td>
+      <td>Forecast irradiance from the weather service, multiplied by a coefficient
+          <strong>learned from this system</strong> by comparing real sunny days with real
+          production. The nameplate rating would know nothing about orientation, shading and dirty
+          panels; the plant's own data does.</td>
+    </tr>
+    <tr>
+      <td class="key"><strong>Consumption</strong></td>
+      <td>The <strong>median</strong> profile of comparable days, quarter-hour by quarter-hour, with
+          <strong>weekdays and weekends kept apart</strong> — in a home they are two different days.
+          The shape of the median is kept and its level rescaled on recent totals, because
+          consumption drifts with the seasons.</td>
+    </tr>
+    <tr>
+      <td class="key"><strong>The battery</strong></td>
+      <td><strong>It is not predicted: it is simulated.</strong> Starting from the current charge,
+          <em>sun − consumption</em> is integrated quarter-hour by quarter-hour, accounting for
+          capacity, the reserve floor and round-trip efficiency. The times in the sentences come out
+          of that simulation, not out of a guess.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<h3>When the forecast warns you not to trust it</h3>
+<p>An <strong>amber band</strong> can appear above the sentences, starting with “Previsione poco
+   affidabile:” (forecast not very reliable) and giving the reason. The cases seen in practice:</p>
+<ul>
+  <li><strong>weather unreachable</strong>, or hours old;</li>
+  <li><strong>too little history</strong> — with two days of data the sun calibration is a line
+      through four points;</li>
+  <li><strong>unstable sun-to-production relation</strong>, meaning the calibration did not hold;</li>
+  <li><strong>the Raspberry Pi's time zone differs from the weather service's</strong>. This is the
+      worst failure of all precisely because nothing breaks: the forecast keeps working, shifted by
+      an hour, with the solar peak placed when there is no sun.</li>
+</ul>
+<p>With no weather the forecast <strong>does not claim you will produce nothing</strong> — that would
+   be the biggest lie available: it falls back on the median of what <em>this</em> system produced at
+   the same hour over the past seven days, and declares it in the band.</p>
+
+<div class="note">
+  <p><strong>On the wall panel it is there, cut down to one line.</strong> What remains is the dashed
+     curve and the <em>first</em> sentence — the battery one, the question a forecast is on a wall
+     for — plus yesterday's score. Technical detail has no audience at three metres, and half a
+     truncated sentence would be worse than none.</p>
+</div>
+
+<p>The forecast appears <strong>on today only</strong>. Open a past day in the history section and
+   there are no dashes: next to the measurement of some 15 March, a forecast would only be a way of
+   confusing the two.</p>
+</section>
+
+<!-- ==================================================================== -->
+<section id="euro">
+<h2>5. What it is worth, in money</h2>
+
+<p>Below the energy bars — and in the history section, below whichever period is on screen — sits the
+   <strong>Valore dell'energia</strong> (energy value) card: the same kilowatt-hours already shown
+   above, multiplied by the price of electricity.</p>
+
+<h3>It has to be configured first: no tariff, no amounts</h3>
+<p>Nobody can guess the prices. They go into <code>config.json</code>, on the Raspberry Pi:</p>
+<pre><code>"tariff": {
+  "currency": "EUR",
+  "import_eur_kwh": 0.00,
+  "export_eur_kwh": 0.00
+}</code></pre>
+<p><code>import_eur_kwh</code> is what you <strong>pay</strong> for a kilowatt-hour taken from the
+   grid; <code>export_eur_kwh</code> is what you <strong>get</strong> for one fed into it. After
+   editing: <code>sudo systemctl restart energyflow</code>, then reload the page.</p>
+
+<div class="warn">
+  <p><strong>Use the full price from your bill, not the energy component alone.</strong> What matters
+     is what one extra kilowatt-hour really costs: energy <em>plus</em> system charges, transport and
+     taxes — that is, the bill total divided by the kilowatt-hours consumed. With the energy
+     component alone the savings figure comes out well below reality, and savings is the number the
+     whole system exists for.</p>
+</div>
+
+<div class="note">
+  <p><strong>If the <code>tariff</code> block is absent, the card does not appear at all</strong> — no
+     zeros, no dashes, no national average price used “for now”. A plausible false amount is worse
+     than a missing one, because nobody goes and checks it, whereas a missing card is noticed
+     immediately. If only the import price is configured, savings and cost appear and the
+     <em>total is omitted</em>: it would be a sum with a term missing.</p>
+</div>
+
+<h3>The three figures, and why the big one comes first</h3>
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Row</th><th>What it is</th></tr></thead>
+  <tbody>
+    <tr>
+      <td class="key"><strong>Risparmiato</strong><br>(saved)</td>
+      <td>The energy the house took <strong>from the system instead of from the grid</strong>, priced
+          at what you would have paid for it. It appears on no bill — it is money that never left —
+          and it is almost always the largest of the three. That is why it sits on top, in large
+          type.</td>
+    </tr>
+    <tr>
+      <td class="key"><strong>Incassato</strong><br>(earned)</td>
+      <td>The kilowatt-hours fed into the grid, at the export price. Usually far lower than the
+          purchase price: which is exactly why it pays to consume while the sun is up rather than to
+          sell.</td>
+    </tr>
+    <tr>
+      <td class="key"><strong>Speso</strong><br>(spent)</td>
+      <td>The kilowatt-hours drawn from the grid, at the purchase price. It is the only one of the
+          three you can also read elsewhere, and so it comes last.</td>
+    </tr>
+    <tr>
+      <td class="key"><strong>Beneficio netto</strong><br>(net benefit)</td>
+      <td><em>saved + earned − spent</em>, written out below the rule exactly like that.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<p>Every row carries <strong>the kilowatt-hours it comes from</strong> underneath, and the bottom of
+   the card reads “Calcolato a … €/kWh in prelievo e … €/kWh in immissione” — the prices actually
+   used. They are the only thing that makes the four figures above checkable. If one day the amounts
+   look wrong, that line is the first place to look: usually the tariff in the configuration has gone
+   stale.</p>
+
+<div class="shots">
+  <figure>
+    <img src="../screenshots/valore-giorno.png" alt="The history section in Day view: Day/Week/Month/Year tabs, the day's curve with battery charge and the dashed forecast, and below the “Valore dell'energia” card with saved, earned, spent and net benefit.">
+    <figcaption>A single day. The amounts follow the period chosen above.</figcaption>
+  </figure>
+  <figure>
+    <img src="../screenshots/valore-anno.png" alt="The same card in Year view: one column per month and the energy value computed over the whole year.">
+    <figcaption>The same card over a whole year.</figcaption>
+  </figure>
+</div>
+
+<p><strong>On the wall panel there are no amounts</strong>, and that is a deliberate sacrifice: in
+   that band of the screen the space is already fully spent, and one extra line would be cut in half.
+   A truncated number is worse than a missing one. Between forecast and money, the wall gets the
+   forecast — it says something that is nowhere else on that screen, whereas the money is the
+   kilowatt-hours above multiplied by a price. The money value stays whole on computers and
+   phones.</p>
+</section>
+
+<!-- ==================================================================== -->
 <section id="stato">
-<h2>4. Telling when something is wrong</h2>
+<h2>6. Telling when something is wrong</h2>
 
 <p>The dashboard never pretends. If the numbers cannot be trusted it says so, and it says so
    differently depending on <em>what</em> is broken: these are different faults and they send you
@@ -531,7 +794,7 @@ footer.end {
 
 <!-- ==================================================================== -->
 <section id="scorciatoie">
-<h2>5. Keyboard shortcuts</h2>
+<h2>7. Keyboard shortcuts</h2>
 
 <p>They are for the computer view and for maintenance (a keyboard plugged into the Raspberry Pi).
    The wall panel has no keyboard. Press <kbd>?</kbd> at any time to see them on screen.</p>
@@ -547,6 +810,8 @@ footer.end {
     <tr><td class="key"><kbd>k</kbd></td><td>Switches between kiosk (giant numbers) and compact mode</td></tr>
     <tr><td class="key"><kbd>1</kbd></td><td>Go to the flow view</td></tr>
     <tr><td class="key"><kbd>2</kbd></td><td>Go to the history view</td></tr>
+    <tr><td class="key"><kbd>p</kbd></td><td>History: day → week → month → year</td></tr>
+    <tr><td class="key"><kbd>[</kbd> <kbd>]</kbd></td><td>History: previous and next period</td></tr>
     <tr><td class="key"><kbd>3</kbd></td><td>Opens and closes the 3D view of the system</td></tr>
     <tr><td class="key"><kbd>d</kbd></td><td>Shows or hides the register panel</td></tr>
     <tr><td class="key"><kbd>f</kbd></td><td>Full screen</td></tr>
@@ -564,12 +829,19 @@ footer.end {
    is why it loads <em>only when you open it</em>: the wall panel, where nobody looks at it, does not
    pay for a graphics library it will never use. When you leave, the drawing really stops — and it
    stops when the window goes into the background too. The numbers it shows are the same ones as the
-   2D view, not a separate calculation.</p>
+   2D view, not a separate calculation. It is <strong>not on the wall panel</strong>: there is no
+   mouse or keyboard there to orbit the scene with, and a graphics context left running around the
+   clock would cost something and return nothing.</p>
+
+<figure>
+  <img src="../screenshots/vista-3d.png" alt="The 3D view: the system rendered in three dimensions, with energy flowing between panels, inverter, battery, home and grid.">
+  <figcaption>The 3D view, on key <kbd>3</kbd>. Same numbers as the 2D view, a different shape.</figcaption>
+</figure>
 </section>
 
 <!-- ==================================================================== -->
 <section id="servizio">
-<h2>6. Service, logs and token</h2>
+<h2>8. Service, logs and token</h2>
 
 <h3>Starting and restarting</h3>
 <p>On the Raspberry Pi, EnergyFlow runs as a system service and comes back by itself on every boot
@@ -606,8 +878,9 @@ XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 \
 <h3 id="storico-disco">History on disk</h3>
 <p>Next to the daily logs, in <code>log/energy/</code>, sit the files that hold up the
    <a href="#storico">Storico</a> section:</p>
-<pre><code>log/energy/2026-08-09.csv   per-minute detail, kept for 90 days
-log/energy/daily.csv        one row per day, never deleted</code></pre>
+<pre><code>log/energy/2026-08-09.csv    per-minute detail, kept for 90 days
+log/energy/daily.csv         one row per day, never deleted
+log/forecast/2026-08-09.json that morning's forecast, kept for the score</code></pre>
 <ul>
   <li><strong>One write per minute</strong>, not one per reading: twelve times fewer writes to the
       microSD card, which is the part of a Raspberry Pi that wears out first.</li>
@@ -617,6 +890,9 @@ log/energy/daily.csv        one row per day, never deleted</code></pre>
       consolidated as soon as it comes back rather than being lost.</li>
   <li><strong>Every deletion</strong> made by the retention policy is written to the day's log:
       files never vanish quietly.</li>
+  <li><strong>Days older than the 90</strong> stay in the archive as summaries: those are the
+      <strong>230 days</strong> visible in the Week, Month and Year views, imported once from the
+      manufacturer's portal and kept up to date at home ever since.</li>
 </ul>
 <p>To switch history off entirely, in <code>config.json</code>:</p>
 <pre><code>"history": { "enabled": false }</code></pre>
@@ -632,16 +908,21 @@ log/energy/daily.csv        one row per day, never deleted</code></pre>
 <h3>The token</h3>
 <p>In the browser there is nothing to do: the page receives the token by itself on first load. It is
    needed by the Mac widgets and by any request you make by hand.</p>
-<pre><code># read it (it is generated on first start if missing)
+<pre><code># on the Raspberry Pi: read it (generated on first start if missing)
 python3 invert.py --print-token
 
-# hand it to the macOS widgets
+# on the Mac: two files, the address and the token
 mkdir -p ~/.config/energyflow
-python3 invert.py --print-token &gt; ~/.config/energyflow/token
+echo "https://&lt;rpi-host&gt;.&lt;tailnet&gt;.ts.net" &gt; ~/.config/energyflow/url
+ssh &lt;rpi-host&gt; "cd EnergyFlow &amp;&amp; python3 invert.py --print-token" &gt; ~/.config/energyflow/token
 chmod 600 ~/.config/energyflow/token</code></pre>
 <p>The token lives in the project's <code>.env</code> file on the Raspberry Pi with <code>600</code>
    permissions, and <strong>is not in the repository</strong>. If it is regenerated, the widgets
    must be reconfigured.</p>
+<p>The <code>url</code> file is why the widgets work without a tunnel: without it they look for the
+   server on the Mac itself (<code>127.0.0.1:8003</code>), which is the old behaviour. The
+   environment variables <code>ENERGYFLOW_URL</code> and <code>ENERGYFLOW_TOKEN</code> work in place
+   of the two files.</p>
 
 <h3>Checking that the numbers are the right ones</h3>
 <pre><code>python3 invert.py --validate</code></pre>
@@ -656,7 +937,7 @@ python3 invert.py --validate --from day.json</code></pre>
 
 <!-- ==================================================================== -->
 <section id="troubleshooting">
-<h2>7. When something breaks</h2>
+<h2>9. When something breaks</h2>
 
 <details id="ts-bianco">
 <summary>The wall panel is blank, black, or showing a browser error</summary>
@@ -735,16 +1016,55 @@ python3 invert.py --validate             # full check against real data</code></
 <summary>The Mac widgets are not updating</summary>
 <p>In order:</p>
 <ol>
-  <li><strong>The tunnel is down.</strong> The widgets look for the server on the Mac itself. Reopen
+  <li><strong>The address is missing.</strong> Without <code>~/.config/energyflow/url</code> the
+      widgets look for the server on the Mac itself and do not find it. Write it (see
+      <a href="#servizio">above</a>), or reopen the tunnel
       <code>ssh -N -L 8003:127.0.0.1:8003 &lt;rpi-host&gt;</code>.</li>
+  <li><strong>Tailscale is off</strong> on the Mac: with a tailnet address the widgets depend on it
+      exactly as the browser does.</li>
   <li><strong>The token is missing or stale.</strong> The file
       <code>~/.config/energyflow/token</code> must hold the current token; if the server generated a
       new one, rewrite it (see <a href="#servizio">above</a>). Without it the server answers
       <code>401</code> and the widget stays empty rather than faking it.</li>
   <li>Check the round trip by hand:
       <pre><code>curl -s -H "Authorization: Bearer $(cat ~/.config/energyflow/token)" \
-     http://127.0.0.1:8003/data | head -c 200</code></pre></li>
+     "$(cat ~/.config/energyflow/url)/data" | head -c 200</code></pre></li>
 </ol>
+</details>
+
+<details id="ts-previsione">
+<summary>The forecast is missing, or stuck hours behind</summary>
+<p>The “Previsione” card only appears when there is something true to say. It disappears, on purpose,
+   in these cases:</p>
+<ul>
+  <li><strong>You are looking at a past day</strong> in the history section. That is intended: on a
+      day already gone, a forecast means nothing.</li>
+  <li><strong>Not enough points are left in the future</strong>: the forecast has expired — the
+      recomputation should run every quarter of an hour and is not running. Check the service
+      (<code>journalctl -u energyflow -n 100</code>) and look for the forecast lines.</li>
+  <li><strong>It has never been computed</strong>: that happens on first start, and until there is
+      enough history to calibrate the sun. In the meantime the amber band says so.</li>
+</ul>
+<p>If it is there but the amber band warns you, the reason is written in it: weather unreachable,
+   too little history, unstable calibration, or <strong>the Pi's time zone differing from the
+   weather service's</strong>. The last one has to be fixed on the system
+   (<code>timedatectl</code>), not in the application: with the wrong clock the forecast keeps
+   working, shifted, which is the worst way to be wrong.</p>
+<pre><code>curl -s -H "Authorization: Bearer $(python3 invert.py --print-token)" \
+     http://localhost:8003/api/forecast | head -c 400
+python3 invert.py --forecast-backtest 5     # replay the forecast over the last 5 days</code></pre>
+</details>
+
+<details id="ts-euro">
+<summary>No amounts in euro anywhere</summary>
+<p>That is the intended behaviour when the <code>tariff</code> block is missing from
+   <code>config.json</code>: with no prices the dashboard shows no amounts rather than inventing
+   them. Add it and restart the service — see <a href="#euro">“What it is worth, in money”</a>.</p>
+<p>If the amounts are there but look wrong, read the line at the bottom of the card (“Calcolato a …
+   €/kWh”): it states the prices actually used, and it is almost always a tariff left stale in the
+   configuration.</p>
+<p><strong>On the wall panel no amounts ever appear</strong>, tariff or no tariff: that is not a
+   fault, it is the choice explained at the end of <a href="#euro">that chapter</a>.</p>
 </details>
 
 <details id="ts-storico">
@@ -771,7 +1091,7 @@ python3 invert.py --validate             # full check against real data</code></
 
 <!-- ==================================================================== -->
 <section id="faq">
-<h2>8. Frequently asked questions</h2>
+<h2>10. Frequently asked questions</h2>
 
 <h4>Does the data leave the house?</h4>
 <p>No. The only thing the Raspberry Pi asks for from outside is the weather forecast, and it asks for
@@ -794,7 +1114,31 @@ python3 invert.py --validate             # full check against real data</code></
 <h4>How long is the data kept?</h4>
 <p>Per-minute detail for <strong>90 days</strong>; the summary of each day <strong>forever</strong>,
    because it takes a handful of bytes. Keeping every minute forever would mean constant writes to
-   the microSD card for minutes from two years ago that nobody will ever look at.</p>
+   the microSD card for minutes from two years ago that nobody will ever look at. The archive
+   currently holds <strong>230 days</strong>: everything predating the home panel came from a
+   one-off import out of the manufacturer's portal.</p>
+
+<h4>How accurate is the forecast?</h4>
+<p>There is no single answer, and anyone giving one is guessing. The page states
+   <em>how wrong it was yesterday</em> — that is a measured number — and until it has a comparison it
+   says so (“Precisione non ancora misurata”). The value in brackets next to “sole tarato su N
+   giorni” is <strong>not</strong> an accuracy figure: see
+   <a href="#previsione-fiducia">“How much to trust it”</a>.</p>
+
+<h4>The forecast shows zero production — is something broken?</h4>
+<p>During the day, almost certainly not: with no weather the system does not forecast zero, it falls
+   back to the median of the past seven days and declares it in an amber band. If it really shows
+   zero in broad daylight, see <a href="#ts-previsione">“The forecast is missing”</a>.</p>
+
+<h4>Why can't I see any money figures?</h4>
+<p>Either the <code>tariff</code> block is missing from the configuration (no prices, no amounts: the
+   dashboard does not invent them), or you are looking at the <strong>wall panel</strong>, where
+   amounts are deliberately absent. See <a href="#euro">“What it is worth, in money”</a>.</p>
+
+<h4>Can I open the dashboard from my phone at home without Tailscale?</h4>
+<p>No. The server listens on itself only: from the home network — Wi-Fi included — the page does not
+   answer. That is intended (see <a href="#accesso">“How to open it”</a>), and it holds from the sofa
+   too.</p>
 
 <h4>Can the panel be left on all night?</h4>
 <p>Yes, that is what it is for: it switches to the dark theme by itself at night, and the animations
@@ -815,7 +1159,7 @@ python3 invert.py --validate             # full check against real data</code></
 </section>
 
 <footer class="end">
-  <p>EnergyFlow v2.0.0 — operating guide. The technical state of the project is in
+  <p>EnergyFlow v2.1.0 — operating guide. The technical state of the project is in
      <code>SODE.md</code>; setup and stack in <code>README.md</code>; the reasoning behind the
      project in the <a href="../slides/presentazione_en.html">slide deck</a>.</p>
   <p>No address, token or credential appears on this page: where a real value would go, there is a

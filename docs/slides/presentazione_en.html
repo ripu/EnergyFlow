@@ -164,6 +164,10 @@ figcaption {
 .shots { display: flex; flex-wrap: wrap; gap: clamp(14px, 2.5vw, 32px); justify-content: center; align-items: center; }
 .shots figure { flex: 1 1 240px; max-width: 440px; }
 .shots img { max-height: 50vh; }
+/* A landscape shot next to a portrait one: with the same max width the former
+   becomes illegible while the latter stays tall and narrow. The proportion is
+   decided by the content, not by symmetry. */
+.shots figure.wide { flex: 1.7 1 380px; max-width: 760px; }
 
 .cover-art { max-width: min(760px, 100%); border-radius: 18px; box-shadow: var(--shadow); display: block; }
 
@@ -230,7 +234,7 @@ body:not(.deck) .nav { position: static; }
   <p class="lead" style="margin-top:clamp(20px,4vh,40px)">
     Read straight from the inverter, every five seconds. No cloud, no account.
   </p>
-  <p class="meta">v2.0.0 · 9 August 2026</p>
+  <p class="meta">v2.1.0 · 11 August 2026</p>
 </section>
 
 <!-- =========================== 2 — THE PROBLEM ======================== -->
@@ -250,12 +254,13 @@ body:not(.deck) .nav { position: static; }
 <!-- ========================= 3 — WHAT IT DOES ======================== -->
 <section class="slide" id="s3" aria-label="What it does">
   <p class="kicker">What it does</p>
-  <h2>Reads the inverter, shows the flow, and admits when it doesn't know.</h2>
+  <h2>Reads the inverter, shows where the energy goes — and where it will go.</h2>
   <ul class="points">
     <li><b>Reads the inverter directly, every five seconds.</b>
         <span>No middleman, over the home network: the protocol is the one the device already speaks.</span></li>
-    <li><b>Shows where the energy goes — sun, house, battery, grid.</b>
-        <span>On a wall panel readable from three metres, and on the same page from a phone or a Mac.</span></li>
+    <li><b>Shows where the energy goes, and where it will go through the end of tomorrow.</b>
+        <span>Sun, house, battery and grid right now; then the line turns dashed, because from there
+              on it is a forecast and not a measurement.</span></li>
     <li><b>Admits when it doesn't know.</b>
         <span>Stale, frozen, untrustworthy — three faces.</span></li>
   </ul>
@@ -293,7 +298,7 @@ body:not(.deck) .nav { position: static; }
   <figure>
     <img src="../guide/assets/architettura_en.svg" alt="The inverter speaks Modbus TCP on port 502; a Raspberry Pi polls it every five seconds and serves the page on port 8003, bound to itself only; the wall panel, the phone and the Mac read from there.">
     <figcaption>A 6 kWp array with a 12 kWh battery. The only thing the Raspberry Pi asks for
-       from outside is the weather forecast.</figcaption>
+       from outside is the weather — which is also what makes forecasting tomorrow possible.</figcaption>
   </figure>
 </section>
 
@@ -303,12 +308,12 @@ body:not(.deck) .nav { position: static; }
   <h2>The same system, two screens.</h2>
   <div class="shots">
     <figure class="framed">
-      <img src="../screenshots/kiosk-verticale.png" alt="The dashboard on the portrait wall panel, dark theme: giant numbers, flow diagram, battery, today's energy.">
+      <img src="../screenshots/kiosk-previsione.png" alt="The dashboard on the portrait wall panel, dark theme: giant numbers, flow diagram, battery, the trend with its dashed forecast, today's energy.">
       <figcaption>Wall panel, 32" portrait — from three metres.</figcaption>
     </figure>
-    <figure class="framed">
-      <img src="../screenshots/desktop-chiaro.png" alt="The dashboard on a Mac, light theme: the same elements laid out in two columns.">
-      <figcaption>Mac — same elements, same rules.</figcaption>
+    <figure class="framed wide">
+      <img src="../screenshots/valore-giorno.png" alt="The history section on a Mac: day, week, month and year tabs; the day's curve with battery charge and the dashed forecast; below, what the energy is worth in money.">
+      <figcaption>Mac — the history, the dashed forecast, and what it is worth in money.</figcaption>
     </figure>
   </div>
 </section>
@@ -340,22 +345,28 @@ body:not(.deck) .nav { position: static; }
 
 <!-- ================== 8 — STATE AND WHAT IS MISSING =================== -->
 <section class="slide" id="s8" aria-label="State and what is missing">
-  <p class="kicker">State — v2.0.0</p>
+  <p class="kicker">State — v2.1.0</p>
   <h2>What is there today, and what still is not.</h2>
   <div class="cards two">
     <div class="card has">
       <h3>There</h3>
-      <p>48 verified fields on register map v2.1 · <strong>persistent history</strong> at
-         one-minute resolution, 90 days, with a per-day summary that is never deleted · 3D view ·
-         a theme that follows sunrise and sunset · portrait kiosk panel · token-protected access
-         reachable only from the tailnet · three macOS widgets · twelve physical checks.</p>
+      <p>48 verified fields on register map v2.1 · a <strong>forecast</strong> of sun, consumption
+         and battery through the end of tomorrow, which <strong>marks its own homework</strong> ·
+         the <strong>money value</strong> of the energy — saved, earned, spent ·
+         <strong>history</strong> over four periods and 230 days, 90 of them per-minute and with the
+         battery charge · 3D view · a theme that follows sunrise and sunset · portrait kiosk panel ·
+         token-protected access reachable only from the tailnet · three macOS widgets · twelve
+         physical checks.</p>
     </div>
     <div class="card hasnt">
       <h3>Not there</h3>
-      <p><strong>21 registers still unidentified</strong>, excluded rather than guessed ·
-         in the daily roll-up only production comes from the inverter's counter, the rest is
-         reconstructed · no notifications or alarms: the panel is looked at, it does not call you ·
-         no control over the inverter: EnergyFlow reads, it does not drive.</p>
+      <p><strong>No “stated accuracy” for the forecast</strong>: all that is known is how wrong it
+         was yesterday, and that is printed even when it is bad · money figures only if a tariff is
+         configured, and never on the wall panel · <strong>21 registers still unidentified</strong>,
+         excluded rather than guessed · in the daily roll-up only production comes from the
+         inverter's counter, the rest is reconstructed · no notifications or alarms: the panel is
+         looked at, it does not call you · no control over the inverter: EnergyFlow reads, it does
+         not drive.</p>
     </div>
   </div>
   <p class="meta" style="margin-top:clamp(16px,3vh,28px)">
