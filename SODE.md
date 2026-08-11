@@ -1,6 +1,6 @@
 # SODE — EnergyFlow
 
-> **Versione corrente: v2.0.0 — 2026-08-09**
+> **Versione corrente: v2.1.0 — 2026-08-11**
 >
 > Stato del sistema: lettura Modbus TCP dell'inverter fotovoltaico di casa, API HTTP
 > locale autenticata, dashboard web e pannello a muro in kiosk verticale.
@@ -371,6 +371,74 @@ Gli invarianti puntuali girano **ad ogni poll**, non solo su richiesta — è ci
   transitorio si vede comunque, ma fra le `notes` di `/health`.
 
 ---
+
+## 9.3 Previsione — `GET /api/forecast`
+
+Simulazione di come andranno solare, consumo e batteria fino a **fine giornata di
+domani** (orizzonte fisso, non 24 ore scorrevoli: alle 23:50 un orizzonte scorrevole
+finirebbe a metà del giorno dopo e la domanda vera — «domani com'è?» — resterebbe senza
+risposta). Ricalcolo ogni 15 minuti in background, servito da cache: **377 ms** di
+calcolo, `/data` misurato a 0,5 ms durante l'esercizio.
+
+**Tre ingredienti, nessuno inventato**
+
+| Grandezza | Come | Perché così |
+|---|---|---|
+| Solare | irraggiamento orario da open-meteo × coefficiente **calibrato sui propri dati** | La targa non sa nulla di orientamento, ombre e sporco. Misurato: **6,19 W per W/m²**, R² **0,955** su 7 giorni — l'impianto rende ~3% più della targa |
+| Consumo | profilo **mediano** per fascia di 15 min, feriali e weekend separati | La media si fa spostare da una sola giornata col forno acceso |
+| Batteria | **non si prevede, si simula**: si integra `solare − casa` dal SOC attuale | Da qui escono i fatti utili: quando si riempie, quando tocca il minimo, da che ora si preleva |
+
+**Dettagli che non si vedono ma cambiano il risultato**
+- Il valore orario di open-meteo è la **media dell'ora precedente**, non l'istantanea.
+  Accoppiandolo con l'ora giusta R² = 0,93; con quella sbagliata 0,77 — stessa
+  regressione. L'interpolazione avviene fra i baricentri (T−30 min).
+- Il fattore «perdite 0,8» che verrebbe naturale applicare alla targa **non va messo**:
+  `shortwave_radiation` è sul piano orizzontale mentre i moduli sono inclinati (+15%
+  circa) e i due fattori si elidono. Con le perdite si sbaglierebbe del −22%.
+- Round-trip batteria **0,823**, misurato sui contatori su 180 giorni.
+- Il profilo mediano nudo sottostimava del **36%** (la mediana di ogni fascia sta sotto
+  la media, e i consumi salgono con l'estate): se ne tiene la **forma** e se ne riscala
+  il **livello** sui totali recenti dello stesso tipo di giorno. −36% → −6%.
+
+**La previsione si misura da sola.** Ogni mattina fra le 08:00 e le 10:00 si salva uno
+snapshot in `log/forecast/YYYY-MM-DD.json`; il giorno dopo si confronta con la realtà e
+il risultato esce in `score_yesterday`. Una previsione che nessuno verifica è un
+oroscopo. La finestra oraria è stretta di proposito: un ricalcolo serale congelerebbe
+una «previsione del mattino» su una giornata già finita, e il giorno dopo si darebbe un
+voto a un compito mai svolto — meglio nessun voto che uno gonfiato.
+
+**Cosa NON dichiarare.** Il backtest dà 5,3% sul solare e 13,3% sui consumi, ma è
+calcolato sull'**analisi** meteo a posteriori, non sulla previsione che sarebbe stata
+disponibile la sera prima: misura la conversione irraggiamento→kWh, non l'abilità del
+meteo a indovinare il domani. In interfaccia **non compare nessuna precisione
+dichiarata**: si mostra `score_yesterday` quando c'è, e finché non c'è si dice che non è
+ancora stata misurata.
+
+**Degrado**: `quality: "degraded"` con `quality_reasons` esplicite quando meteo assente,
+fit scarso, storico corto o **fuso orario del server diverso da quello di open-meteo** —
+quest'ultimo è il guasto peggiore, perché non rompe niente e sposta soltanto il picco
+solare a un'ora in cui il sole non c'è. Senza meteo la produzione ripiega sulla mediana
+di quanto **questo** impianto ha prodotto alla stessa ora nei 7 giorni scorsi: prevedere
+zero produzione di giorno sarebbe la bugia più grossa.
+
+⚠️ `facts.pv_kwh_expected_today` è il **totale di giornata** (misurato + residuo), non il
+residuo: quello è `pv_kwh_remaining_today`.
+
+## 9.4 Valore economico
+
+`config.json` → `tariff` (`import_eur_kwh`, `export_eur_kwh`, `currency`), esposto da
+`/api/ui-config`. Se il blocco **manca, l'API risponde `null` e la dashboard non mostra
+alcun importo**: nessun default nel codice, perché un prezzo sbagliato spacciato per
+giusto è peggio di un prezzo assente. I conti (kWh × prezzo) li fa il frontend, che ha
+già la scomposizione dell'energia per periodo.
+
+Tre voci, e la più importante non è quella che si pagherebbe: **risparmiato** =
+l'energia prodotta e consumata in casa, che nessuno paga ma che è denaro non speso.
+Si calcola su `fromPlant` e **non** sull'autoconsumo lordo, perché quest'ultimo include
+le perdite di andata e ritorno della batteria — energia prodotta e persa, che non ha
+risparmiato un centesimo, proprio sul numero messo più in evidenza.
+Con tariffa parziale (solo prelievo) si mostrano risparmio e spesa e si **omette il
+netto**, che sarebbe una somma a cui manca un addendo.
 
 ## 10. Frontend
 

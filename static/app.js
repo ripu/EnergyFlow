@@ -26,6 +26,11 @@
        giusta se il browser ha perso qualche minuto (schermo spento, tab in
        background, wifi caduto). Un giro ogni 15 minuti costa una richiesta. */
     var HISTORY_SYNC_MS = 15 * 60 * 1000;
+    /* La previsione ha risoluzione di 15 minuti e il backend la ricalcola
+       quando cambiano meteo o storico: chiederla più spesso non produrrebbe
+       punti nuovi, solo lavoro. Dieci minuti la tengono comunque allineata
+       entro meno di un passo della sua stessa griglia. */
+    var FORECAST_MS = 10 * 60 * 1000;
 
     var LS_THEME = "ef.theme";
     var LS_MODE = "ef.mode";
@@ -43,6 +48,12 @@
         pollTimer: null,   // vedi startAuto/stopAuto
         uiConfig: null,
         weather: null,
+        /* Previsione: null finché non arriva, e null anche se l'endpoint non
+           esiste. Il resto della pagina non deve accorgersene — è il motivo
+           per cui non c'è un flag "forecastEnabled" da controllare in dieci
+           posti: chi disegna chiede `forecastFor(giorno)` e riceve null. */
+        forecast: null,
+        forecastStatus: null,   // ultimo codice HTTP visto (404 = non esiste)
         samples: [],
         lastSampleMs: 0,
         peakW: 0,          // picco osservato: fondoscala degli archi (vedi scaleW)
@@ -911,11 +922,32 @@
         }
 
         var today = todayEnergyModel();
-        EF.charts.renderDay(EF.el("dayChart"), S.samples, { emptyDetail: detail });
-        EF.charts.renderSoc(EF.el("socChart"), S.samples);
+        /* La card "Andamento di oggi" parla sempre di oggi, quindi la
+           previsione ci va sempre — quando c'è. Le due strisce ricevono lo
+           STESSO oggetto: è così che restano allineate sull'asse x anche
+           quando la previsione lo allunga fino a domani. */
+        var fc = forecastFor(todayNoon());
+        EF.charts.renderDay(EF.el("dayChart"), S.samples, {
+            emptyDetail: detail,
+            forecast: fc,
+            ariaLabel: dayChartLabel(fc)
+        });
+        EF.charts.renderSoc(EF.el("socChart"), S.samples, { forecast: fc });
+        renderForecast(EF.el("forecastPanel"));
         EF.charts.renderEnergy(EF.el("energyBars"), today);
+        renderMoney(EF.el("energyMoney"), today, "oggi");
         EF.charts.renderMeters(EF.el("meters"), today ? today.indices : null);
         renderHistory(force === true);
+    }
+
+    /* Ridisegna tutto scartando la firma dello storico.
+       Serve quando cambia qualcosa che i dati non vedono — l'arrivo della
+       configurazione (quindi delle tariffe) o della previsione: la sezione
+       storico si ridisegna solo se la SUA firma cambia, e quella firma
+       parla di giorni e di kWh, non di prezzi. */
+    function refreshViews() {
+        histSig = null;
+        renderCharts(true);
     }
 
     /* ==================================================================
@@ -1007,6 +1039,603 @@
             discharge: t.battery_discharge_kwh,
             productionNote: dc !== null ? EF.energy(dc) + " kWh dai pannelli (DC)" : null
         });
+    }
+
+    /* ==================================================================
+       PREVISIONE — GET /api/forecast
+       ==================================================================
+       Una curva che non è stata misurata. È l'unica cosa in tutta la
+       pagina che non viene da un sensore, e tutto il resto del progetto è
+       costruito sul non spacciare numeri inventati per veri: qui sta il
+       punto in cui è più facile sbagliare, quindi le regole sono più
+       strette che altrove.
+
+         1. si disegna SOLO se il giorno mostrato è oggi (forecastFor);
+         2. si disegna SOLO in avanti — i punti già superati dall'orologio
+            si scartano, perché nello stesso istante c'è già una misura e
+            due valori diversi nello stesso punto sono una bugia;
+         3. i `facts` diventano FRASI, mai numeri nudi: "06:40" da solo non
+            dice di cosa parla;
+         4. un `null` è "non si sa" e la frase sparisce — non diventa "—",
+            che si legge come "il valore non è arrivato";
+         5. `quality` diverso da "ok" si DICE, non si nasconde;
+         6. `score_yesterday` si mostra anche quando è brutto: è ciò che
+            rende la previsione verificabile invece che decorativa.
+
+       Se l'endpoint non esiste (404 — un backend più vecchio della pagina)
+       non succede niente di visibile: nessun blocco, nessun messaggio
+       d'errore. Una funzione che il backend non ha non è un guasto da
+       segnalare a chi guarda il pannello.
+       ================================================================== */
+
+    /* ISO locale SENZA fuso ("2026-08-12T06:40") -> minuti dalla mezzanotte
+       DI OGGI. Può superare 1440: è così che la previsione entra nel giorno
+       dopo senza che i grafici debbano conoscere le date.
+
+       Si legge con una regex e NON con Date.parse, per lo stesso motivo di
+       alba/tramonto in timeToMinutes: un ISO senza fuso viene interpretato
+       come UTC da alcuni motori, e in estate "06:40" diventerebbe "08:40".
+       Su una previsione che dice a che ora si scarica la batteria, due ore
+       di errore sono l'intera informazione. */
+    function forecastMinutes(iso) {
+        if (typeof iso !== "string") { return null; }
+        var m = iso.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{1,2}):(\d{2})/);
+        if (!m) { return null; }
+        var d = noon(new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+        if (isNaN(d.getTime())) { return null; }
+        return dayDiff(d, todayNoon()) * 1440 + Number(m[4]) * 60 + Number(m[5]);
+    }
+
+    /* Un istante futuro detto a parole: "alle 06:40", "domani alle 06:40".
+       `prep` cambia la preposizione senza duplicare la logica del giorno
+       ("dalle 06:40" per l'inizio di un prelievo).
+       Un istante nel PASSATO torna null: non è una previsione, è una
+       previsione scaduta, e mostrarla la farebbe leggere come un fatto. */
+    function whenPhrase(iso, prep) {
+        var mins = forecastMinutes(iso);
+        if (mins === null) { return null; }
+        var day = Math.floor(mins / 1440);
+        if (day < 0) { return null; }
+        var at = (prep || "alle") + " " + minutesToHHMM(((mins % 1440) + 1440) % 1440);
+        if (day === 0) { return at; }
+        if (day === 1) { return "domani " + at; }
+        if (day === 2) { return "dopodomani " + at; }
+        return "fra " + day + " giorni " + at;
+    }
+
+    function loadForecast() {
+        return fetchJSON("/api/forecast").then(function (r) {
+            S.forecastStatus = r.status;
+            if (!r.ok || !r.body) {
+                if (S.forecast) {
+                    console.warn("[previsione] endpoint " + r.status + ": la curva prevista sparisce");
+                }
+                S.forecast = null;
+                refreshViews();
+                return;
+            }
+            S.forecast = normalizeForecast(r.body);
+            if (S.forecast) {
+                console.log("[previsione] " + S.forecast.points.length + " punti, qualità " +
+                    (S.forecast.quality || "non dichiarata") +
+                    (S.forecast.generatedAt
+                        ? " (calcolata alle " + S.forecast.generatedAt.slice(11, 16) + ")" : ""));
+            } else {
+                console.warn("[previsione] risposta senza punti né fatti utilizzabili");
+            }
+            refreshViews();
+        }, function (err) {
+            S.forecastStatus = 0;
+            S.forecast = null;
+            console.warn("[previsione] non raggiungibile: " + (err && err.message ? err.message : err));
+        });
+    }
+
+    function normalizeForecast(b) {
+        if (!b || typeof b !== "object") { return null; }
+        var pts = [];
+        (Array.isArray(b.points) ? b.points : []).forEach(function (p) {
+            var t = forecastMinutes(p && p.t);
+            if (t === null) { return; }
+            /* Un punto senza potenza NON diventa uno zero: una curva piatta
+               a zero è un dato preciso e falso. Il punto si scarta, e se ne
+               restano meno di due la curva semplicemente non si disegna —
+               le frasi dei `facts` restano. */
+            var pv = EF.num(p.pv_w);
+            var home = EF.num(p.home_w);
+            if (pv === null || home === null) { return; }
+            var soc = EF.num(p.soc);
+            pts.push({
+                t: t,
+                pv: Math.max(0, Math.round(pv)),
+                home: Math.max(0, Math.round(home)),
+                soc: soc === null ? null : EF.clamp(soc, 0, 100),
+                grid: EF.num(p.grid_w),
+                forecast: true      // il flag che fa scrivere "previsto" nel tooltip
+            });
+        });
+        pts.sort(function (a, c) { return a.t - c.t; });
+
+        var facts = (b.facts && typeof b.facts === "object") ? b.facts : {};
+        if (!pts.length && !Object.keys(facts).length) { return null; }
+
+        return {
+            points: pts,
+            facts: facts,
+            basis: (b.basis && typeof b.basis === "object") ? b.basis : null,
+            quality: typeof b.quality === "string" ? b.quality : null,
+            /* Il backend dice già PERCHÉ una previsione è degradata, in
+               italiano leggibile ("meteo non raggiungibile", "solo 2 giorni
+               di storico"). Si riportano quelle parole invece di dedurne di
+               proprie: una causa dedotta dal client sarebbe una seconda
+               spiegazione dello stesso fatto, e le due divergerebbero al
+               primo motivo nuovo aggiunto al backend. */
+            reasons: Array.isArray(b.quality_reasons) ? b.quality_reasons.filter(function (r) {
+                return typeof r === "string" && r;
+            }) : [],
+            score: (b.score_yesterday && typeof b.score_yesterday === "object")
+                ? b.score_yesterday : null,
+            generatedAt: typeof b.generated_at === "string" ? b.generated_at : null,
+            horizonEnd: typeof b.horizon_end === "string" ? b.horizon_end : null
+        };
+    }
+
+    /* I punti da disegnare accanto alla curva di un giorno, oppure null.
+       Le due condizioni di null sono entrambe deliberate:
+         - il giorno mostrato non è oggi: su un 15 marzo passato una
+           previsione non ha nessun significato, e affiancarla alla misura
+           di quel giorno sarebbe solo un modo di confonderle;
+         - non restano almeno due punti nel futuro: la previsione è scaduta
+           (il backend non la ricalcola da ore) e va trattata come assente. */
+    function forecastFor(day) {
+        if (!S.forecast || !S.forecast.points.length) { return null; }
+        if (dayDiff(noon(day), todayNoon()) !== 0) { return null; }
+        var nowMin = EF.minutesOfDay(new Date());
+        var pts = S.forecast.points.filter(function (p) { return p.t >= nowMin; });
+        if (pts.length < 2) { return null; }
+        return { points: pts, nowMin: nowMin };
+    }
+
+    /* I `facts` a parole. Ogni voce è [testo, parte in evidenza, coda]:
+       il numero o l'ora sta in <b>, il resto è la frase che lo spiega. */
+    function forecastSentences(f) {
+        var facts = f.facts || {};
+        var out = [];
+
+        var emptyAt = whenPhrase(facts.battery_empty_at);
+        var autonomy = EF.num(facts.autonomy_h);
+        if (emptyAt) {
+            out.push(["La batteria si svuota ", emptyAt, "."]);
+        } else if (autonomy !== null && autonomy >= 0) {
+            /* Ripiego, non aggiunta: `autonomy_h` e `battery_empty_at` sono
+               lo stesso fatto detto in due modi, e mostrarli insieme farebbe
+               leggere due previsioni dove ce n'è una. Quando c'è l'ora si
+               preferisce l'ora — "alle 06:40" si confronta con la sveglia,
+               "fra 9 h" va sottratto a mente. */
+            out.push(["L'impianto regge da solo ancora ", EF.duration(autonomy * 60), "."]);
+        }
+
+        var fullAt = whenPhrase(facts.battery_full_at);
+        if (fullAt) { out.push(["La batteria torna piena ", fullAt, "."]); }
+
+        var importFrom = whenPhrase(facts.grid_import_from, "dalle");
+        if (importFrom) { out.push(["Prelievo dalla rete previsto ", importFrom, "."]); }
+
+        /* Sole che deve ancora arrivare.
+           `pv_kwh_expected_today` è il totale della GIORNATA INTERA — il già
+           misurato più il residuo — quindi alle 21:30 vale 45,5 kWh anche se
+           il sole è tramontato da un pezzo. Chiamarlo "attesi" sarebbe la
+           bugia più facile di tutto il blocco. Il residuo vero è
+           `pv_kwh_remaining_today`, e quando c'è si usa quello. */
+        var rest = EF.num(facts.pv_kwh_remaining_today);
+        var today = EF.num(facts.pv_kwh_expected_today);
+        if (rest !== null) {
+            if (rest >= 0.05) {
+                out.push(["Da adesso a mezzanotte sono attesi ancora ",
+                    EF.energy(rest) + " kWh", " dal sole."]);
+            } else {
+                out.push(["Per oggi il sole ", "ha finito", ": da qui a mezzanotte non se ne aspetta altro."]);
+            }
+        } else if (today !== null) {
+            // Solo il totale: si dice che è il totale, non il residuo.
+            out.push(["Oggi sono attesi in tutto ", EF.energy(today) + " kWh", " dal sole."]);
+        }
+
+        var tomorrow = EF.num(facts.pv_kwh_expected_tomorrow);
+        var tomorrowHome = EF.num(facts.home_kwh_expected_tomorrow);
+        if (tomorrow !== null) {
+            /* Il consumo previsto accanto alla produzione prevista: da solo
+               "44 kWh" non dice se domani sarà una giornata di surplus o di
+               prelievo, che è l'unica cosa che uno ci fa con quel numero. */
+            out.push(["Domani sono attesi ", EF.energy(tomorrow) + " kWh",
+                tomorrowHome !== null
+                    ? " dal sole, contro " + EF.energy(tomorrowHome) + " kWh di consumo previsto."
+                    : " dal sole."]);
+        }
+        return out;
+    }
+
+    /* La pagella di ieri, anche quando è brutta. Una stima che non dichiara
+       mai quanto ha sbagliato non è verificabile da nessuno, e una stima non
+       verificabile è un ornamento. */
+    function forecastScoreText(sc) {
+        if (!sc) { return null; }
+        var pred = EF.num(sc.pv_kwh_pred);
+        var real = EF.num(sc.pv_kwh_real);
+        var err = EF.num(sc.err_pct);
+        if (err === null && pred !== null && real !== null && real > 0) {
+            err = Math.abs(pred - real) / real * 100;
+        }
+        if (err === null) { return null; }
+        err = Math.abs(err);
+        /* Due pezzi e non una stringa sola: sul pannello a muro la riga deve
+           stare accanto a una frase di previsione dentro 1080px, e cade la
+           coda coi due numeri (nascosta da kiosk.css) mentre resta il
+           giudizio — che è la parte che serve a decidere se fidarsi. */
+        return {
+            head: "Ieri l'avevo sbagliata del " + EF.percent(err, err < 10 ? 1 : 0) + "%",
+            detail: (pred !== null && real !== null)
+                ? ": previsti " + EF.energy(pred) + " kWh, misurati " + EF.energy(real) + "."
+                : "."
+        };
+    }
+
+    /* Su cosa è costruita. Non è pignoleria: sapere che la relazione fra
+       sole e produzione è tarata su 7 giorni con R² 0,94 dice quanto
+       fidarsi molto meglio della parola "ok". */
+    function forecastBasisText(basis) {
+        if (!basis) { return null; }
+        var parts = [];
+        var sun = basis.solar || null;
+        if (sun) {
+            var days = EF.num(sun.fit_days);
+            var r2 = EF.num(sun.r2);
+            if (days !== null) {
+                /* R² accompagnato dalla parola "taratura", sempre.
+                   Da solo, un "0,95" accanto alla parola «previsione» si
+                   legge come "precisione del 95%", che è un'altra cosa e
+                   non la sa nessuno: R² misura quanto bene la retta
+                   sole→produzione spiega i giorni GIÀ PASSATI, non quanto
+                   ci prende sul domani. Quella cifra la dà solo la pagella
+                   di ieri, e finché non c'è lo dice la riga qui sotto. */
+                parts.push("sole tarato su " + days + (days === 1 ? " giorno" : " giorni") +
+                    (r2 !== null ? " (R² della taratura " + EF.dec(r2, 2) + ")" : ""));
+            }
+        }
+        var home = basis.home || null;
+        if (home) {
+            var hd = EF.num(home.days);
+            var kind = home.kind === "weekday" ? " feriali"
+                : (home.kind === "weekend" ? " di fine settimana" : "");
+            /* Il fattore di scala si DICE. Il profilo mediano nudo
+               sottostima i consumi di questa casa di un terzo abbondante e
+               il backend lo corregge sui totali recenti: una correzione di
+               quell'entità, taciuta, farebbe sembrare "misurato" un numero
+               che è stato moltiplicato per 1,4. */
+            var scale = EF.num(home.scale);
+            var adj = (scale !== null && Math.abs(scale - 1) >= 0.05)
+                ? ", riscalati del " + (scale > 1 ? "+" : "−") +
+                  EF.percent(Math.abs(scale - 1) * 100) + "% sui totali recenti"
+                : "";
+            if (hd !== null) {
+                parts.push("consumi su " + hd + (hd === 1 ? " giorno" : " giorni") + kind + adj);
+            }
+        }
+        return parts.length ? "Costruita su: " + parts.join(" · ") + "." : null;
+    }
+
+    /* Quando la pagella non c'è ancora, il posto suo NON resta vuoto.
+       Uno spazio bianco lascerebbe credere che la previsione sia stata
+       verificata e vada bene; e la riga «R² della taratura 0,95» lì sopra,
+       da sola, si presta a essere letta come una precisione dichiarata.
+       Questa riga chiude la porta: nessuno ha ancora misurato quanto
+       sbaglia, e lo si dice invece di lasciarlo intuire. */
+    function forecastNoScoreText(f) {
+        if (f.score) { return null; }
+        return {
+            head: "Precisione non ancora misurata",
+            detail: ": la si saprà solo confrontando questa previsione con " +
+                "quello che succederà davvero."
+        };
+    }
+
+    /* Perché la previsione è degradata. Si dice quel che si può DEDURRE da
+       `basis`; se non basta, si dice che è il backend a segnalarla — mai una
+       causa inventata che suoni bene. Scrivere "meteo non disponibile"
+       quando nessuno l'ha detto è esattamente il tipo di numero falso che
+       questa pagina non fa. */
+    function forecastDegradedText(f) {
+        /* Prima le parole del backend, che sa davvero cosa gli è mancato.
+           Il resto è un ripiego per una risposta che non porta i motivi. */
+        if (f.reasons && f.reasons.length) {
+            return "Previsione poco affidabile: " + f.reasons.join(" · ") + ".";
+        }
+        var basis = f.basis;
+        if (!basis || !basis.solar) {
+            return "Previsione poco affidabile: mancano i dati di base su cui è costruita.";
+        }
+        var r2 = EF.num(basis.solar.r2);
+        if (r2 !== null && r2 < 0.6) {
+            return "Previsione poco affidabile: la relazione fra sole e produzione è instabile " +
+                "(R² " + EF.dec(r2, 2) + ").";
+        }
+        var days = EF.num(basis.solar.fit_days);
+        if (days !== null && days < 3) {
+            return "Previsione poco affidabile: è tarata su " + days +
+                (days === 1 ? " solo giorno" : " soli giorni") + " di storico.";
+        }
+        return "Previsione poco affidabile: il backend la segnala come degradata.";
+    }
+
+    function textLine(cls, text) {
+        var p = document.createElement("p");
+        p.className = cls;
+        p.textContent = text;
+        return p;
+    }
+
+    /* Il pannello. È anche l'equivalente testuale della parte tratteggiata
+       del grafico: testo vero del documento, non una descrizione parallela
+       che col tempo divergerebbe dal disegno. */
+    function renderForecast(host) {
+        var f = S.forecast;
+        var drawn = forecastFor(todayNoon());
+
+        // La legenda si accende solo se la curva c'è davvero nel riquadro.
+        var legend = EF.el("chartLegendForecast");
+        if (legend) { legend.hidden = !drawn; }
+
+        if (!host) { return; }
+        host.innerHTML = "";
+
+        var sentences = f ? forecastSentences(f) : [];
+        /* Niente pannello se non c'è né una curva da spiegare né un fatto da
+           dire: un riquadro che annuncia "previsione" e poi non contiene
+           nessuna previsione è peggio del riquadro assente. */
+        if (!f || (!drawn && !sentences.length)) {
+            host.hidden = true;
+            return;
+        }
+        host.hidden = false;
+
+        var head = document.createElement("p");
+        head.className = "forecast__head";
+        var title = document.createElement("span");
+        title.className = "forecast__title";
+        var key = document.createElement("span");
+        key.className = "forecast__key";
+        key.setAttribute("aria-hidden", "true");
+        title.appendChild(key);
+        title.appendChild(document.createTextNode("Previsione"));
+        head.appendChild(title);
+
+        var when = document.createElement("span");
+        var made = f.generatedAt ? f.generatedAt.slice(11, 16) : null;
+        /* "fino a domani alle 23:59", non "domani fino alle 23:59":
+           whenPhrase mette il giorno davanti alla preposizione, che va bene
+           per "domani alle 06:40" e non per un orizzonte. Qui la
+           preposizione precede tutto. */
+        var horizon = whenPhrase(f.horizonEnd);
+        when.textContent = [
+            made ? "calcolata alle " + made : null,
+            horizon ? "fino a" + (horizon.indexOf("alle") === 0 ? "lle " + horizon.slice(5) : " " + horizon) : null
+        ].filter(Boolean).join(" · ");
+        head.appendChild(when);
+        host.appendChild(head);
+
+        if (f.quality && f.quality !== "ok") {
+            host.appendChild(textLine("forecast__warn", forecastDegradedText(f)));
+        }
+
+        if (sentences.length) {
+            var ul = document.createElement("ul");
+            ul.className = "forecast__list";
+            sentences.forEach(function (s) {
+                var li = document.createElement("li");
+                var span = document.createElement("span");
+                span.appendChild(document.createTextNode(s[0]));
+                var b = document.createElement("b");
+                b.textContent = s[1];
+                span.appendChild(b);
+                span.appendChild(document.createTextNode(s[2]));
+                li.appendChild(span);
+                ul.appendChild(li);
+            });
+            host.appendChild(ul);
+        }
+
+        var score = forecastScoreText(f.score) || forecastNoScoreText(f);
+        if (score) {
+            var sp = document.createElement("p");
+            sp.className = "forecast__score";
+            sp.appendChild(document.createTextNode(score.head));
+            var det = document.createElement("span");
+            det.className = "forecast__score-detail";
+            det.textContent = score.detail;
+            sp.appendChild(det);
+            host.appendChild(sp);
+        }
+
+        var basis = forecastBasisText(f.basis);
+        if (basis) { host.appendChild(textLine("forecast__basis", basis)); }
+    }
+
+    /* Descrizione del riquadro per chi non vede le curve. La previsione ci
+       entra come entra nel disegno: dicendo dove finisce la misura. */
+    function dayChartLabel(fc, subject) {
+        var base = (subject || "Andamento di oggi") + ": solare e consumo di casa.";
+        if (!fc) { return base; }
+        return base + " Dalle " + minutesToHHMM(Math.round(fc.nowMin)) +
+            " in poi la linea è tratteggiata perché è una previsione, non una misura;" +
+            " le frasi che la spiegano stanno nel blocco «Previsione» sotto il grafico.";
+    }
+
+    /* ==================================================================
+       VALORE IN EURO
+       ==================================================================
+       Aritmetica di PRESENTAZIONE: i kWh arrivano già decomposti da
+       energyModel(), i prezzi da /api/ui-config, la moltiplicazione sta
+       qui. Il backend pubblica i prezzi e non li usa — un importo calcolato
+       anche lato server sarebbe un secondo posto in cui la stessa cifra può
+       divergere.
+
+       Senza il blocco `tariff` NON SI MOSTRA NIENTE: né zeri, né trattini,
+       né un prezzo medio nazionale usato "tanto per". Un importo plausibile
+       e falso è peggio di un importo assente, perché nessuno va a
+       verificarlo — mentre un blocco che manca si nota subito.
+       ================================================================== */
+    function tariffConfig() {
+        var t = S.uiConfig && S.uiConfig.tariff;
+        if (!t || typeof t !== "object") { return null; }
+        var imp = EF.num(t.import_eur_kwh);
+        var exp = EF.num(t.export_eur_kwh);
+        // Un prezzo negativo è un errore di battitura, non un prezzo.
+        if (imp !== null && imp < 0) { imp = null; }
+        if (exp !== null && exp < 0) { exp = null; }
+        if (imp === null && exp === null) { return null; }
+        return {
+            currency: (typeof t.currency === "string" && t.currency) ? t.currency : "EUR",
+            imp: imp,
+            exp: exp
+        };
+    }
+
+    /* Formato italiano: 1.234,56 €.
+       Arrotondamento onesto: sotto i dieci euro i centesimi sono
+       informazione (un risparmio di quaranta centesimi è quaranta
+       centesimi), sopra sono rumore — su 214,37 € il ",37" non cambia
+       nessuna decisione e allunga il numero da leggere. */
+    function eur(v, digits) {
+        var t = tariffConfig();
+        var cur = t ? t.currency : "EUR";
+        var d = digits === undefined ? (Math.abs(v) < 10 ? 2 : 0) : digits;
+        try {
+            return v.toLocaleString("it-IT", {
+                style: "currency", currency: cur,
+                minimumFractionDigits: d, maximumFractionDigits: d
+            });
+        } catch (e) {
+            // Codice valuta non riconosciuto da Intl: si mostra com'è.
+            return EF.dec(v, d) + " " + cur;
+        }
+    }
+
+    function moneyModel(model) {
+        var t = tariffConfig();
+        if (!t || !model) { return null; }
+
+        var imported = Math.max(0, EF.num(model.imported) || 0);
+        var exported = Math.max(0, EF.num(model.exported) || 0);
+        /* "Risparmiato" sono i kWh che la casa ha preso DALL'IMPIANTO invece
+           che dalla rete — `fromPlant`, la stessa quantità su cui è
+           calcolata l'autosufficienza — e non la produzione autoconsumata
+           (`selfUsed`). Le due coincidono quando il consumo è ricavato, ma
+           quando è MISURATO (le righe d'archivio hanno home_kwh) `selfUsed`
+           comprende anche le perdite di andata e ritorno della batteria:
+           energia prodotta e persa per strada, che non ha fatto risparmiare
+           un centesimo. Moltiplicarla per il prezzo gonfierebbe proprio il
+           numero più in vista del blocco. */
+        var selfConsumed = Math.max(0, EF.num(model.fromPlant) || 0);
+
+        var spent = t.imp === null ? null : imported * t.imp;
+        var earned = t.exp === null ? null : exported * t.exp;
+        var saved = t.imp === null ? null : selfConsumed * t.imp;
+        /* Il netto solo con tutti e tre gli addendi. Con un prezzo mancante
+           sarebbe una somma a cui manca un pezzo, e non lo direbbe. */
+        var net = (spent === null || earned === null || saved === null)
+            ? null : saved + earned - spent;
+
+        return {
+            currency: t.currency,
+            prices: t,
+            spent: spent, earned: earned, saved: saved, net: net,
+            kwh: { imported: imported, exported: exported, self: selfConsumed }
+        };
+    }
+
+    function moneyRow(spec) {
+        var li = document.createElement("li");
+        li.className = "money__row" + (spec.hero ? " money__row--hero" : "") +
+            (spec.net ? " money__row--net" : "");
+        if (spec.net) { li.setAttribute("data-sign", spec.value >= 0 ? "pos" : "neg"); }
+
+        var label = document.createElement("span");
+        label.className = "money__label";
+        label.textContent = spec.label;
+        li.appendChild(label);
+
+        var val = document.createElement("b");
+        val.className = "money__value tnum";
+        val.textContent = eur(spec.value);
+        li.appendChild(val);
+
+        if (spec.note) {
+            var note = document.createElement("span");
+            note.className = "money__note";
+            note.textContent = spec.note;
+            li.appendChild(note);
+        }
+        return li;
+    }
+
+    function renderMoney(host, model, periodLabel) {
+        if (!host) { return; }
+        host.innerHTML = "";
+        var m = moneyModel(model);
+        if (!m) { host.hidden = true; return; }
+        host.hidden = false;
+
+        var head = document.createElement("p");
+        head.className = "money__head";
+        head.appendChild(document.createTextNode("Valore dell'energia"));
+        if (periodLabel) {
+            var per = document.createElement("span");
+            per.className = "money__period";
+            per.textContent = periodLabel;
+            head.appendChild(per);
+        }
+        host.appendChild(head);
+
+        var ul = document.createElement("ul");
+        ul.className = "money__rows";
+
+        /* Ordine deliberato: prima il risparmio, che è il numero per cui
+           l'impianto esiste ed è anche l'unico che nessuna bolletta mostra;
+           il costo per ultimo fra le tre voci, perché è l'unico che si legge
+           già altrove. */
+        if (m.saved !== null) {
+            ul.appendChild(moneyRow({
+                label: "Risparmiato", value: m.saved, hero: true,
+                note: EF.energy(m.kwh.self) + " kWh presi dall'impianto invece che dalla rete"
+            }));
+        }
+        if (m.earned !== null) {
+            ul.appendChild(moneyRow({
+                label: "Incassato", value: m.earned,
+                note: EF.energy(m.kwh.exported) + " kWh immessi in rete"
+            }));
+        }
+        if (m.spent !== null) {
+            ul.appendChild(moneyRow({
+                label: "Speso", value: m.spent,
+                note: EF.energy(m.kwh.imported) + " kWh prelevati dalla rete"
+            }));
+        }
+        if (m.net !== null) {
+            ul.appendChild(moneyRow({
+                label: "Beneficio netto", value: m.net, net: true,
+                note: "risparmiato + incassato − speso"
+            }));
+        }
+        host.appendChild(ul);
+
+        /* I prezzi usati, sempre. Sono la sola cosa che rende controllabili
+           i quattro numeri sopra: senza, un importo sbagliato perché la
+           tariffa in configurazione è vecchia resterebbe invisibile. */
+        var prices = [];
+        if (m.prices.imp !== null) { prices.push(eur(m.prices.imp, 2) + "/kWh in prelievo"); }
+        if (m.prices.exp !== null) { prices.push(eur(m.prices.exp, 2) + "/kWh in immissione"); }
+        host.appendChild(textLine("money__prices", "Calcolato a " + prices.join(" e ") + "."));
     }
 
     /* ==================================================================
@@ -1475,6 +2104,7 @@
             summary: EF.el("histSummary"),
             bars: EF.el("histBars"),
             meters: EF.el("histMeters"),
+            money: EF.el("histMoney"),
             facts: EF.el("histFacts"),
             legend: EF.el("histLegend")
         };
@@ -1550,9 +2180,14 @@
         items.forEach(function (it) {
             var span = document.createElement("span");
             span.className = "legend__item";
-            span.setAttribute("data-role", it.role);
+            if (it.role) { span.setAttribute("data-role", it.role); }
             var mark = document.createElement("span");
-            mark.className = it.line ? "legend__line" : "swatch";
+            /* Tre forme di chiave, una per natura del segno: pastiglia per
+               le aree, trattino per le linee, trattino TRATTEGGIATO per la
+               previsione. La chiave della previsione non ha un colore di
+               ruolo perché la previsione non è una serie: è la stessa serie
+               in un'altra condizione. */
+            mark.className = it.dash ? "forecast__key" : (it.line ? "legend__line" : "swatch");
             mark.setAttribute("aria-hidden", "true");
             span.appendChild(mark);
             span.appendChild(document.createTextNode(it.label));
@@ -1589,8 +2224,20 @@
         var pts = histCache.iso === iso ? histCache.pts : [];
         var row = rowFor(iso);
 
+        /* La previsione SOLO su oggi. Su un giorno passato non ha nessun
+           significato: quel giorno è già successo, e affiancare alla sua
+           misura una supposizione sarebbe solo un modo di confonderle. */
+        var fc = isToday ? forecastFor(day) : null;
+
+        /* La firma include un contatore a passi di 5 minuti solo quando c'è
+           una previsione disegnata: senza, il marcatore "adesso" resterebbe
+           fermo dove si trovava al primo disegno — un marcatore dell'ora che
+           mente sull'ora è peggio di nessun marcatore. Senza previsione la
+           firma resta identica a prima e non si ridisegna niente. */
         var sig = ["day", iso, pts.length, row ? daily.version : "-",
-            S.hist.detailFrom, histCache.status].join("|");
+            S.hist.detailFrom, histCache.status,
+            fc ? Math.floor(fc.nowMin / 5) : "-",
+            tariffConfig() ? "€" : "-"].join("|");
         if (!force && sig === histSig) { return; }
         histSig = sig;
 
@@ -1599,8 +2246,11 @@
             setLegend([
                 { label: "Solare", role: "solar", line: true },
                 { label: "Casa", role: "home", line: true }
-            ]);
-            EF.charts.renderDay(el.chart, pts);
+            ].concat(fc ? [{ label: "Previsione", dash: true }] : []));
+            EF.charts.renderDay(el.chart, pts, {
+                forecast: fc,
+                ariaLabel: dayChartLabel(fc, "Andamento del " + iso)
+            });
             // Carica batteria del giorno mostrato, come in «Andamento di oggi»:
             // il dato `soc` sta in ogni riga dei file al minuto, sia in quelli
             // raccolti dal pannello sia in quelli importati dal portale, quindi
@@ -1608,14 +2258,20 @@
             // Senza, guardando un giorno passato mancava proprio la grandezza che
             // spiega perché la casa ha preso dalla rete invece che dal sole.
             show(el.soc, true);
-            EF.charts.renderSoc(el.soc, pts);
+            EF.charts.renderSoc(el.soc, pts, { forecast: fc });
             show(el.flows, false);
             show(el.summary, false);
             show(el.facts, false);
+            /* Gli importi anche qui, dove le barre dei kWh non ci sono: ogni
+               riga del blocco porta con sé i kWh da cui esce, quindi il
+               numero resta controllabile senza il riepilogo accanto. */
+            renderMoney(el.money, row ? dayModel(row) : null, rangeLabel("day", { from: day, to: day }));
             setNote(el.note, "Dettaglio al minuto" +
                 (S.histResolutionS > 60 ? " (medie a " + Math.round(S.histResolutionS / 60) + " minuti)" : "") +
-                " · " + pts.length + " punti registrati dal pannello di casa.");
-            describeCurve(iso, pts);
+                " · " + pts.length + " punti registrati dal pannello di casa." +
+                (fc ? " La parte tratteggiata dopo le " + minutesToHHMM(Math.round(fc.nowMin)) +
+                    " è una previsione, non una misura." : ""));
+            describeCurve(iso, pts, fc);
             return;
         }
 
@@ -1634,6 +2290,7 @@
             EF.charts.renderEnergy(el.bars, model);
             EF.charts.renderMeters(el.meters, model.indices);
             show(el.summary, true);
+            renderMoney(el.money, model, rangeLabel("day", { from: day, to: day }));
             renderFacts(el.facts, [row], 1);
             setNote(el.note, null);
             renderHistTable([{
@@ -1650,6 +2307,7 @@
         show(el.soc, false);
         show(el.flows, false);
         show(el.summary, false);
+        show(el.money, false);
         show(el.facts, false);
         setNote(el.note, null);
         EF.charts.empty(el.chart, "Nessun dato per questo giorno", noDataReason(iso, isToday));
@@ -1705,7 +2363,11 @@
         var bands = buildBands(period, range);
         var totals = sumBands(bands);
         var todaySig = totals.partial ? [totals.pv, totals.home, totals.imp, totals.exp].join(",") : "";
-        var sig = [period, EF.isoDay(range.from), daily.version, bands.length, todaySig].join("|");
+        /* La tariffa entra nella firma: senza, il blocco degli importi non
+           comparirebbe mai: /api/ui-config arriva DOPO il primo disegno
+           della sezione, e la firma vecchia bloccherebbe il ridisegno. */
+        var sig = [period, EF.isoDay(range.from), daily.version, bands.length, todaySig,
+            tariffConfig() ? "€" : "-"].join("|");
         if (!force && sig === histSig) { return; }
         histSig = sig;
 
@@ -1747,9 +2409,12 @@
             EF.charts.renderEnergy(el.bars, model);
             EF.charts.renderMeters(el.meters, model.indices);
             show(el.summary, true);
+            // Gli stessi totali del periodo, moltiplicati per i prezzi.
+            renderMoney(el.money, model, rangeLabel(period, range));
             renderAverages(el.facts, totals);
         } else {
             show(el.summary, false);
+            show(el.money, false);
             show(el.facts, false);
         }
 
@@ -1864,16 +2529,30 @@
             : altSubject + ".");
     }
 
-    function describeCurve(iso, pts) {
+    function describeCurve(iso, pts, fc) {
         var peak = 0, maxHome = 0;
         pts.forEach(function (p) {
             if (p.pv > peak) { peak = p.pv; }
             if (p.home > maxHome) { maxHome = p.home; }
         });
         renderHistTable([], "Andamento al minuto del " + iso, "Andamento al minuto del " + iso);
-        EF.text("histAltText", "Andamento al minuto del " + iso + ": " + pts.length +
+        /* La previsione entra nell'equivalente testuale con la stessa
+           avvertenza che porta nel disegno: chi legge con un lettore di
+           schermo deve sapere dove finisce la misura esattamente come chi
+           guarda il tratteggio. */
+        var text = "Andamento al minuto del " + iso + ": " + pts.length +
             " punti, picco solare " + EF.powerText(peak) +
-            ", consumo massimo " + EF.powerText(maxHome) + ".");
+            ", consumo massimo " + EF.powerText(maxHome) + ".";
+        if (fc) {
+            var last = fc.points[fc.points.length - 1];
+            text += " Dalle " + minutesToHHMM(Math.round(fc.nowMin)) +
+                " il grafico prosegue con una PREVISIONE, non con dati misurati," +
+                " fino a " + (last.t >= 1440 ? "domani " : "") +
+                minutesToHHMM(((Math.round(last.t) % 1440) + 1440) % 1440) +
+                ". Le frasi che la spiegano stanno nel blocco «Previsione»" +
+                " sotto il grafico «Andamento di oggi».";
+        }
+        EF.text("histAltText", text);
     }
 
     /* ==================================================================
@@ -2256,14 +2935,21 @@
         renderCharts();
         evaluate();
 
-        loadUiConfig().then(pull);
+        /* Dopo la configurazione si RIDISEGNA: le tariffe arrivano con lei, e
+           il blocco degli importi non esisteva al primo giro. */
+        loadUiConfig().then(function () {
+            refreshViews();
+            return pull();
+        });
         loadWeather();
+        loadForecast();
         historyStateFromUrl();
         bootstrapHistory();
 
         startAuto();
         setInterval(tickClock, 1000);
         setInterval(loadWeather, WEATHER_MS);
+        setInterval(loadForecast, FORECAST_MS);
         /* Riallineamento periodico col file sul server: su un pannello acceso
            per giorni è l'unico modo di recuperare i minuti persi mentre il
            browser dormiva. */

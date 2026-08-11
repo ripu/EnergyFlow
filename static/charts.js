@@ -77,10 +77,20 @@
 
     /* Altezza utile del contenitore, se ne ha una decisa dal layout.
        In modalità compatta la card cresce col contenuto, quindi clientHeight
-       è 0 o irrisorio al primo giro: lì vince il valore di riferimento. */
+       è 0 o irrisorio al primo giro: lì vince il valore di riferimento.
+
+       Sul KIOSK vale l'opposto e la soglia va tolta: la pianta assegna a ogni
+       banda un'altezza fissa e i due riquadri se la dividono per flex, quindi
+       clientHeight è sempre autorevole — anche quando è 53px. Con la soglia a
+       60 una striscia stretta veniva disegnata alta 96 e sfondava di 43px il
+       proprio contenitore: prima della rete di sicurezza in kiosk.css
+       finiva SOPRA il riquadro accanto, cioè esattamente la sovrapposizione
+       che la regola #22 vieta. Si accetta un'altezza qualunque purché ci
+       stiano i margini del disegno. */
     function fitHeight(host, fallback) {
         var h = host ? host.clientHeight : 0;
-        return h > 60 ? Math.round(h) : fallback;
+        var floor = isKiosk() ? 30 : 60;
+        return h > floor ? Math.round(h) : fallback;
     }
 
     function svgRoot(width, height) {
@@ -107,13 +117,163 @@
     }
 
     /* ==================================================================
+       PREVISIONE — come si disegna, e perché così
+       ==================================================================
+       Una curva PREVISTA e una MISURATA non devono mai potersi confondere.
+       Tutto il progetto è costruito sul non spacciare numeri inventati per
+       veri, e questo è il punto in cui è più facile sbagliare: due linee
+       nello stesso riquadro, con la stessa tinta, che si toccano.
+
+       La distinzione è quindi portata da SEI canali indipendenti, non da
+       uno solo — basta perdere quell'uno perché il grafico diventi una
+       bugia (una stampa in bianco e nero, un daltonico, un pannello visto
+       da tre metri, un browser che ignora stroke-dasharray):
+
+         1. tratteggio        la linea prevista è tratteggiata
+         2. tinta smorzata    stessa tinta di ruolo, opacità ridotta
+         3. nessuna area      il velo sotto la curva resta segno del misurato
+         4. velo di fondo     la regione futura ha un fondo appena tinto
+         5. riga "adesso"     un marcatore verticale separa i due mondi
+         6. nessun pallino    il punto finale segna l'ultima LETTURA, non
+                              l'ultimo punto previsto
+
+       In più, fuori dal disegno: il picco etichettato è sempre quello
+       misurato, il tooltip dice "previsto" sui punti futuri, e la
+       previsione è ripetuta a parole nel pannello sotto il grafico — che
+       è anche il suo equivalente testuale.
+
+       `spec` (opts.forecast) è { points: [...], nowMin: numero }.
+       I `t` dei punti sono minuti dalla MEZZANOTTE DI OGGI e possono quindi
+       superare 1440: è così che la previsione entra nel giorno dopo senza
+       che i grafici debbano conoscere le date.
+       ================================================================== */
+
+    /* Fine dell'asse x. Senza previsione è sempre la mezzanotte: la giornata
+       è il soggetto del riquadro e l'asse non si allunga per niente. Con la
+       previsione arriva fino all'ultimo punto previsto — mai oltre, così
+       l'estensione è esattamente quella che serve a disegnarla. */
+    function domainEnd(fcPoints) {
+        if (!fcPoints || !fcPoints.length) { return DAY_MIN; }
+        var last = Math.ceil(fcPoints[fcPoints.length - 1].t);
+        return last > DAY_MIN ? last : DAY_MIN;
+    }
+
+    /* La previsione parte dall'ULTIMA LETTURA, non dal primo punto previsto:
+       senza questo innesto fra la curva piena e quella tratteggiata resta un
+       buco largo quanto la risoluzione della previsione (15 minuti), e il
+       buco si legge come "qui non si sa niente" invece che come "da qui in
+       poi è una supposizione". Il segmento di raccordo è tratteggiato: la
+       transizione appartiene già al futuro. */
+    function joinForecast(measured, fcPoints) {
+        if (!fcPoints || fcPoints.length < 2) { return null; }
+        if (!measured || !measured.length) { return fcPoints; }
+        var last = measured[measured.length - 1];
+        return last.t < fcPoints[0].t ? [last].concat(fcPoints) : fcPoints;
+    }
+
+    /* Velo di fondo sulla regione futura + riga verticale "adesso".
+       Il velo dice "da qui in là" a colpo d'occhio anche a chi non nota il
+       tratteggio; la riga dice DOVE esattamente finisce ciò che è successo. */
+    function markNow(s, nowX, veilX, rightX, padT, plotH, kiosk) {
+        /* Il velo comincia dove finisce la MISURA, la riga sta su "adesso":
+           di norma i due punti coincidono, ma se l'orologio del browser è
+           indietro rispetto agli ultimi campioni ricevuti il velo
+           coprirebbe dei dati veri, dicendo "questa è una supposizione" di
+           una curva che è stata misurata. La riga invece deve restare
+           dov'è: è l'ora, non il confine del dato. */
+        if (rightX > veilX) {
+            s.appendChild(EF.svg("rect", {
+                "class": "chart__ahead",
+                x: veilX.toFixed(1), y: padT.toFixed(1),
+                width: (rightX - veilX).toFixed(1), height: plotH.toFixed(1)
+            }));
+        }
+        s.appendChild(EF.svg("line", {
+            "class": "chart__now",
+            x1: nowX.toFixed(1), x2: nowX.toFixed(1),
+            y1: padT.toFixed(1), y2: (padT + plotH).toFixed(1)
+        }));
+        var t = EF.svg("text", {
+            x: (nowX + (kiosk ? 8 : 5)).toFixed(1),
+            y: (padT + (kiosk ? 18 : 10)).toFixed(1),
+            "class": "tick chart__now-label"
+        });
+        t.textContent = "adesso";
+        s.appendChild(t);
+    }
+
+    /* Confine di mezzanotte: senza, una curva che attraversa il giorno non
+       dice mai in quale giorno si trova, e "06:40" diventa ambiguo.
+
+       L'etichetta sta in ALTO, una riga sotto "adesso", e non in fondo al
+       riquadro: in fondo cadeva addosso alle curve — che di notte stanno
+       proprio lì, vicine allo zero — e "domani" si leggeva sovrapposto al
+       tratteggio. In alto la fascia è libera (a mezzanotte non produce
+       nessuno) e, se il confine capita vicino ad "adesso", le due parole si
+       impilano invece di accavallarsi. */
+    function markDayBreak(s, x, padT, plotH, kiosk) {
+        s.appendChild(EF.svg("line", {
+            "class": "chart__daybreak",
+            x1: x.toFixed(1), x2: x.toFixed(1),
+            y1: padT.toFixed(1), y2: (padT + plotH).toFixed(1)
+        }));
+        var y = padT + (kiosk ? 40 : 23);
+        /* In una striscia bassa la seconda riga non ci sta, e la parola NON
+           si riporta in cima accanto ad "adesso": se il confine cade vicino
+           all'ora corrente — cioè ogni sera — le due si stampano una sopra
+           l'altra e si legge "adeskomani". Si disegna solo la riga verticale:
+           le due strisce condividono l'asse x per costruzione, quindi il
+           "domani" del riquadro sopra etichetta anche questo confine. */
+        if (y > padT + plotH - 4) { return; }
+        var t = EF.svg("text", {
+            x: (x + (kiosk ? 8 : 5)).toFixed(1),
+            y: y.toFixed(1),
+            "class": "tick chart__daybreak-label"
+        });
+        t.textContent = "domani";
+        s.appendChild(t);
+    }
+
+    /* Tacche dell'asse x: quante ce ne stanno, non quante ce ne sono.
+       Con l'asse esteso a due giorni un passo fisso di 6 ore produce nove
+       etichette che su un telefono diventano una macchia; il passo raddoppia
+       finché non ci stanno. */
+    function timeMarks(xMax, plotW, kiosk) {
+        var per = kiosk ? 84 : 44;      // larghezza di "00:00" più l'aria
+        var step = 360;
+        while (step < 1440 && (xMax / step) + 1 > plotW / per) { step *= 2; }
+        var marks = [];
+        for (var m = 0; m <= xMax; m += step) { marks.push(m); }
+        if (marks[marks.length - 1] < xMax - step * 0.4) { marks.push(xMax); }
+        return marks;
+    }
+
+    function timeLabel(m, xMax) {
+        // Su un asse di sola giornata la mezzanotte finale resta "24:00",
+        // come è sempre stata: è la fine di oggi, non l'inizio di domani.
+        if (m === DAY_MIN && xMax === DAY_MIN) { return "24:00"; }
+        var mm = ((m % DAY_MIN) + DAY_MIN) % DAY_MIN;
+        return String(Math.floor(mm / 60)).padStart(2, "0") + ":" +
+            String(Math.round(mm % 60)).padStart(2, "0");
+    }
+
+    /* ==================================================================
        ANDAMENTO DELLA GIORNATA — area (solare) + linea (casa)
        ================================================================== */
     function renderDay(host, points, opts) {
         if (!host) { return; }
         opts = opts || {};
 
-        if (!points || points.length < 2) {
+        var real = (points && points.length >= 2) ? points : [];
+        var spec = opts.forecast || null;
+        var fcPts = spec && spec.points && spec.points.length >= 2 ? spec.points : null;
+        var fc = joinForecast(real, fcPts);
+
+        /* Il riquadro vuoto resta vuoto anche con una previsione sola: il
+           soggetto è la giornata misurata, e disegnare la sola supposizione
+           dentro una card intitolata "Andamento di oggi" la farebbe leggere
+           come il dato del giorno. */
+        if (!real.length) {
             empty(host,
                 "Nessun andamento ancora",
                 opts.emptyDetail || "La curva si costruisce mentre la pagina resta aperta.");
@@ -138,18 +298,27 @@
         var plotH = height - padT - padB;
         if (plotW <= 0 || plotH <= 0) { return; }
 
+        var xMax = domainEnd(fc);
+
+        /* Il fondoscala tiene dentro anche la previsione: una punta prevista
+           più alta del misurato, tagliata dal bordo, sarebbe una previsione
+           mostrata più bassa di quella calcolata — cioè un numero falso. */
         var maxV = 0;
-        points.forEach(function (p) {
+        real.concat(fc || []).forEach(function (p) {
             if (p.pv > maxV) { maxV = p.pv; }
             if (p.home > maxV) { maxV = p.home; }
         });
         var top = niceMax(maxV * 1.12);
 
-        var xOf = function (p) { return padL + (p.t / DAY_MIN) * plotW; };
+        var xOf = function (p) { return padL + (p.t / xMax) * plotW; };
         var yOf = function (v) { return padT + plotH - (v / top) * plotH; };
 
         clear(host);
         var s = svgRoot(width, height);
+        if (opts.ariaLabel) {
+            s.setAttribute("role", "img");
+            s.setAttribute("aria-label", opts.ariaLabel);
+        }
 
         /* ---- griglia y + tick ----
            Il numero di tacche si adatta all'altezza disponibile. Fisso a 4
@@ -179,19 +348,32 @@
         }
         s.appendChild(gGrid);
 
-        // ---- tick x ogni 6 ore ----
+        // ---- tick x, passo adattivo ----
         var gx = EF.svg("g", { "class": "chart__grid" });
-        [0, 360, 720, 1080, 1440].forEach(function (m) {
-            var x = padL + (m / DAY_MIN) * plotW;
+        var marks = timeMarks(xMax, plotW, kiosk);
+        marks.forEach(function (m, i) {
+            var x = padL + (m / xMax) * plotW;
             var lbl = EF.svg("text", {
                 x: x.toFixed(1), y: (padT + plotH + (kiosk ? 30 : 18)).toFixed(1),
-                "text-anchor": m === 0 ? "start" : (m === DAY_MIN ? "end" : "middle"),
+                "text-anchor": i === 0 ? "start" : (i === marks.length - 1 ? "end" : "middle"),
                 "class": "tick"
             });
-            lbl.textContent = String(m / 60).padStart(2, "0") + ":00";
+            lbl.textContent = timeLabel(m, xMax);
             gx.appendChild(lbl);
         });
         s.appendChild(gx);
+
+        /* ---- la regione del futuro, PRIMA di ogni curva ----
+           Sta sotto ai segni: è un fondo, non un dato, e non deve alterare
+           la tinta di ciò che copre. */
+        if (fc) {
+            var edge = Math.max(spec.nowMin, real[real.length - 1].t);
+            markNow(s, xOf({ t: spec.nowMin }), xOf({ t: edge }), padL + plotW,
+                padT, plotH, kiosk);
+            if (xMax > DAY_MIN) {
+                markDayBreak(s, padL + (DAY_MIN / xMax) * plotW, padT, plotH, kiosk);
+            }
+        }
 
         // ---- asse di base ----
         s.appendChild(EF.svg("line", {
@@ -201,16 +383,16 @@
         }));
 
         // ---- area solare: un velo al 10%, mai un blocco saturo ----
-        var areaD = pathFrom(points, xOf, function (p) { return yOf(p.pv); }) +
-            " L " + xOf(points[points.length - 1]).toFixed(1) + " " + yOf(0).toFixed(1) +
-            " L " + xOf(points[0]).toFixed(1) + " " + yOf(0).toFixed(1) + " Z";
+        var areaD = pathFrom(real, xOf, function (p) { return yOf(p.pv); }) +
+            " L " + xOf(real[real.length - 1]).toFixed(1) + " " + yOf(0).toFixed(1) +
+            " L " + xOf(real[0]).toFixed(1) + " " + yOf(0).toFixed(1) + " Z";
         var area = EF.svg("path", { "class": "series-area", d: areaD });
         area.style.fill = "var(--role-solar)";
         s.appendChild(area);
 
         var pvLine = EF.svg("path", {
             "class": "series-line",
-            d: pathFrom(points, xOf, function (p) { return yOf(p.pv); })
+            d: pathFrom(real, xOf, function (p) { return yOf(p.pv); })
         });
         pvLine.style.stroke = "var(--role-solar)";
         s.appendChild(pvLine);
@@ -218,13 +400,28 @@
         // ---- linea casa, in inchiostro ----
         var homeLine = EF.svg("path", {
             "class": "series-line",
-            d: pathFrom(points, xOf, function (p) { return yOf(p.home); })
+            d: pathFrom(real, xOf, function (p) { return yOf(p.home); })
         });
         homeLine.style.stroke = "var(--role-home)";
         s.appendChild(homeLine);
 
+        /* ---- le due curve previste ----
+           Nessuna area sotto: il velo è il segno del misurato e riempirlo
+           anche qui darebbe alla supposizione lo stesso peso visivo del
+           dato. Solo linee, tratteggiate e smorzate. */
+        if (fc) {
+            [["pv", "var(--role-solar)"], ["home", "var(--role-home)"]].forEach(function (pair) {
+                var p = EF.svg("path", {
+                    "class": "series-line series-line--forecast",
+                    d: pathFrom(fc, xOf, function (q) { return yOf(q[pair[0]]); })
+                });
+                p.style.stroke = pair[1];
+                s.appendChild(p);
+            });
+        }
+
         // ---- punti finali con anello nel colore della superficie ----
-        var last = points[points.length - 1];
+        var last = real[real.length - 1];
         [["pv", "var(--role-solar)"], ["home", "var(--role-home)"]].forEach(function (pair) {
             var dot = EF.svg("circle", {
                 "class": "end-dot",
@@ -238,9 +435,12 @@
 
         /* ---- UNA sola etichetta diretta: il picco solare ----
            Il valore su ogni punto sarebbe caos e non lo leggerebbe nessuno.
-           Il picco è l'unico numero che l'asse non racconta già. */
-        var peak = points[0];
-        points.forEach(function (p) { if (p.pv > peak.pv) { peak = p; } });
+           Il picco è l'unico numero che l'asse non racconta già.
+           Si cerca fra i punti MISURATI: un picco previsto etichettato col
+           suo numero sarebbe la cosa più simile a un dato che questo
+           riquadro possa mostrare, e non lo è. */
+        var peak = real[0];
+        real.forEach(function (p) { if (p.pv > peak.pv) { peak = p; } });
         if (peak.pv > top * 0.12) {
             var px = xOf(peak);
             var py = yOf(peak.pv);
@@ -261,7 +461,12 @@
            Sul kiosk non serve (nessuno tocca il muro) e non viene montato:
            un listener pointermove attivo h24 è lavoro per niente. */
         if (!kiosk) {
-            attachHover(host, s, points, xOf, yOf, padL, padT, plotW, plotH);
+            /* Il puntatore raggiunge anche i punti previsti: il tooltip è
+               l'unico modo di leggere un valore preciso, e negarlo alla
+               previsione la renderebbe una decorazione. Il flag `forecast`
+               sul punto è ciò che fa scrivere "previsto" nella lettura. */
+            attachHover(host, s, real.concat(fcPts || []),
+                xOf, yOf, padL, padT, plotW, plotH);
         }
     }
 
@@ -272,6 +477,21 @@
         });
         line.style.opacity = "0";
         s.appendChild(line);
+
+        /* Piano di cattura trasparente su TUTTA l'area di disegno, come già
+           fa la vista a colonne. Un <svg> non riceve pointermove nello spazio
+           vuoto fra un segno e l'altro: l'hit test guarda i figli dipinti.
+           Finora la cosa passava inosservata perché sotto la curva solare c'è
+           il velo dell'area, che fa da bersaglio per quasi tutta la giornata.
+           Nella regione della PREVISIONE quel velo non c'è per scelta — è il
+           segno del misurato — quindi senza questo rettangolo il tooltip
+           della parte tratteggiata sarebbe raggiungibile solo centrando la
+           linea al pixel, cioè in pratica mai. E il tooltip è l'unico posto
+           in cui un punto previsto dichiara di esserlo. */
+        s.appendChild(EF.svg("rect", {
+            "class": "band-hit",
+            x: padL, y: padT, width: Math.max(1, plotW), height: Math.max(1, plotH)
+        }));
 
         var tip = document.createElement("div");
         tip.className = "freshness";
@@ -310,10 +530,17 @@
             line.setAttribute("x2", bx.toFixed(1));
             line.style.opacity = ".55";
 
-            var hh = String(Math.floor(best.t / 60)).padStart(2, "0");
-            var mm = String(Math.round(best.t % 60)).padStart(2, "0");
-            tip.textContent = hh + ":" + mm + " · solare " + EF.powerText(best.pv) +
+            /* La lettura dice PRIMA di tutto che natura ha il punto: chi
+               passa il puntatore sulla parte tratteggiata deve leggere
+               "previsto" prima ancora dei watt, non dedurlo dal tratteggio. */
+            var mins = ((best.t % DAY_MIN) + DAY_MIN) % DAY_MIN;
+            var when = String(Math.floor(mins / 60)).padStart(2, "0") + ":" +
+                String(Math.round(mins % 60)).padStart(2, "0");
+            if (best.t >= DAY_MIN) { when = "domani " + when; }
+            tip.textContent = (best.forecast ? "previsto · " : "") + when +
+                " · solare " + EF.powerText(best.pv) +
                 " · casa " + EF.powerText(best.home);
+            tip.setAttribute("data-forecast", best.forecast ? "true" : "false");
             tip.style.opacity = "1";
 
             var leftPx = (bx / k) + 12;
@@ -326,22 +553,47 @@
     /* ==================================================================
        STRISCIA SOC — stesso asse x, riquadro separato
        ================================================================== */
-    function renderSoc(host, points) {
+    function renderSoc(host, points, opts) {
         if (!host) { return; }
         if (!points || points.length < 2) { clear(host); return; }
+        opts = opts || {};
+
+        /* La striscia condivide l'asse x col riquadro sopra e deve
+           condividerlo ANCHE quando si allunga: due assi diversi allineati
+           per caso metterebbero la carica di domani sopra il sole di oggi. */
+        var spec = opts.forecast || null;
+        var fcPts = null;
+        if (spec && spec.points) {
+            fcPts = spec.points.filter(function (p) { return EF.num(p.soc) !== null; });
+            if (fcPts.length < 2) { fcPts = null; }
+        }
+        var fc = joinForecast(points, fcPts);
 
         var kiosk = isKiosk();
         var width = Math.max(280, Math.round(host.clientWidth || 600));
         var height = fitHeight(host, kiosk ? 96 : 74);
         var padL = kiosk ? 84 : 46;
         var padR = kiosk ? 24 : 14;
-        var padT = kiosk ? 12 : 10;
-        var padB = kiosk ? 12 : 10;
+        /* Il margine superiore deve contenere la scritta "Carica batteria",
+           che sta SOPRA il disegno: sul kiosk quel testo è alto 22px e in
+           12px di margine ci finiva tagliato a metà. Passava inosservato
+           finché l'SVG poteva dipingere fuori dal proprio contenitore;
+           adesso che il kiosk lo ritaglia (regola #22, niente
+           sovrapposizioni) il taglio si vede, ed era comunque un difetto.
+           I 10px in più li restituisce il margine inferiore, che non
+           contiene niente. */
+        var padT = kiosk ? 22 : 10;
+        var padB = kiosk ? 8 : 10;
         var plotW = width - padL - padR;
         var plotH = height - padT - padB;
         if (plotW <= 0 || plotH <= 0) { return; }
 
-        var xOf = function (p) { return padL + (p.t / DAY_MIN) * plotW; };
+        /* L'asse si allunga sull'orizzonte della PREVISIONE, che è la stessa
+           quantità calcolata dal riquadro sopra dagli stessi punti: le due
+           strisce restano allineate senza doversi parlare. */
+        var xMax = domainEnd(fc);
+
+        var xOf = function (p) { return padL + (p.t / xMax) * plotW; };
         var yOf = function (v) { return padT + plotH - (EF.clamp(v, 0, 100) / 100) * plotH; };
 
         clear(host);
@@ -362,9 +614,21 @@
         });
         s.appendChild(g);
 
-        var lbl = EF.svg("text", { x: padL, y: (padT - 2).toFixed(1), "class": "tick" });
+        var lbl = EF.svg("text", {
+            x: padL, y: (padT - (kiosk ? 6 : 2)).toFixed(1), "class": "tick"
+        });
         lbl.textContent = "Carica batteria";
         s.appendChild(lbl);
+
+        // Il futuro sta sotto le curve, come nel riquadro sopra.
+        if (fc) {
+            var edge = Math.max(spec.nowMin, points[points.length - 1].t);
+            markNow(s, xOf({ t: spec.nowMin }), xOf({ t: edge }), padL + plotW,
+                padT, plotH, kiosk);
+            if (xMax > DAY_MIN) {
+                markDayBreak(s, padL + (DAY_MIN / xMax) * plotW, padT, plotH, kiosk);
+            }
+        }
 
         var areaD = pathFrom(points, xOf, function (p) { return yOf(p.soc); }) +
             " L " + xOf(points[points.length - 1]).toFixed(1) + " " + yOf(0).toFixed(1) +
@@ -379,6 +643,16 @@
         });
         line.style.stroke = "var(--role-battery)";
         s.appendChild(line);
+
+        // Carica prevista: tratteggiata e senza area, come le curve sopra.
+        if (fc) {
+            var fline = EF.svg("path", {
+                "class": "series-line series-line--forecast",
+                d: pathFrom(fc, xOf, function (p) { return yOf(p.soc); })
+            });
+            fline.style.stroke = "var(--role-battery)";
+            s.appendChild(fline);
+        }
 
         host.appendChild(s);
     }

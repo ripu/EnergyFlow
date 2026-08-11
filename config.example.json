@@ -15,6 +15,12 @@
     "solar": {
         "capacity_kwp": 6.0
     },
+    "tariff": {
+        "_nota": "PREZZI DI ESEMPIO: sostituirli con quelli della propria bolletta. Se il blocco tariff manca, la dashboard nasconde gli importi invece di mostrare cifre inventate.",
+        "currency": "EUR",
+        "import_eur_kwh": 0.30,
+        "export_eur_kwh": 0.10
+    },
     "server": {
         "port": 8003
     },

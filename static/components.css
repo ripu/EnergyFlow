@@ -911,6 +911,70 @@
     stroke-width: 2;
 }
 
+/* ---- PREVISIONE -------------------------------------------------------
+   Tre segni, e nessuno dei tre basta da solo. Il tratteggio sparisce in
+   una stampa in bianco e nero a bassa risoluzione, l'opacità si perde su
+   un pannello con molta luce ambientale, il velo di fondo non si vede da
+   tre metri: presi insieme, una previsione non può passare per una
+   misura in nessuna di quelle condizioni.
+
+   Il tratteggio è più lungo del vuoto (7-5) e non 4-4: a 4-4 la linea si
+   legge come "punteggiata", che nella convenzione dei grafici vuol dire
+   "serie diversa", mentre qui la serie è la stessa e cambia solo la sua
+   natura. */
+.chart .series-line--forecast {
+    stroke-dasharray: 7 5;
+    stroke-linecap: butt;
+    opacity: .62;
+}
+
+[data-mode="kiosk"] .chart .series-line--forecast {
+    stroke-dasharray: 14 10;
+}
+
+/* La regione "da qui in poi". Un fondo, non un dato: sta sotto le curve e
+   non ne altera la tinta. */
+.chart .chart__ahead {
+    fill: var(--forecast-veil);
+    pointer-events: none;
+}
+
+/* La riga verticale che separa ciò che è successo da ciò che si suppone.
+   Non è tratteggiata: è un confine, e un confine incerto sarebbe la cosa
+   peggiore in un grafico che parla proprio di incertezza. */
+.chart .chart__now {
+    stroke: var(--forecast-mark);
+    stroke-width: 1.5;
+    opacity: .8;
+}
+
+[data-mode="kiosk"] .chart .chart__now {
+    stroke-width: 3;
+}
+
+.chart .chart__now-label,
+.chart .chart__daybreak-label {
+    fill: var(--forecast-mark);
+    font-weight: 600;
+    letter-spacing: .02em;
+}
+
+/* Mezzanotte: più leggera della riga "adesso", perché è un riferimento di
+   calendario e non un confine fra dato e supposizione. */
+.chart .chart__daybreak {
+    stroke: var(--forecast-mark);
+    stroke-width: 1;
+    stroke-dasharray: 2 4;
+    opacity: .55;
+}
+
+/* Il tooltip su un punto previsto lo dichiara anche col bordo, non solo
+   con la parola: chi legge di fretta guarda la forma prima del testo. */
+.chart-tip[data-forecast="true"],
+.freshness[data-forecast="true"] {
+    border-style: dashed;
+}
+
 .chart__empty {
     display: flex;
     flex-direction: column;
@@ -1052,6 +1116,17 @@
     align-items: center;
     gap: var(--space-2);
     white-space: nowrap;
+}
+
+/* `display: inline-flex` batte il `display:none` che il browser applica a
+   [hidden]: senza questa riga la voce «previsione» resta visibile anche
+   quando la curva non è disegnata — cioè una legenda che annuncia una serie
+   che non c'è, che è peggio di nessuna legenda. Stesso inciampo già
+   documentato per .chart-wrap[hidden] qui sotto; è il motivo per cui
+   nascondere un elemento flex va sempre verificato a schermo e non solo
+   leggendo l'attributo nel DOM. */
+.legend__item[hidden] {
+    display: none;
 }
 
 /* Chiave a trattino per le serie a linea, pastiglia per le aree. */
@@ -1201,6 +1276,244 @@
 .hist-facts b {
     color: var(--text);
     font-weight: 600;
+}
+
+/* ======================================================================
+   PREVISIONE — il pannello a parole
+   ======================================================================
+   I `facts` del backend sono orari e kWh: mostrarli nudi ("06:40", "44")
+   costringerebbe a indovinare di cosa parlano. Qui diventano frasi, e la
+   frase è anche l'equivalente testuale della parte tratteggiata del
+   grafico — non c'è una seconda versione per i lettori di schermo perché
+   questa è già testo del documento.
+
+   Il pannello si distingue dalle card vicine per il bordo tratteggiato:
+   è lo stesso segno del tratteggio delle curve, applicato al contenitore.
+   Un blocco che parla di supposizioni non deve avere l'aria del resto
+   della pagina, che parla di misure.
+   ====================================================================== */
+.forecast {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius-md);
+    background: var(--forecast-veil);
+}
+
+.forecast[hidden] {
+    display: none;
+}
+
+.forecast__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-3);
+    font-size: var(--fs-micro);
+    color: var(--text-muted);
+}
+
+/* "PREVISIONE" in maiuscoletto: la parola deve arrivare prima dei numeri,
+   e in questo blocco è l'informazione più importante di tutte. */
+.forecast__title {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--fs-label);
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--text);
+}
+
+/* Il trattino tratteggiato accanto al titolo È la legenda della curva:
+   dice, senza una riga di testo in più, che quel segno nel grafico sopra
+   appartiene a questo blocco. */
+.forecast__key {
+    width: 26px;
+    height: 0;
+    border-top: 2px dashed var(--text-muted);
+    flex: none;
+}
+
+.forecast__list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: var(--fs-body);
+    color: var(--text);
+}
+
+.forecast__list b {
+    font-weight: 700;
+}
+
+/* Un dato assente NON diventa un trattino: la frase sparisce e basta.
+   "—" alle 06:40 si legge come "un valore che non è arrivato", mentre qui
+   il fatto è che quell'evento non è previsto affatto. */
+.forecast__list li {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+}
+
+.forecast__list li::before {
+    content: "›";
+    color: var(--text-faint);
+    flex: none;
+}
+
+/* Qualità degradata: si DICE, non si nasconde. Stessa tinta dei banner di
+   avviso, così chi ha già imparato quel colore altrove lo riconosce. */
+.forecast__warn {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-sm);
+    background: var(--state-warn-bg);
+    color: var(--state-warn);
+    font-size: var(--fs-label);
+    font-weight: 600;
+}
+
+/* La pagella di ieri. È la riga che rende la previsione credibile invece
+   che decorativa, e per questo non si nasconde quando è brutta: una stima
+   che non dice mai quanto sbaglia non è verificabile da nessuno. */
+.forecast__score,
+.forecast__basis {
+    font-size: var(--fs-micro);
+    color: var(--text-muted);
+}
+
+.forecast__basis {
+    color: var(--text-faint);
+}
+
+/* ======================================================================
+   VALORE IN EURO
+   ======================================================================
+   Aritmetica di PRESENTAZIONE: i kWh vengono dal backend, i prezzi dalla
+   configurazione, la moltiplicazione sta nel browser. Senza tariffa
+   configurata questo blocco non esiste — niente zeri, niente trattini,
+   nessun prezzo di riferimento inventato (un importo plausibile e falso è
+   peggio di un importo assente, perché nessuno lo va a verificare).
+
+   Ogni importo porta accanto i kWh da cui esce: è ciò che rende il numero
+   controllabile senza aprire la calcolatrice, ed è il motivo per cui il
+   blocco può stare anche dove le barre dei kWh non ci sono.
+   ====================================================================== */
+.money {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--border);
+}
+
+.money[hidden] {
+    display: none;
+}
+
+.money__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    font-size: var(--fs-label);
+    font-weight: 600;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.money__period {
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 400;
+    color: var(--text-faint);
+}
+
+.money__rows {
+    display: grid;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+/* Tre colonne: etichetta, importo, i kWh che lo generano.
+   L'importo sta al centro con la sua colonna dedicata, così le cifre si
+   incolonnano davvero anche quando le etichette hanno lunghezze diverse. */
+.money__row {
+    display: grid;
+    grid-template-columns: minmax(0, auto) max-content;
+    align-items: baseline;
+    gap: var(--space-1) var(--space-3);
+}
+
+.money__label {
+    font-size: var(--fs-body);
+    color: var(--text);
+}
+
+.money__value {
+    font-size: var(--fs-body);
+    font-weight: 700;
+    color: var(--text);
+    white-space: nowrap;
+    text-align: right;
+}
+
+/* La riga dei kWh occupa entrambe le colonne: è una nota, non un valore
+   da incolonnare, e su 360px una terza colonna spingerebbe l'importo
+   fuori dalla card. */
+.money__note {
+    grid-column: 1 / -1;
+    font-size: var(--fs-micro);
+    color: var(--text-faint);
+}
+
+/* "Risparmiato" è il numero più interessante dei tre — è denaro NON speso,
+   cioè l'unica delle tre voci che l'impianto ha davvero prodotto — e ha
+   quindi il corpo dei valori e la tinta positiva. Gli altri due restano
+   in inchiostro: sono fatti, non giudizi, e colorare un costo di rosso lo
+   trasformerebbe in un allarme che non è. */
+.money__row--hero .money__value {
+    font-size: var(--fs-value);
+    line-height: 1.1;
+    color: var(--money-pos);
+}
+
+.money__row--hero .money__label {
+    font-weight: 600;
+}
+
+/* Il beneficio netto è l'unica voce con un segno da giudicare: qui il
+   colore porta informazione (sopra o sotto lo zero) invece di decorare. */
+.money__row--net {
+    padding-top: var(--space-2);
+    border-top: 1px dashed var(--border);
+}
+
+.money__row--net[data-sign="pos"] .money__value {
+    color: var(--money-pos);
+}
+
+.money__row--net[data-sign="neg"] .money__value {
+    color: var(--money-neg);
+}
+
+.money__prices {
+    font-size: var(--fs-micro);
+    color: var(--text-faint);
 }
 
 /* ---- Barra impilata orizzontale (energie di oggi) --------------------

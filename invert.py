@@ -1726,7 +1726,11 @@ def history_maintenance(today: Optional[date] = None) -> Dict:
         return {"enabled": False, "rolled": [], "removed": []}
     rolled = history_catchup(today)
     removed = history_retention(today)
-    return {"enabled": True, "rolled": rolled, "removed": removed}
+    # Gli snapshot di previsione seguono lo stesso ciclo: sono storico anche
+    # loro, solo di ciò che ci si aspettava invece che di ciò che è successo.
+    removed_forecast = forecast_retention(today)
+    return {"enabled": True, "rolled": rolled, "removed": removed,
+            "removed_forecast": removed_forecast}
 
 
 def history_maintenance_loop():
@@ -2061,6 +2065,48 @@ def _ui_config() -> Dict:
         },
         "solar": {"capacity_kwp": solar.get("capacity_kwp")},
         "server": {"poll_interval_s": server.get("poll_interval_s", POLL_INTERVAL)},
+        # Prezzi dell'energia: il backend li PUBBLICA, non li usa. I conti
+        # (kWh × €/kWh, per il periodo scelto nello storico) li fa il frontend,
+        # che ha già la scomposizione dell'energia per periodo.
+        "tariff": _tariff_config(),
+    }
+
+
+def _tariff_config() -> Optional[Dict]:
+    """
+    Blocco `tariff` di config.json, o None se assente/non valido.
+
+    Nessun default nel codice, deliberatamente: un prezzo inventato dal server
+    verrebbe moltiplicato per i kWh e mostrato come un importo in euro, cioè un
+    numero falso con l'aria di essere vero. Meglio `null`, che il frontend
+    traduce in "importi nascosti" — un dato assente si nota, uno sbagliato no.
+
+    I campi si copiano uno per uno e non con un dict(): config.json è un file
+    dell'utente e tutto ciò che ci scrive dentro (compresa la chiave `_nota`
+    dell'esempio) finirebbe altrimenti nella risposta HTTP.
+    """
+    raw = config.get("tariff")
+    if not isinstance(raw, dict):
+        return None
+
+    def _price(key: str) -> Optional[float]:
+        # Un prezzo non numerico o negativo è un errore di battitura, non un
+        # prezzo: si scarta il singolo campo invece dell'intero blocco, così
+        # chi ha configurato solo l'import continua a vedere il costo.
+        try:
+            val = float(raw[key])
+        except (KeyError, TypeError, ValueError):
+            return None
+        return val if val >= 0 else None
+
+    imp, exp = _price("import_eur_kwh"), _price("export_eur_kwh")
+    if imp is None and exp is None:
+        return None
+    currency = raw.get("currency")
+    return {
+        "currency": str(currency)[:8] if currency else "EUR",
+        "import_eur_kwh": imp,
+        "export_eur_kwh": exp,
     }
 
 
@@ -2150,7 +2196,7 @@ def weather_payload() -> Tuple[Dict, int]:
         if cached is not None and age < WEATHER_TTL:
             out = dict(cached)
             out["meta"] = dict(cached["meta"], age_s=round(age, 1), stale=False, cached=True)
-            return out, 200
+            return _with_hourly_extended(out), 200
 
     try:
         fresh = _weather_fetch()
@@ -2165,7 +2211,7 @@ def weather_payload() -> Tuple[Dict, int]:
         out = dict(cached)
         out["meta"] = dict(cached["meta"], age_s=round(age, 1), stale=True,
                            cached=True, error=str(exc))
-        return out, 200
+        return _with_hourly_extended(out), 200
 
     with _weather_lock:
         _weather_cache["payload"] = fresh
@@ -2173,7 +2219,130 @@ def weather_payload() -> Tuple[Dict, int]:
         _weather_cache["error"] = None
     out = dict(fresh)
     out["meta"] = dict(fresh["meta"], age_s=0.0, stale=False, cached=False)
-    return out, 200
+    return _with_hourly_extended(out), 200
+
+
+def _with_hourly_extended(out: Dict) -> Dict:
+    """
+    Aggiunge `hourly_extended` alla risposta di /api/weather senza toccare nulla
+    di ciò che c'era: `current`, `today` e `solar_window` restano identici, il
+    blocco nuovo si somma. Se la fetch estesa fallisce il campo vale None e
+    /api/weather continua a rispondere 200 — il meteo "corto" è servito da una
+    cache sua e non deve cadere insieme a quello lungo.
+    """
+    try:
+        ext, age, err = weather_extended()
+    except Exception as exc:            # difensivo: non deve mai far cadere /api/weather
+        ext, age, err = None, 0.0, str(exc)
+    if ext is None:
+        out["hourly_extended"] = None
+        out["meta"] = dict(out.get("meta", {}), extended_error=err)
+        return out
+    block = dict(ext)
+    block["age_s"] = round(age, 1)
+    block["stale"] = age > WEATHER_EXT_TTL
+    if err:
+        block["error"] = err
+    out["hourly_extended"] = block
+    return out
+
+
+# --- METEO ESTESO: IL PASSATO SERVE QUANTO IL FUTURO ---
+# La previsione ha bisogno di due finestre diverse dello stesso dato:
+#   futuro  (forecast_days=2) → quanta radiazione arriverà, cioè la previsione;
+#   passato (past_days=7)     → quanta ne è arrivata, da accoppiare alla
+#                               produzione misurata per calibrare l'impianto.
+# È una chiamata SEPARATA da quella di /api/weather, non un allargamento di
+# quella: aggiungere past_days alla fetch esistente sposterebbe daily[0] a sette
+# giorni fa, e `today`/`solar_window` — che il frontend già usa — parlerebbero
+# di un giorno sbagliato. Due chiamate, due cache, nessuna forma modificata.
+#
+# Il TTL è quattro volte più lungo (1 ora contro 15 minuti) perché il dato è di
+# natura diversa: la temperatura corrente cambia di quarto d'ora in quarto
+# d'ora, il profilo orario di radiazione dei prossimi due giorni no — è lo
+# stesso run del modello finché il modello non gira di nuovo.
+WEATHER_EXT_TTL = 60 * 60
+WEATHER_PAST_DAYS = 7
+WEATHER_FORECAST_DAYS = 2
+_weather_ext_cache = {"payload": None, "ts": 0.0, "error": None}
+_weather_ext_lock = threading.Lock()
+
+
+def _weather_extended_fetch(past_days: int = WEATHER_PAST_DAYS,
+                            forecast_days: int = WEATHER_FORECAST_DAYS) -> Dict:
+    """
+    Orario esteso in forma colonnare (liste parallele) e non come lista di
+    oggetti: sono ~390 ore × 4 grandezze, e ripetere quattro nomi di chiave per
+    ogni ora triplicherebbe il payload per zero informazione in più.
+    """
+    loc = config.get("location", {})
+    lat, lon = loc.get("latitude"), loc.get("longitude")
+    if lat is None or lon is None:
+        raise ValueError("coordinate assenti in config.json")
+    params = urllib.parse.urlencode({
+        "latitude": lat,
+        "longitude": lon,
+        "timezone": loc.get("timezone", "auto"),
+        "hourly": "shortwave_radiation,temperature_2m,weather_code",
+        "past_days": past_days,
+        "forecast_days": forecast_days,
+    })
+    req = urllib.request.Request(f"{WEATHER_URL}?{params}", headers={"User-Agent": "EnergyFlow"})
+    with urllib.request.urlopen(req, timeout=WEATHER_TIMEOUT) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+
+    hourly = data.get("hourly") or {}
+    times = hourly.get("time") or []
+    if not times:
+        raise ValueError("risposta senza orario")
+
+    def _col(key):
+        seq = hourly.get(key) or []
+        # Pareggia la lunghezza: una colonna più corta dell'asse dei tempi
+        # sfaserebbe tutto ciò che viene dopo, e in silenzio.
+        return list(seq) + [None] * (len(times) - len(seq))
+
+    return {
+        "time": times,
+        "shortwave_radiation_wm2": _col("shortwave_radiation"),
+        "temperature_c": _col("temperature_2m"),
+        "weather_code": _col("weather_code"),
+        "past_days": past_days,
+        "forecast_days": forecast_days,
+        "timezone": data.get("timezone"),
+        "utc_offset_s": data.get("utc_offset_seconds"),
+    }
+
+
+def weather_extended(force: bool = False) -> Tuple[Optional[Dict], float, Optional[str]]:
+    """
+    Ritorna (payload, età_in_secondi, errore). Come /api/weather, se open-meteo
+    non risponde si serve l'ultima risposta buona: una previsione di un'ora fa
+    vale più di nessuna previsione. Chi chiama decide cosa farne dell'età —
+    qui non si scarta nulla, si dichiara e basta.
+    """
+    now = time.time()
+    with _weather_ext_lock:
+        cached = _weather_ext_cache["payload"]
+        age = now - _weather_ext_cache["ts"]
+        if cached is not None and not force and age < WEATHER_EXT_TTL:
+            return cached, age, None
+
+    try:
+        fresh = _weather_extended_fetch()
+    except Exception as exc:
+        log(f"⚠️ Meteo esteso non aggiornato ({exc})")
+        with _weather_ext_lock:
+            _weather_ext_cache["error"] = str(exc)
+            cached = _weather_ext_cache["payload"]
+            age = now - _weather_ext_cache["ts"]
+        return cached, age, str(exc)
+
+    with _weather_ext_lock:
+        _weather_ext_cache["payload"] = fresh
+        _weather_ext_cache["ts"] = time.time()
+        _weather_ext_cache["error"] = None
+    return fresh, 0.0, None
 
 
 def _parse_client_log(raw: str) -> Tuple[str, str]:
@@ -2196,6 +2365,1021 @@ def _parse_client_log(raw: str) -> Tuple[str, str]:
         except (ValueError, TypeError):
             pass
     return "LOG", raw
+
+
+# =====================================================================
+# SIMULAZIONE PREVISIONALE (/api/forecast)
+# =====================================================================
+# Tre pezzi, in quest'ordine, perché ognuno dipende dal precedente:
+#
+#   1. quanto SOLE arriverà     → previsione oraria di open-meteo, convertita in
+#                                 watt da un coefficiente calibrato su QUESTO
+#                                 impianto (non sulla targa: la targa non sa
+#                                 dell'orientamento, delle ombre e dello sporco);
+#   2. quanto si CONSUMERÀ      → profilo mediano dei consumi per quarto d'ora,
+#                                 feriale e weekend separati;
+#   3. cosa fa la BATTERIA      → non si "prevede" il SOC, lo si SIMULA: si parte
+#                                 dal SOC di adesso e si integra sole − consumo a
+#                                 passi di 15 minuti, con capacità, riserva
+#                                 minima e rendimento di ciclo.
+#
+# Il valore della cosa non sono i grafici: sono i tre fatti che ne escono —
+# quando la batteria si riempie, quando arriva al minimo, da che ora si comincia
+# a pagare la rete. Un numero che non si sa da dove viene non serve a nessuno,
+# quindi ogni risposta porta con sé il proprio `basis` (con che coefficiente, su
+# quanti giorni, con che R²) e un `quality` che dice quando NON fidarsi.
+FORECAST_DIR = os.path.join(LOG_DIR, "forecast")
+FORECAST_STEP_MIN = 15
+FORECAST_STEP_H = FORECAST_STEP_MIN / 60.0
+FORECAST_SLOTS = (24 * 60) // FORECAST_STEP_MIN          # 96 quarti d'ora al giorno
+FORECAST_TTL = 15 * 60                                    # ricalcolo massimo ogni 15'
+
+# Calibrazione solare
+CALIB_DAYS = 7
+CALIB_MIN_RADIATION = 20.0     # sotto, il rapporto pv/radiazione è solo rumore
+CALIB_MIN_MINUTES = 45         # ore con meno campioni: buchi, si scartano
+CALIB_MIN_POINTS = 20          # meno coppie di così, il fit non è un fit
+CALIB_MIN_R2 = 0.75            # sotto, si torna alla stima da targa e lo si dice
+
+# Profilo consumi. La FORMA (quando si consuma) è stabile e si prende su 28
+# giorni; il LIVELLO (quanto) no — con l'estate e i condizionatori il consumo
+# deriva di settimana in settimana, e una mediana su 28 giorni resta indietro.
+# Misurato su 5 giorni di prova retrospettiva: forma 28gg a livello nudo sbaglia
+# −36%, riscalata sulla mediana degli ultimi 14 giorni sbaglia −6%.
+PROFILE_DAYS = 28
+PROFILE_LEVEL_DAYS = 14
+PROFILE_MIN_MINUTES = 720      # mezza giornata di dati: sotto, il giorno è monco
+PROFILE_TTL = 6 * 3600         # 28 file al minuto: si rileggono 4 volte al giorno
+
+# Rendimento di ciclo dai contatori: la somma di carica e scarica su molti giorni
+# dà il round-trip vero. Su un solo giorno non funziona — il SOC di partenza e
+# quello di arrivo sono diversi e il rapporto esce a caso (visti 0.70 e 3.4 su
+# singole giornate, contro 0.81 stabile su 28).
+ROUND_TRIP_DAYS = 180
+ROUND_TRIP_FALLBACK = 0.83
+ROUND_TRIP_MIN, ROUND_TRIP_MAX = 0.55, 0.98
+
+# Finestra in cui si congela la previsione del giorno. Non "da qui in poi": una
+# previsione fatta la sera si darebbe un voto su una giornata già andata — alle
+# 23:50 il residuo da prevedere è zero e il confronto col reale diventa una
+# formalità. Fuori dalla finestra quel giorno resta senza pagella, ed è giusto
+# così: meglio nessun voto che un voto gonfiato.
+FORECAST_SNAPSHOT_HOUR = 8
+FORECAST_SNAPSHOT_HOUR_END = 10   # tolleranza per un riavvio del servizio
+FORECAST_GRID_IMPORT_W = 50.0  # sotto, è arrotondamento e non "sto comprando"
+FORECAST_SOC_FULL = 99.5
+
+_forecast_cache = {"payload": None, "ts": 0.0}
+_forecast_lock = threading.Lock()          # protegge la cache
+_forecast_compute_lock = threading.Lock()  # serializza il calcolo (mai due insieme)
+_profile_cache = {"payload": None, "ts": 0.0, "day": None}
+_calib_last_good: Optional[Dict] = None
+
+
+def _median(values: List[float]) -> float:
+    """Mediana. Su lista vuota torna 0.0: chi chiama filtra già i casi vuoti."""
+    vals = sorted(values)
+    n = len(vals)
+    if not n:
+        return 0.0
+    mid = n // 2
+    return vals[mid] if n % 2 else (vals[mid - 1] + vals[mid]) / 2.0
+
+
+def _percentile(values: List[float], pct: float) -> float:
+    vals = sorted(values)
+    if not vals:
+        return 0.0
+    idx = int(round((len(vals) - 1) * pct))
+    return vals[max(0, min(len(vals) - 1, idx))]
+
+
+def _rad_map(ext: Optional[Dict]) -> Dict[str, float]:
+    """Orario esteso → {'2026-08-11T14:00': 812.0}. Le ore senza dato spariscono."""
+    if not ext:
+        return {}
+    out: Dict[str, float] = {}
+    for stamp, val in zip(ext.get("time") or [], ext.get("shortwave_radiation_wm2") or []):
+        if val is None:
+            continue
+        try:
+            out[str(stamp)[:16]] = float(val)
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
+def _rad_at(rad: Dict[str, float], when: datetime) -> Optional[float]:
+    """
+    Radiazione istantanea stimata a `when`, interpolando fra due ore.
+
+    Il punto che quasi tutti sbagliano: il valore orario di open-meteo NON è
+    l'istantanea a quell'ora, è la MEDIA DELL'ORA PRECEDENTE. Il valore marcato
+    14:00 descrive l'intervallo 13:00-14:00, quindi il suo baricentro sta alle
+    13:30. Interpolare fra i baricentri e non fra le etichette non è pedanteria:
+    verificato sui dati veri di questo impianto, l'allineamento giusto porta
+    l'R² da 0.77 a 0.93 — la stessa identica regressione, letta mezz'ora prima.
+    """
+    hour = when.replace(minute=0, second=0, microsecond=0)
+    if when.minute < 30:
+        left, right = hour - timedelta(hours=1), hour
+        w = (when.minute + 30) / 60.0
+    else:
+        left, right = hour, hour + timedelta(hours=1)
+        w = (when.minute - 30) / 60.0
+    a = rad.get(left.strftime("%Y-%m-%dT%H:00"))
+    b = rad.get(right.strftime("%Y-%m-%dT%H:00"))
+    if a is None and b is None:
+        return None
+    if a is None:
+        a = b
+    if b is None:
+        b = a
+    return max(0.0, a * (1.0 - w) + b * w)
+
+
+def _nameplate_coeff() -> float:
+    """
+    Stima da targa, usata SOLO quando la calibrazione non regge.
+
+    kWp × 1000 W / 1000 (W/m² alle condizioni standard) = kWp watt per ogni
+    W/m². Il fattore che ci si aspetterebbe in mezzo — le perdite di sistema,
+    ~0.85 — non c'è perché ne manca un altro che lo compensa: shortwave_radiation
+    è misurata sul PIANO ORIZZONTALE, mentre i moduli sono inclinati e ne
+    raccolgono di più (~1.15 alle nostre latitudini). I due fattori si elidono
+    quasi esattamente, e infatti su questo impianto la targa dà 6.0 contro un
+    misurato di 6.15: il 2% di errore. Mettere solo le perdite darebbe 4.8, cioè
+    sbagliare del 22% per essere "prudenti".
+    """
+    try:
+        return float((config.get("solar") or {}).get("capacity_kwp") or 0.0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _solar_calibration(today: date, rad: Dict[str, float]) -> Dict:
+    """
+    Regressione lineare per l'origine fra irraggiamento orario (W/m²) e potenza
+    fotovoltaica misurata nella stessa ora (W).
+
+    Per l'origine e non con intercetta: a zero radiazione la produzione è zero,
+    è fisica, e lasciare libera l'intercetta significherebbe solo permettere al
+    fit di comprarsi un po' di errore con una costante che non esiste.
+
+    Il coefficiente che ne esce incorpora orientamento, inclinazione, ombre,
+    sporco e rendimento reale dell'inverter — tutte cose che la targa non sa.
+    """
+    global _calib_last_good
+    pairs: List[Tuple[float, float]] = []
+    pv_seen: List[float] = []
+    days_used = 0
+    for back in range(1, CALIB_DAYS + 1):
+        day = today - timedelta(days=back)
+        rows = _history_read_minutes(day)
+        if not rows:
+            continue
+        by_minute = {int(p["t"]): p for p in rows}
+        days_used += 1
+        for hour in range(24):
+            value = rad.get(f"{day.isoformat()}T{hour:02d}:00")
+            if value is None or value <= CALIB_MIN_RADIATION:
+                continue
+            # Ora PRECEDENTE all'etichetta: [hour-1, hour). Vedi _rad_at.
+            window = [by_minute[m]["pv"] for m in range((hour - 1) * 60, hour * 60)
+                      if m in by_minute]
+            if len(window) < CALIB_MIN_MINUTES:
+                continue
+            pv = sum(window) / len(window)
+            pairs.append((value, pv))
+            pv_seen.append(pv)
+
+    nameplate = _nameplate_coeff()
+    if len(pairs) >= CALIB_MIN_POINTS:
+        sxy = sum(x * y for x, y in pairs)
+        sxx = sum(x * x for x, _ in pairs)
+        coeff = sxy / sxx if sxx > 0 else 0.0
+        ybar = sum(y for _, y in pairs) / len(pairs)
+        ss_res = sum((y - coeff * x) ** 2 for x, y in pairs)
+        ss_tot = sum((y - ybar) ** 2 for _, y in pairs)
+        # R² centrato: dice quanta della VARIABILITÀ della produzione il modello
+        # spiega. Quello non centrato (rispetto allo zero) esce sempre altissimo
+        # perché "di notte non produce" è indovinato da chiunque, e non è un
+        # merito del fit — sarebbe un voto gonfiato.
+        r2 = (1.0 - ss_res / ss_tot) if ss_tot > 0 else 0.0
+        if coeff > 0 and r2 >= CALIB_MIN_R2:
+            out = {
+                "source": "open-meteo shortwave_radiation",
+                "coeff_w_per_wm2": round(coeff, 3),
+                "fit_days": days_used,
+                "r2": round(r2, 3),
+                "points": len(pairs),
+                # Tetto di sicurezza: se un giorno il coefficiente impazzisse o
+                # la radiazione arrivasse assurda, la potenza resta dentro ciò
+                # che questo impianto ha davvero prodotto.
+                "pv_max_w": int(round(max(_percentile(pv_seen, 0.995), nameplate * 1000.0))),
+                "fallback": False,
+            }
+            _calib_last_good = out
+            return out
+        reason = f"R² {r2:.2f} sotto {CALIB_MIN_R2}"
+    else:
+        reason = f"solo {len(pairs)} coppie ora/produzione (ne servono {CALIB_MIN_POINTS})"
+
+    # Il fit non regge. Prima di scendere alla targa si riusa l'ultimo fit buono
+    # di questo processo: è comunque una misura di QUESTO impianto, mentre la
+    # targa è una brochure.
+    if _calib_last_good:
+        out = dict(_calib_last_good)
+        out["source"] += " (ultimo fit valido)"
+        out["fallback"] = True
+        out["fallback_reason"] = reason
+        return out
+    return {
+        "source": f"targa ({nameplate:g} kWp, nessuna calibrazione)",
+        "coeff_w_per_wm2": round(nameplate, 3),
+        "fit_days": days_used,
+        "r2": None,
+        "points": len(pairs),
+        "pv_max_w": int(round(nameplate * 1000.0 * 1.15)),
+        "fallback": True,
+        "fallback_reason": reason,
+    }
+
+
+def _profile_compute(today: date) -> Dict:
+    """
+    Una sola passata sui 28 file al minuto, tre risultati:
+      - profilo dei consumi per quarto d'ora (feriale / weekend),
+      - limiti di potenza reali della batteria (in carica e in scarica),
+      - profilo mediano della produzione, che serve come rete di sicurezza
+        quando il meteo non è raggiungibile.
+    Leggere 28 file × 1440 righe tre volte per avere tre numeri sarebbe assurdo
+    su una SD, quindi si legge una volta e si distribuisce.
+    """
+    slots: Dict[str, Dict[int, List[float]]] = {"weekday": {}, "weekend": {}}
+    totals: Dict[str, List[float]] = {"weekday": [], "weekend": []}
+    pv_slots: Dict[int, List[float]] = {}
+    charge: List[float] = []
+    discharge: List[float] = []
+    days_used = 0
+
+    for back in range(1, PROFILE_DAYS + 1):
+        day = today - timedelta(days=back)
+        rows = _history_read_minutes(day)
+        if len(rows) < PROFILE_MIN_MINUTES:
+            continue
+        days_used += 1
+        kind = "weekend" if day.weekday() >= 5 else "weekday"
+        # Prima si media dentro il quarto d'ora (15 righe al minuto → 1 valore),
+        # poi si prende la mediana FRA i giorni. L'ordine conta: mediana dei
+        # minuti grezzi appiattirebbe i picchi dentro la giornata stessa.
+        per_slot: Dict[int, List[float]] = {}
+        per_slot_pv: Dict[int, List[float]] = {}
+        for p in rows:
+            s = int(p["t"]) // FORECAST_STEP_MIN
+            per_slot.setdefault(s, []).append(p["home"])
+            per_slot_pv.setdefault(s, []).append(p["pv"])
+            if p["batt"] > 0:
+                charge.append(p["batt"])
+            elif p["batt"] < 0:
+                discharge.append(-p["batt"])
+        day_wh = 0.0
+        for s, vals in per_slot.items():
+            avg = sum(vals) / len(vals)
+            slots[kind].setdefault(s, []).append(avg)
+            day_wh += avg * FORECAST_STEP_H
+        totals[kind].append(day_wh / 1000.0)
+        # Il ripiego solare guarda solo la settimana appena passata: un profilo
+        # di produzione di tre settimane fa, con un'altra altezza del sole,
+        # descriverebbe un altro impianto.
+        if back <= CALIB_DAYS:
+            for s, vals in per_slot_pv.items():
+                pv_slots.setdefault(s, []).append(sum(vals) / len(vals))
+
+    # Livello energetico su una finestra più corta della forma: vedi PROFILE_LEVEL_DAYS.
+    level: Dict[str, Optional[float]] = {}
+    for kind in ("weekday", "weekend"):
+        recent: List[float] = []
+        for back in range(1, PROFILE_LEVEL_DAYS + 1):
+            day = today - timedelta(days=back)
+            if (day.weekday() >= 5) != (kind == "weekend"):
+                continue
+            rows = _history_read_minutes(day)
+            # Solo giornate quasi complete: un giorno a metà abbassa il livello
+            # per un buco di dati, non per un consumo davvero minore.
+            if len(rows) < 1380:
+                continue
+            per_slot: Dict[int, List[float]] = {}
+            for p in rows:
+                per_slot.setdefault(int(p["t"]) // FORECAST_STEP_MIN, []).append(p["home"])
+            recent.append(sum(sum(v) / len(v) for v in per_slot.values())
+                          * FORECAST_STEP_H / 1000.0)
+        level[kind] = _median(recent) if recent else None
+
+    home: Dict[str, Optional[Dict]] = {}
+    for kind in ("weekday", "weekend"):
+        if not slots[kind]:
+            home[kind] = None
+            continue
+        med = {s: _median(v) for s, v in slots[kind].items()}
+        # Un quarto d'ora senza dati (raro: buco di storico alla stessa ora in
+        # tutti i giorni) prende la mediana generale, non zero — zero sarebbe
+        # "in quella mezz'ora la casa non consuma", che è falso.
+        overall = _median(list(med.values())) if med else 0.0
+        shape = [med.get(s, overall) for s in range(FORECAST_SLOTS)]
+        shape_kwh = sum(shape) * FORECAST_STEP_H / 1000.0
+        target = level.get(kind)
+        scale = (target / shape_kwh) if (target and shape_kwh > 0) else 1.0
+        # Guardrail: un fattore fuori da questa banda non è una deriva
+        # stagionale, è un dato sporco. Meglio la forma nuda che una forma
+        # moltiplicata per tre.
+        scale = max(0.5, min(2.0, scale))
+        home[kind] = {
+            "slots": [v * scale for v in shape],
+            "days": len(totals[kind]),
+            "shape_kwh": round(shape_kwh, 2),
+            "kwh_day": round(shape_kwh * scale, 2),
+            "scale": round(scale, 3),
+            "level_days": PROFILE_LEVEL_DAYS,
+        }
+
+    pv_med = None
+    if pv_slots:
+        pv_med = [_median(pv_slots.get(s, [0.0])) for s in range(FORECAST_SLOTS)]
+
+    capacity_wh = 0.0
+    try:
+        capacity_wh = float((config.get("battery") or {}).get("capacity_kwh") or 0.0) * 1000.0
+    except (TypeError, ValueError):
+        capacity_wh = 0.0
+    # 99° percentile e non il massimo: il massimo è un singolo minuto e può
+    # essere un transitorio. Pavimento a C/4, così una batteria rimasta ferma
+    # per settimane non si ritrova con un limite di potenza ridicolo.
+    floor_w = capacity_wh / 4.0 if capacity_wh else 1000.0
+    limits = {
+        "max_charge_w": round(max(_percentile(charge, 0.99), floor_w), 0),
+        "max_discharge_w": round(max(_percentile(discharge, 0.99), floor_w), 0),
+        "samples": len(charge) + len(discharge),
+    }
+
+    return {"home": home, "pv_slots": pv_med, "battery_limits": limits,
+            "days": days_used}
+
+
+def _profile_cached(today: date) -> Dict:
+    """Il profilo cambia di poco fra un'ora e l'altra: si ricalcola ogni 6 ore
+    (o al cambio di giorno), non ad ogni previsione."""
+    now = time.time()
+    with _forecast_lock:
+        cached = _profile_cache["payload"]
+        if (cached is not None and _profile_cache["day"] == today
+                and now - _profile_cache["ts"] < PROFILE_TTL):
+            return cached
+    t0 = time.time()
+    fresh = _profile_compute(today)
+    # Regola #7: le operazioni pesanti dichiarano quanto sono costate.
+    log(f"📈 Profilo consumi ricalcolato in {(time.time()-t0)*1000:.0f}ms "
+        f"({fresh['days']} giorni di storico)")
+    with _forecast_lock:
+        _profile_cache["payload"] = fresh
+        _profile_cache["ts"] = time.time()
+        _profile_cache["day"] = today
+    return fresh
+
+
+def _battery_round_trip() -> Tuple[float, str]:
+    """
+    Rendimento di ciclo dai contatori giornalieri: Σscarica / Σcarica.
+
+    Su una finestra lunga la deriva del SOC fra il primo e l'ultimo giorno si
+    diluisce (12 kWh di batteria su ~1500 kWh transitati = meno dell'1%), e
+    quello che resta è il rendimento vero del pacco più le perdite di stand-by.
+    """
+    entries = _history_read_daily()
+    if not entries:
+        return ROUND_TRIP_FALLBACK, "default (nessun daily.csv)"
+    keys = sorted(entries)[-ROUND_TRIP_DAYS:]
+    chg = sum(entries[k].get("charge_kwh") or 0.0 for k in keys)
+    dis = sum(entries[k].get("discharge_kwh") or 0.0 for k in keys)
+    if chg <= 0 or dis <= 0:
+        return ROUND_TRIP_FALLBACK, "default (contatori a zero)"
+    rt = dis / chg
+    if not (ROUND_TRIP_MIN <= rt <= ROUND_TRIP_MAX):
+        # Fuori banda = i contatori stanno raccontando altro (giorni monchi,
+        # sostituzione del pacco). Non si usa un numero che non ha senso fisico.
+        return ROUND_TRIP_FALLBACK, f"default (misurato {rt:.2f} fuori banda)"
+    return rt, f"misurato su {len(keys)} giorni"
+
+
+def _current_soc() -> Tuple[Optional[float], str]:
+    """SOC di partenza: prima l'inverter, poi l'ultimo minuto scritto su disco."""
+    with _cache_lock:
+        payload = _cache["payload"]
+        ts = _cache["ts"]
+    if payload is not None and (time.time() - ts) < POLL_INTERVAL * 12:
+        soc = (payload.get("derived") or {}).get("battery_percent")
+        if soc is not None:
+            return float(soc), "inverter"
+    today = date.today()
+    for day in (today, today - timedelta(days=1)):
+        rows = _history_read_minutes(day)
+        if rows:
+            return float(rows[-1]["soc"]), f"storico {day.isoformat()}"
+    return None, "assente"
+
+
+def _pv_kwh_today_measured(now: Optional[datetime] = None) -> Optional[float]:
+    """
+    Quanto ha già prodotto oggi: contatore dell'inverter, o integrale dello storico.
+
+    Con una verifica incrociata sul contatore, ma solo nelle prime ore del
+    giorno. Il contatore giornaliero dell'inverter si azzera "intorno" a
+    mezzanotte — non nell'istante in cui scatta la data per noi (è il motivo per
+    cui il rollup dello storico aspetta le 00:05). Nella finestra in mezzo il
+    contatore racconta ancora IERI, e sommarlo alla previsione delle ore che
+    restano darebbe una giornata da 90 kWh su un impianto che ne fa 45: il
+    doppio, e con l'aria di un dato vero.
+
+    Il controllo è limitato alle prime ore proprio perché non deve diventare
+    esso stesso una fonte di errore: più tardi nella giornata uno storico vuoto
+    non significa "l'inverter non ha prodotto", significa molto più spesso che
+    manca un pezzo di storico — e in quel caso il contatore è l'unica cosa
+    giusta che abbiamo, non quella da buttare.
+    """
+    now = now or datetime.now()
+    rows = _history_read_minutes(date.today())
+    integral = sum(p["pv"] for p in rows) / 60.0 / 1000.0 if rows else 0.0
+
+    counter = None
+    with _cache_lock:
+        payload = _cache["payload"]
+        ts = _cache["ts"]
+    if payload is not None and (time.time() - ts) < POLL_INTERVAL * 12:
+        today_block = (payload.get("energy") or {}).get("today") or {}
+        val = today_block.get("solar_kwh")
+        if val is None:
+            val = (payload.get("derived") or {}).get("daily_energy_kwh")
+        try:
+            counter = float(val) if val is not None else None
+        except (TypeError, ValueError):
+            counter = None
+    if counter is None and rows:
+        stored = [p["pv_kwh"] for p in rows if p.get("pv_kwh") is not None]
+        counter = max(stored) if stored else None
+
+    if counter is None:
+        return integral if rows else None
+    if now.hour < 3 and rows and integral < 0.5 and counter > 2.0:
+        log(f"⚠️ Previsione: contatore giornaliero a {counter:.1f} kWh alle "
+            f"{now.strftime('%H:%M')} ma lo storico di oggi è a {integral:.2f} kWh — "
+            f"non si è ancora azzerato, uso l'integrale.")
+        return integral
+    return counter
+
+
+def _simulate(start: datetime, steps: int, soc0: float,
+              pv_of, home_of, batt: Dict) -> List[Dict]:
+    """
+    Integrazione a passi di 15 minuti. Non è una previsione del SOC: è un
+    bilancio energetico che parte dal SOC di adesso e applica, quarto d'ora per
+    quarto d'ora, ciò che entra meno ciò che esce.
+
+    Il rendimento si applica a metà per verso (√round-trip in carica e √ in
+    scarica): è il modo standard di ripartire una perdita di ciclo di cui si
+    conosce solo il totale, e non pretende di sapere quale metà pesa di più.
+    """
+    points: List[Dict] = []
+    soc = max(0.0, min(100.0, soc0))
+    cap = batt["capacity_wh"]
+    min_soc = batt["min_soc"]
+    eta = math.sqrt(max(0.05, batt["round_trip"]))
+    for i in range(steps):
+        when = start + timedelta(minutes=FORECAST_STEP_MIN * i)
+        pv = max(0.0, pv_of(when))
+        home = max(0.0, home_of(when))
+        net = pv - home
+        if net >= 0:
+            headroom_wh = max(0.0, (100.0 - soc) / 100.0 * cap)
+            charge = min(net, batt["max_charge_w"], headroom_wh / (FORECAST_STEP_H * eta))
+            charge = max(0.0, charge)
+            soc += charge * FORECAST_STEP_H * eta / cap * 100.0 if cap else 0.0
+            grid = -(net - charge)            # negativo = immissione in rete
+        else:
+            deficit = -net
+            # Sotto la riserva minima l'inverter smette di scaricare: il
+            # residuo lo compra dalla rete, non lo inventa.
+            usable_wh = max(0.0, (soc - min_soc) / 100.0 * cap)
+            avail = usable_wh * eta / FORECAST_STEP_H
+            release = max(0.0, min(deficit, batt["max_discharge_w"], avail))
+            soc -= release * FORECAST_STEP_H / eta / cap * 100.0 if cap else 0.0
+            grid = deficit - release          # positivo = prelievo dalla rete
+        soc = max(0.0, min(100.0, soc))
+        points.append({
+            "t": when.strftime("%Y-%m-%dT%H:%M"),
+            "pv_w": int(round(pv)),
+            "home_w": int(round(home)),
+            "soc": round(soc, 1),
+            "grid_w": int(round(grid)),
+        })
+    return points
+
+
+def forecast_compute(now: Optional[datetime] = None) -> Dict:
+    """
+    Costruisce il payload di /api/forecast. Gira nel thread di background ogni
+    15 minuti; non tocca né la cache di /data né il poller.
+    """
+    now = now or datetime.now()
+    today = now.date()
+    tomorrow = today + timedelta(days=1)
+    reasons: List[str] = []
+
+    # --- meteo ---
+    ext, ext_age, ext_err = weather_extended()
+    rad = _rad_map(ext)
+    if ext_err:
+        reasons.append(f"meteo non raggiungibile ({ext_err})")
+    if ext_age > WEATHER_EXT_TTL * 2:
+        reasons.append(f"meteo vecchio di {ext_age/3600:.1f}h")
+    # Tutto qui dentro lavora in ora locale ingenua: gli orari di open-meteo
+    # (chiesti nel fuso di config.json) e quelli del Raspberry devono essere lo
+    # STESSO orologio. Se non lo sono la previsione non si rompe — cosa molto
+    # peggiore: continua a funzionare, spostata di ore, con il picco solare
+    # messo a un'ora in cui il sole non c'è. Un controllo da due righe.
+    if ext and ext.get("utc_offset_s") is not None:
+        offset = datetime.now().astimezone().utcoffset()
+        local_s = int(offset.total_seconds()) if offset else 0
+        if abs(local_s - int(ext["utc_offset_s"])) > 60:
+            reasons.append(
+                f"fuso del server ({local_s/3600:+g}h) diverso da quello del meteo "
+                f"({int(ext['utc_offset_s'])/3600:+g}h): orari sfasati")
+
+    # --- calibrazione e profili ---
+    cal = _solar_calibration(today, rad)
+    # Senza radiazione la calibrazione non può che fallire: dirlo sarebbe un
+    # secondo allarme per la stessa causa, e un elenco di motivi ridondanti fa
+    # cercare due guasti dove ce n'è uno.
+    if cal.get("fallback") and rad:
+        reasons.append(f"solare non calibrato: {cal.get('fallback_reason')}")
+    prof = _profile_cached(today)
+    if prof["days"] < CALIB_DAYS:
+        reasons.append(f"solo {prof['days']} giorni di storico")
+
+    kind = "weekend" if now.weekday() >= 5 else "weekday"
+    home_prof = prof["home"].get(kind) or prof["home"].get("weekday") or prof["home"].get("weekend")
+    if home_prof is None:
+        reasons.append("nessun profilo di consumo disponibile")
+
+    # --- batteria ---
+    battery_cfg = config.get("battery") or {}
+    try:
+        capacity_wh = float(battery_cfg.get("capacity_kwh") or 0.0) * 1000.0
+    except (TypeError, ValueError):
+        capacity_wh = 0.0
+    try:
+        min_soc = float(battery_cfg.get("min_soc") or 0.0)
+    except (TypeError, ValueError):
+        min_soc = 0.0
+    round_trip, rt_source = _battery_round_trip()
+    batt = {
+        "capacity_wh": capacity_wh,
+        "min_soc": min_soc,
+        "round_trip": round(round_trip, 3),
+        "max_charge_w": prof["battery_limits"]["max_charge_w"],
+        "max_discharge_w": prof["battery_limits"]["max_discharge_w"],
+        "round_trip_source": rt_source,
+    }
+
+    soc0, soc_source = _current_soc()
+    if soc0 is None:
+        reasons.append("SOC di partenza sconosciuto")
+        soc0 = min_soc
+
+    # --- orizzonte: sempre fino a fine giornata di domani ---
+    # Non "24 ore da adesso": alle 23:50 un orizzonte scorrevole finirebbe a
+    # metà del giorno dopo e la domanda vera dell'utente — "domani com'è?" —
+    # resterebbe senza risposta. Fine di domani è un confine che l'utente
+    # riconosce, e vale almeno 24 ore in ogni momento della giornata.
+    start = (now.replace(second=0, microsecond=0)
+             + timedelta(minutes=FORECAST_STEP_MIN - now.minute % FORECAST_STEP_MIN))
+    horizon_end = datetime.combine(tomorrow, datetime.min.time()) + timedelta(hours=23, minutes=59)
+    steps = max(0, int((horizon_end - start).total_seconds() // (FORECAST_STEP_MIN * 60)) + 1)
+
+    # La previsione copre davvero domani? Basta un'ora di mezzogiorno per dirlo.
+    covers_tomorrow = any(k.startswith(tomorrow.isoformat()) for k in rad)
+    if rad and covers_tomorrow:
+        coeff = cal["coeff_w_per_wm2"]
+        pv_max = cal.get("pv_max_w") or 0
+
+        def pv_of(when, _rad=rad, _c=coeff, _max=pv_max):
+            # Si campiona al CENTRO del quarto d'ora: è il valore che rappresenta
+            # l'intervallo, non il suo bordo.
+            value = _rad_at(_rad, when + timedelta(minutes=FORECAST_STEP_MIN // 2))
+            if value is None:
+                return 0.0
+            return min(_c * value, float(_max)) if _max else _c * value
+        solar_basis = dict(cal)
+    else:
+        # Meteo assente: invece di prevedere zero produzione (che di giorno è
+        # una bugia grossa) si usa la mediana di quanto ha prodotto questo
+        # impianto nei giorni scorsi alla stessa ora. È una climatologia, non
+        # una previsione, e va detto — da qui il degraded.
+        pv_slots = prof.get("pv_slots")
+        reasons.append("meteo non disponibile: produzione da profilo mediano")
+        if pv_slots:
+            def pv_of(when, _slots=pv_slots):
+                return _slots[(when.hour * 60 + when.minute) // FORECAST_STEP_MIN]
+        else:
+            def pv_of(when):
+                return 0.0
+            reasons.append("nessun profilo di produzione di ripiego")
+        solar_basis = {
+            "source": "profilo mediano di produzione (meteo non disponibile)",
+            "coeff_w_per_wm2": cal.get("coeff_w_per_wm2"),
+            "fit_days": cal.get("fit_days"),
+            "r2": cal.get("r2"),
+            "fallback": True,
+        }
+
+    if home_prof:
+        def home_of(when, _prof=prof):
+            k = "weekend" if when.weekday() >= 5 else "weekday"
+            block = _prof["home"].get(k) or _prof["home"].get("weekday") or _prof["home"].get("weekend")
+            return block["slots"][(when.hour * 60 + when.minute) // FORECAST_STEP_MIN]
+    else:
+        def home_of(when):
+            return 0.0
+
+    points = _simulate(start, steps, soc0, pv_of, home_of, batt) if steps > 0 else []
+
+    # --- i fatti che servono davvero ---
+    empty_at = full_at = import_from = None
+    for p in points:
+        if empty_at is None and p["soc"] <= min_soc + 0.05:
+            empty_at = p["t"]
+        if full_at is None and p["soc"] >= FORECAST_SOC_FULL:
+            full_at = p["t"]
+        if import_from is None and p["grid_w"] > FORECAST_GRID_IMPORT_W:
+            import_from = p["t"]
+
+    def _kwh(day: date, key: str) -> float:
+        prefix = day.isoformat()
+        return round(sum(p[key] for p in points if p["t"].startswith(prefix))
+                     * FORECAST_STEP_H / 1000.0, 2)
+
+    measured_today = _pv_kwh_today_measured(now)
+    pv_rest_today = _kwh(today, "pv_w")
+    # "Oggi" = quanto avrà prodotto la giornata INTERA: il misurato fino ad ora
+    # più il previsto per le ore che restano. Alle 21:40 dev'essere il totale
+    # del giorno, non zero — che sarebbe vero solo per il futuro residuo e
+    # verrebbe letto come un guasto.
+    pv_today = round((measured_today or 0.0) + pv_rest_today, 2) if measured_today is not None else pv_rest_today
+
+    autonomy = None
+    if empty_at:
+        delta = datetime.strptime(empty_at, "%Y-%m-%dT%H:%M") - now
+        autonomy = round(max(0.0, delta.total_seconds() / 3600.0), 1)
+
+    quality = "degraded" if reasons else "ok"
+    payload = {
+        "generated_at": now.strftime("%Y-%m-%dT%H:%M"),
+        "horizon_end": horizon_end.strftime("%Y-%m-%dT%H:%M"),
+        "resolution_s": FORECAST_STEP_MIN * 60,
+        "points": points,
+        "facts": {
+            "battery_empty_at": empty_at,
+            "battery_full_at": full_at,
+            "grid_import_from": import_from,
+            "pv_kwh_expected_today": pv_today,
+            "pv_kwh_expected_tomorrow": _kwh(tomorrow, "pv_w"),
+            "autonomy_h": autonomy,
+            # Extra rispetto al contratto minimo, per chi vuole distinguere il
+            # già prodotto dal previsto senza rifare i conti.
+            "pv_kwh_remaining_today": pv_rest_today,
+            "pv_kwh_measured_today": round(measured_today, 2) if measured_today is not None else None,
+            "home_kwh_expected_today": _kwh(today, "home_w"),
+            "home_kwh_expected_tomorrow": _kwh(tomorrow, "home_w"),
+        },
+        "basis": {
+            "solar": solar_basis,
+            "home": {
+                "source": "profilo mediano",
+                "days": prof["days"],
+                "kind": kind,
+                "kwh_day": home_prof["kwh_day"] if home_prof else None,
+                "scale": home_prof["scale"] if home_prof else None,
+                "level_days": PROFILE_LEVEL_DAYS,
+            },
+            "battery": {
+                "capacity_wh": int(round(capacity_wh)),
+                "min_soc": min_soc,
+                "round_trip": batt["round_trip"],
+                "round_trip_source": rt_source,
+                "max_charge_w": int(batt["max_charge_w"]),
+                "max_discharge_w": int(batt["max_discharge_w"]),
+                "soc_start": round(soc0, 1),
+                "soc_source": soc_source,
+            },
+            "weather": {
+                "age_s": round(ext_age, 1),
+                "covers_tomorrow": bool(rad and covers_tomorrow),
+                "hours": len(rad),
+            },
+        },
+        "quality": quality,
+        "quality_reasons": reasons,
+        "score_yesterday": _forecast_score(today - timedelta(days=1)),
+    }
+
+    # Snapshot del mattino: si scrive una volta al giorno, e solo se la
+    # previsione vale qualcosa. Congelare una previsione degradata significa
+    # darsi un voto su un compito che si sapeva già di non aver fatto.
+    if FORECAST_SNAPSHOT_HOUR <= now.hour < FORECAST_SNAPSHOT_HOUR_END and quality == "ok":
+        _forecast_snapshot_write(today, payload, now)
+    return payload
+
+
+# --- SNAPSHOT E PAGELLA ---
+# Una previsione che non si misura è un oroscopo: si legge, fa piacere, e
+# nessuno torna a controllare. Quindi ogni mattina si congela su disco la
+# previsione del giorno, e il giorno dopo la si confronta con ciò che è
+# successo davvero. Un file al giorno, ~2 kB, stessa retention dello storico.
+
+def _forecast_snapshot_path(day: date) -> str:
+    return os.path.join(FORECAST_DIR, f"{day.isoformat()}.json")
+
+
+def _forecast_snapshot_write(day: date, payload: Dict, now: datetime):
+    path = _forecast_snapshot_path(day)
+    if os.path.exists(path):
+        return                      # già congelata stamattina: non si riscrive
+    facts = payload["facts"]
+    # Si salvano le ORE, non i 96 quarti d'ora: per rifare i conti a posteriori
+    # servono i totali e la forma della giornata, e 24 righe la descrivono
+    # bene stando in 2 kB invece che in 8.
+    hourly: Dict[int, Dict[str, float]] = {}
+    for p in payload["points"]:
+        if not p["t"].startswith(day.isoformat()):
+            continue
+        h = int(p["t"][11:13])
+        acc = hourly.setdefault(h, {"pv_w": 0.0, "home_w": 0.0, "n": 0})
+        acc["pv_w"] += p["pv_w"]
+        acc["home_w"] += p["home_w"]
+        acc["n"] += 1
+    snapshot = {
+        "day": day.isoformat(),
+        "generated_at": payload["generated_at"],
+        "pv_kwh_pred": facts["pv_kwh_expected_today"],
+        "home_kwh_pred": facts["home_kwh_expected_today"],
+        # Quanto del totale era già misurato quando si è congelata: senza questo
+        # numero una previsione fatta alle 18:00 sembrerebbe bravissima.
+        "pv_kwh_measured_at_snapshot": facts.get("pv_kwh_measured_today"),
+        "quality": payload["quality"],
+        "basis": payload["basis"],
+        "hourly": [{"h": h, "pv_w": round(v["pv_w"] / v["n"]), "home_w": round(v["home_w"] / v["n"])}
+                   for h, v in sorted(hourly.items())],
+    }
+    try:
+        with _history_io_lock:
+            os.makedirs(FORECAST_DIR, exist_ok=True)
+            tmp = path + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(snapshot, f, separators=(",", ":"))
+            os.replace(tmp, path)
+        log(f"🔮 Previsione di {day.isoformat()} congelata alle {now.strftime('%H:%M')}: "
+            f"pv {snapshot['pv_kwh_pred']} kWh · casa {snapshot['home_kwh_pred']} kWh")
+    except OSError as exc:
+        log(f"⚠️ Previsione: snapshot di {day.isoformat()} non scritto: {exc}")
+
+
+def _forecast_score(day: date) -> Optional[Dict]:
+    """Confronta la previsione congelata di `day` con il rollup reale."""
+    try:
+        with open(_forecast_snapshot_path(day), "r", encoding="utf-8") as f:
+            snap = json.load(f)
+    except (OSError, ValueError):
+        return None
+    real = _history_read_daily().get(day.isoformat())
+    if not real:
+        return None                 # il rollup delle 00:05 non è ancora passato
+    pv_real, home_real = real.get("pv_kwh"), real.get("home_kwh")
+    pv_pred, home_pred = snap.get("pv_kwh_pred"), snap.get("home_kwh_pred")
+    if not pv_real or pv_pred is None:
+        return None
+
+    def _err(pred, actual):
+        if pred is None or not actual:
+            return None
+        return round(abs(pred - actual) / actual * 100.0, 1)
+
+    return {
+        "pv_kwh_pred": pv_pred,
+        "pv_kwh_real": round(pv_real, 2),
+        "err_pct": _err(pv_pred, pv_real),
+        "home_err_pct": _err(home_pred, home_real),
+    }
+
+
+def forecast_retention(today: Optional[date] = None) -> List[str]:
+    """Stessa cura dello storico: gli snapshot vecchi si cancellano, e con un log."""
+    today = today or date.today()
+    cutoff = today - timedelta(days=HISTORY_RETENTION_DAYS)
+    removed: List[str] = []
+    try:
+        names = os.listdir(FORECAST_DIR)
+    except OSError:
+        return removed
+    for name in names:
+        if not name.endswith(".json"):
+            continue
+        day = _history_parse_day(name[:-5])
+        if day is None or day >= cutoff:
+            continue
+        try:
+            os.remove(os.path.join(FORECAST_DIR, name))
+        except OSError as exc:
+            log(f"⚠️ Previsione: cancellazione di {name} fallita: {exc}")
+            continue
+        removed.append(name)
+    if removed:
+        log(f"🧹 Previsione: cancellati {len(removed)} snapshot oltre i "
+            f"{HISTORY_RETENTION_DAYS} giorni")
+    return removed
+
+
+# --- CACHE E THREAD ---
+
+def forecast_payload() -> Tuple[Dict, int]:
+    """
+    Serve SEMPRE dalla cache. Il primo giro (avvio del processo) è l'unico che
+    può calcolare in linea, e succede una volta sola: da lì in poi ci pensa il
+    thread di background e la richiesta HTTP costa una serializzazione JSON.
+    """
+    now = time.time()
+    with _forecast_lock:
+        cached = _forecast_cache["payload"]
+        age = now - _forecast_cache["ts"]
+    if cached is not None:
+        out = dict(cached)
+        out["cache_age_s"] = round(age, 1)
+        return out, 200
+
+    # Nessuna previsione ancora: la si calcola qui, ma una alla volta — se
+    # arrivano tre richieste insieme all'avvio, due aspettano la prima invece
+    # di rileggere 28 file a testa.
+    with _forecast_compute_lock:
+        with _forecast_lock:
+            cached = _forecast_cache["payload"]
+            age = time.time() - _forecast_cache["ts"]
+        if cached is not None:
+            out = dict(cached)
+            out["cache_age_s"] = round(age, 1)
+            return out, 200
+        try:
+            fresh = forecast_compute()
+        except Exception as exc:
+            log(f"⚠️ Previsione non calcolabile: {exc}")
+            return {"error": "previsione non disponibile", "detail": str(exc)}, 503
+        with _forecast_lock:
+            _forecast_cache["payload"] = fresh
+            _forecast_cache["ts"] = time.time()
+    out = dict(fresh)
+    out["cache_age_s"] = 0.0
+    return out, 200
+
+
+def forecast_loop():
+    """
+    Ricalcolo periodico in un thread suo. Il primo giro aspetta qualche secondo:
+    il poller deve aver letto almeno una volta l'inverter, altrimenti la prima
+    previsione partirebbe da un SOC preso dallo storico quando quello vero è a
+    portata di mano.
+    """
+    time.sleep(20)
+    while True:
+        try:
+            t0 = time.time()
+            with _forecast_compute_lock:
+                fresh = forecast_compute()
+                with _forecast_lock:
+                    _forecast_cache["payload"] = fresh
+                    _forecast_cache["ts"] = time.time()
+            facts = fresh["facts"]
+            log(f"🔮 Previsione aggiornata in {(time.time()-t0)*1000:.0f}ms · "
+                f"oggi {facts['pv_kwh_expected_today']}kWh · "
+                f"domani {facts['pv_kwh_expected_tomorrow']}kWh · "
+                f"minimo batteria {facts['battery_empty_at'] or '—'} · "
+                f"rete da {facts['grid_import_from'] or '—'} · {fresh['quality']}")
+        except Exception as exc:
+            # Un guasto qui non deve spegnere il thread: la prossima previsione
+            # riprova, e nel frattempo si serve l'ultima buona.
+            log(f"⚠️ Previsione: ricalcolo fallito: {exc}")
+        time.sleep(FORECAST_TTL)
+
+
+def forecast_backtest(days: int = 5) -> int:
+    """
+    Prova retrospettiva: per ogni giorno passato si ricostruisce la previsione
+    usando SOLO i dati disponibili PRIMA di quel giorno, e la si confronta con
+    quello che è poi successo davvero.
+
+    Onestà su cosa misura e cosa no: la radiazione dei giorni passati arriva da
+    open-meteo con `past_days`, che restituisce l'ANALISI (il modello corretto
+    con le osservazioni), non la previsione che sarebbe stata disponibile la
+    sera prima. Quindi questa prova misura il modello di conversione — quanto
+    bene si traduce irraggiamento in kWh su questo impianto — e NON l'abilità
+    del meteo a indovinare il domani. L'errore vero del sistema in esercizio è
+    più alto, ed è quello che misura `score_yesterday` giorno per giorno.
+    """
+    today = date.today()
+    # Serve radiazione anche per i 7 giorni che precedono il più vecchio dei
+    # giorni testati: la calibrazione di quel giorno guarda indietro pure lei.
+    span = days + CALIB_DAYS + 1
+    print(f"📡 Radiazione oraria: {span} giorni passati da open-meteo…")
+    try:
+        ext = _weather_extended_fetch(past_days=min(span, 92), forecast_days=1)
+    except Exception as exc:
+        print(f"❌ meteo non raggiungibile: {exc}")
+        return 2
+    rad = _rad_map(ext)
+    print(f"   {len(rad)} ore di irraggiamento\n")
+
+    battery_cfg = config.get("battery") or {}
+    capacity_wh = float(battery_cfg.get("capacity_kwh") or 0.0) * 1000.0
+    min_soc = float(battery_cfg.get("min_soc") or 0.0)
+    round_trip, rt_src = _battery_round_trip()
+    print(f"🔋 round-trip {round_trip:.3f} ({rt_src}) · capacità {capacity_wh/1000:g} kWh · "
+          f"riserva {min_soc:g}%")
+
+    header = (f"{'giorno':11s} {'tipo':3s} {'pv prev':>8s} {'pv reale':>9s} {'err':>7s}  "
+              f"{'casa prev':>10s} {'casa reale':>11s} {'err':>7s}  {'rete prev':>10s} {'rete reale':>11s}")
+    print("\n" + header)
+    print("-" * len(header))
+
+    pv_errs: List[float] = []
+    home_errs: List[float] = []
+    rows_done = 0
+    for back in range(1, days + 1):
+        target = today - timedelta(days=back)
+        real = _history_read_minutes(target)
+        if len(real) < 1400:
+            print(f"{target.isoformat():11s} — giornata incompleta ({len(real)} minuti), saltata")
+            continue
+        cal = _solar_calibration(target, rad)
+        prof = _profile_compute(target)
+        kind = "weekend" if target.weekday() >= 5 else "weekday"
+        home_prof = prof["home"].get(kind) or prof["home"].get("weekday")
+        if not home_prof or not cal.get("coeff_w_per_wm2"):
+            print(f"{target.isoformat():11s} — storico insufficiente, saltata")
+            continue
+
+        coeff, pv_max = cal["coeff_w_per_wm2"], cal.get("pv_max_w") or 0
+
+        def pv_of(when, _c=coeff, _m=pv_max):
+            value = _rad_at(rad, when + timedelta(minutes=FORECAST_STEP_MIN // 2))
+            if value is None:
+                return 0.0
+            return min(_c * value, float(_m)) if _m else _c * value
+
+        def home_of(when, _p=prof):
+            k = "weekend" if when.weekday() >= 5 else "weekday"
+            block = _p["home"].get(k) or _p["home"].get("weekday")
+            return block["slots"][(when.hour * 60 + when.minute) // FORECAST_STEP_MIN]
+
+        batt = {"capacity_wh": capacity_wh, "min_soc": min_soc, "round_trip": round_trip,
+                "max_charge_w": prof["battery_limits"]["max_charge_w"],
+                "max_discharge_w": prof["battery_limits"]["max_discharge_w"]}
+        start = datetime.combine(target, datetime.min.time())
+        points = _simulate(start, FORECAST_SLOTS, float(real[0]["soc"]), pv_of, home_of, batt)
+
+        pv_pred = sum(p["pv_w"] for p in points) * FORECAST_STEP_H / 1000.0
+        home_pred = sum(p["home_w"] for p in points) * FORECAST_STEP_H / 1000.0
+        imp_pred = sum(p["grid_w"] for p in points if p["grid_w"] > 0) * FORECAST_STEP_H / 1000.0
+        pv_real = sum(p["pv"] for p in real) / 60.0 / 1000.0
+        home_real = sum(p["home"] for p in real) / 60.0 / 1000.0
+        imp_real = sum(p["grid"] for p in real if p["grid"] > 0) / 60.0 / 1000.0
+
+        pv_err = 100.0 * (pv_pred - pv_real) / pv_real if pv_real else 0.0
+        home_err = 100.0 * (home_pred - home_real) / home_real if home_real else 0.0
+        pv_errs.append(pv_err)
+        home_errs.append(home_err)
+        rows_done += 1
+        print(f"{target.isoformat():11s} {'we' if target.weekday()>=5 else 'fe':3s} "
+              f"{pv_pred:7.1f}  {pv_real:8.1f}  {pv_err:+6.1f}%  "
+              f"{home_pred:9.1f}  {home_real:10.1f}  {home_err:+6.1f}%  "
+              f"{imp_pred:9.1f}  {imp_real:10.1f}")
+
+    if not rows_done:
+        print("\n❌ nessun giorno con storico sufficiente")
+        return 2
+    print("-" * len(header))
+    print(f"\n☀️  solare · scostamento medio {sum(pv_errs)/len(pv_errs):+.1f}%  "
+          f"errore assoluto medio {sum(abs(e) for e in pv_errs)/len(pv_errs):.1f}%")
+    print(f"🏠 consumi · scostamento medio {sum(home_errs)/len(home_errs):+.1f}%  "
+          f"errore assoluto medio {sum(abs(e) for e in home_errs)/len(home_errs):.1f}%")
+    print(f"\nℹ️  La radiazione dei giorni passati è ANALISI, non previsione: questi "
+          f"numeri\n   misurano la conversione irraggiamento→kWh, non l'abilità del meteo.")
+    return 0
 
 
 def health_payload() -> Tuple[Dict, int]:
@@ -2390,6 +3574,12 @@ def make_handler():
                 payload, code = weather_payload()
                 return self._send_json(payload, code=code)
 
+            if path == "/api/forecast":
+                if not self._authorized():
+                    return self._deny()
+                payload, code = forecast_payload()
+                return self._send_json(payload, code=code)
+
             if path == "/data":
                 if not self._authorized():
                     return self._deny()
@@ -2572,6 +3762,11 @@ def serve(host: str, port: int, debug: bool = False):
     # ogni 5 secondi.
     if HISTORY_ENABLED:
         threading.Thread(target=history_maintenance_loop, daemon=True).start()
+        # La previsione vive nello stesso thread di background della manutenzione?
+        # No: la manutenzione dorme 5 minuti per volta e gira una volta al giorno,
+        # la previsione ogni 15 minuti. Due ritmi diversi, due thread — e nessuno
+        # dei due sta nel percorso di /data.
+        threading.Thread(target=forecast_loop, daemon=True).start()
     else:
         log("📚 Storico disattivato da config.json (history.enabled=false): "
             "nessuna scrittura su disco, sezione Storico nascosta nella dashboard.")
@@ -2768,7 +3963,17 @@ def main():
              "Serve a verificare la manutenzione senza aspettare le 00:05 "
              "(il servizio la fa da solo, questo è per il collaudo).",
     )
+    parser.add_argument(
+        "--forecast-backtest",
+        nargs="?", type=int, const=5, default=None, metavar="GIORNI",
+        help="Prova retrospettiva della previsione: rigenera la previsione dei "
+             "GIORNI passati (default 5) usando solo i dati precedenti a ciascuno "
+             "e la confronta con quello che è successo. Non tocca l'inverter.",
+    )
     args = parser.parse_args()
+
+    if args.forecast_backtest is not None:
+        sys.exit(forecast_backtest(args.forecast_backtest))
 
     if args.history_maintenance:
         result = history_maintenance()

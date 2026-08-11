@@ -238,6 +238,12 @@
                 <p class="legend">
                     <span class="legend__item" data-role="solar"><span class="legend__line" aria-hidden="true"></span>Solare</span>
                     <span class="legend__item" data-role="home"><span class="legend__line" aria-hidden="true"></span>Casa</span>
+                    <!-- Compare solo quando una previsione c'è davvero: una
+                         voce di legenda per una serie non disegnata è peggio
+                         di nessuna legenda. Lo accende app.js. -->
+                    <span class="legend__item" id="chartLegendForecast" hidden>
+                        <span class="forecast__key" aria-hidden="true"></span>previsione
+                    </span>
                 </p>
             </div>
             <div class="chart-wrap" id="dayChart"></div>
@@ -245,6 +251,15 @@
                  sullo stesso riquadro: l'allineamento fra due scale è
                  arbitrario e inventa correlazioni che nei dati non ci sono. -->
             <div class="chart-wrap" id="socChart"></div>
+
+            <!-- PREVISIONE, a parole.
+                 Sta sotto le curve che continua, non in una card propria:
+                 la parte tratteggiata del grafico e queste frasi sono la
+                 stessa cosa detta due volte, e devono restare a contatto.
+                 È anche l'equivalente testuale di quella parte del disegno —
+                 testo vero del documento, non una descrizione parallela che
+                 col tempo divergerebbe. -->
+            <div class="forecast" id="forecastPanel" hidden></div>
         </section>
 
         <!-- ============================ ENERGIE =========================== -->
@@ -260,6 +275,12 @@
                 </p>
             </div>
             <div class="energy-bars" id="energyBars"></div>
+
+            <!-- Quanto valgono, in denaro, gli stessi kWh delle barre sopra.
+                 Se in configurazione non c'è una tariffa questo blocco resta
+                 vuoto e nascosto: nessuno zero, nessun trattino, nessun
+                 prezzo di riferimento inventato. -->
+            <div class="money" id="energyMoney" hidden></div>
         </section>
 
         <!-- ============================= METER ============================ -->
@@ -362,6 +383,12 @@
                     </div>
                     <div class="meters" id="histMeters"></div>
                 </div>
+
+                <!-- Il valore in euro del periodo MOSTRATO: cambia con le
+                     schede Giorno/Settimana/Mese/Anno insieme ai kWh, perché
+                     esce dagli stessi totali (energyModel) moltiplicati per i
+                     prezzi della configurazione. -->
+                <div class="money" id="histMoney" hidden></div>
 
                 <p class="hist-facts" id="histFacts" hidden></p>
             </div>

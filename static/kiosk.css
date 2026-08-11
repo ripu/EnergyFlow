@@ -210,6 +210,14 @@
 [data-mode="kiosk"] .chart-wrap {
     flex: 1 1 auto;
     min-height: 0;
+    /* Rete di sicurezza contro la regola #22. Gli SVG si dimensionano
+       leggendo clientHeight del contenitore (fitHeight), quindi fra
+       l'aggiunta di un blocco nella card e il ridisegno successivo esiste
+       un fotogramma in cui il disegno è più alto del posto che ha. Senza
+       questa riga quel fotogramma lo passa SOPRA la striscia sotto, che è
+       esattamente la sovrapposizione che la regola vieta: meglio un grafico
+       tagliato per un istante che due grafici uno sull'altro. */
+    overflow: hidden;
 }
 
 /* ----------------------------------------------------------------------
@@ -320,6 +328,125 @@
 [data-mode="kiosk"] .energy-bars .stackbar {
     flex: 1 1 0;
     min-width: 0;
+}
+
+/* ----------------------------------------------------------------------
+   PREVISIONE sul pannello a muro — SÌ, ma ridotta a una riga.
+
+   La domanda che si pone chi passa davanti al pannello la sera è una sola,
+   e non è "quanto ho prodotto": è «la batteria arriva a domattina?».
+   Quella risposta vale il posto che occupa, quindi la previsione resta —
+   ma di tutto il pannello sopravvivono le due frasi più utili e la pagella
+   di ieri, che è ciò che dice quanto fidarsi delle prime due.
+
+   Cade invece la riga «costruita su…»: R² e giorni di taratura servono a
+   chi decide se credere al modello guardandolo da vicino, non a chi
+   attraversa il corridoio a tre metri di distanza. E cade l'ora di calcolo,
+   che è già implicita nel marcatore "adesso" sul grafico.
+
+   Il costo è tutto qui: una riga presa alla banda del grafico (310px), che
+   la divide fra andamento e striscia SOC per flex. Non serve toccare la
+   pianta in layout.css — i due riquadri si stringono da soli, e charts.js
+   legge l'altezza dal contenitore proprio per questo.
+   ---------------------------------------------------------------------- */
+/* Il riquadro costa 38px alla banda del grafico, non 52: ogni pixel qui è
+   preso alla striscia della carica, che sotto i 60px perde la tacca del 50%.
+   Padding al minimo e bordo a 1px — il tratteggio si vede lo stesso, ed è
+   quello a portare il significato, non lo spessore. */
+[data-mode="kiosk"] .forecast {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: var(--space-4);
+    padding: var(--space-1) var(--space-3);
+    overflow: hidden;
+}
+
+[data-mode="kiosk"] .forecast__head {
+    flex: none;
+}
+
+/* L'ora di calcolo e l'orizzonte: già detti dal marcatore "adesso" e dal
+   confine di mezzanotte sul grafico, che sul muro si vedono meglio di una
+   riga di testo piccolo. */
+[data-mode="kiosk"] .forecast__head>span:not(.forecast__title) {
+    display: none;
+}
+
+[data-mode="kiosk"] .forecast__title {
+    font-size: var(--fs-micro);
+}
+
+[data-mode="kiosk"] .forecast__key {
+    width: 40px;
+    border-top-width: 3px;
+}
+
+/* UNA sola frase, la prima dell'ordine di importanza deciso in
+   forecastSentences() — che è la batteria, cioè la domanda per cui la
+   previsione sta sul muro. Due frasi ci stavano in larghezza solo troncando
+   la prima a metà parola, che è il modo peggiore di dire qualcosa: mezza
+   frase non informa e fa sembrare rotta la pagina. */
+[data-mode="kiosk"] .forecast__list {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: var(--space-5);
+    font-size: var(--fs-micro);
+    min-width: 0;
+}
+
+[data-mode="kiosk"] .forecast__list li {
+    white-space: nowrap;
+}
+
+[data-mode="kiosk"] .forecast__list li:nth-child(n+2) {
+    display: none;
+}
+
+/* Della pagella resta il giudizio, non i due numeri che lo motivano: a tre
+   metri "sbagliata del 5%" è la cosa che serve, "previsti 43,1 misurati
+   45,4" è per chi ha tempo di leggere e sta seduto davanti a un Mac. */
+[data-mode="kiosk"] .forecast__score {
+    flex: none;
+    margin-left: auto;
+    white-space: nowrap;
+}
+
+[data-mode="kiosk"] .forecast__score-detail {
+    display: none;
+}
+
+/* Il dettaglio tecnico non ha pubblico su un muro. */
+[data-mode="kiosk"] .forecast__basis {
+    display: none;
+}
+
+[data-mode="kiosk"] .forecast__warn {
+    flex: none;
+    padding: var(--space-1) var(--space-3);
+    font-size: var(--fs-micro);
+    white-space: nowrap;
+}
+
+/* ----------------------------------------------------------------------
+   VALORE IN EURO — NON sul pannello a muro, ed è una rinuncia motivata.
+
+   La pianta del kiosk (layout.css) assegna alla banda delle energie 176px,
+   e quei 176px sono già tutti spesi: due barre impilate affiancate, con la
+   riga del titolo e la nota dei flussi di batteria. Misurato: aggiungendoci
+   anche una sola riga di importo la card passa a 200px e sfonda — e siccome
+   le celle del kiosk hanno overflow:hidden, non sfonda in modo visibile,
+   taglia. Un numero tagliato a metà è peggio di un numero assente.
+
+   La pianta non si tocca da qui: layout.css non è fra i file di questo
+   lavoro. E fra le due aggiunte, se una sola può stare sul muro, è la
+   previsione — che dice una cosa che sul pannello non c'è da nessun'altra
+   parte — non gli euro, che sono i kWh già mostrati sopra moltiplicati per
+   un prezzo. Il valore in denaro resta intero nella vista compatta, dove
+   c'è chi legge e c'è spazio per leggerlo.
+   ---------------------------------------------------------------------- */
+[data-mode="kiosk"] .money {
+    display: none;
 }
 
 /* ----------------------------------------------------------------------

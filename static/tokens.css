@@ -157,6 +157,29 @@
     --chart-grid: var(--gray-3);
     --chart-axis: var(--gray-8);
 
+    /* PREVISIONE — il futuro non ha un colore proprio, ed è deliberato.
+       Un quarto colore di serie avrebbe sfondato il test all-pairs (vedi
+       l'intestazione) e, peggio, avrebbe dato alla supposizione un'identità
+       pari a quella del dato. La previsione veste quindi la tinta del RUOLO
+       che continua (solare resta arancio, casa resta inchiostro) e si
+       distingue per tratteggio, opacità e per queste due superfici neutre:
+         --forecast-veil  il fondo della regione "da qui in poi"
+         --forecast-mark  la riga verticale "adesso" e la sua etichetta
+       Il velo è volutamente al limite del percepibile: deve dire "altra
+       zona" senza competere con l'inchiostro dei dati che ci passa sopra. */
+    --forecast-veil: rgba(65, 78, 97, .06);
+    --forecast-mark: var(--text-muted);
+
+    /* DENARO — positivo e negativo.
+       Riusano i passi di STATO, non gli slot categorici: un importo non è
+       una serie, e un euro risparmiato è "bene" nello stesso senso in cui
+       lo è un sistema che risponde. Contrasti misurati (script in fondo al
+       report), non stimati:
+         --money-pos  #0b573a su surface 8.61:1 · su bg 7.39:1   AAA
+         --money-neg  #991c15 su surface 8.30:1 · su bg 7.12:1   AAA */
+    --money-pos: var(--ok-light);
+    --money-neg: var(--error-light);
+
     --focus-ring: var(--blue-light);
     --scrim: rgba(13, 17, 23, .55);
 
@@ -209,6 +232,16 @@
         --chart-grid: #2b3543;
         --chart-axis: #adbdd1;
 
+        /* Sul fondo scuro il velo del futuro schiarisce invece di scurire:
+           un velo nero su una card gia' quasi nera non si vedrebbe. */
+        --forecast-veil: rgba(173, 189, 209, .08);
+        --forecast-mark: var(--text-muted);
+
+        /* --money-pos #3ecf8e su surface 8.49:1 · su bg 9.48:1   AAA
+           --money-neg #ff8a83 su surface 7.44:1 · su bg 8.30:1   AAA */
+        --money-pos: var(--ok-dark);
+        --money-neg: var(--error-dark);
+
         --focus-ring: #6aa8f5;
         --scrim: rgba(0, 0, 0, .7);
 
@@ -247,6 +280,12 @@
     --chart-surface: var(--surface);
     --chart-grid: #2b3543;
     --chart-axis: #adbdd1;
+
+    /* Vedi il blocco @media qui sopra: stessi valori, scope diverso. */
+    --forecast-veil: rgba(173, 189, 209, .08);
+    --forecast-mark: var(--text-muted);
+    --money-pos: var(--ok-dark);
+    --money-neg: var(--error-dark);
 
     --focus-ring: #6aa8f5;
     --scrim: rgba(0, 0, 0, .7);
